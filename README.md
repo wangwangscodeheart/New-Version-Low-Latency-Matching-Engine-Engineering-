@@ -1,5 +1,7 @@
 # Deterministic Low-Latency Matching Engine
 
+> **Note: This is the raw C++ core engine. I am currently building a Python-wrapped version for easier backtesting. Join the waitlist here:** https://forms.gle/BrEMDX3qCx5JfgFz9
+
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Standard](https://img.shields.io/badge/C%2B%2B-17-00599C.svg?logo=c%2B%2B)
 ![Build](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake)
@@ -10,14 +12,17 @@
 
 ---
 
+Note: This is the raw C++ core engine. I am currently building a Python-wrapped version for easier backtesting. Join the waitlist here: https://forms.gle/BrEMDX3qCx5JfgFz9
+
 ## 📖 Overview
 
 This project implements a **deterministic matching engine** optimized for microsecond-level simulations and backtesting. Unlike generic implementations, it adopts a **Data-Oriented Design (DOD)** approach to minimize instruction cache misses and branch mispredictions.
 
 **Core Philosophy:**
-* **Zero Allocation**: No `new`/`malloc` on the hot path. All memory is pre-allocated in contiguous pools.
-* **Cache Locality**: Critical data structures are aligned to 64-byte cache lines to prevent false sharing and maximize L1/L2 hits.
-* **Determinism**: The engine state is a pure function of the input event stream, allowing for bit-exact replay and debugging.
+
+- **Zero Allocation**: No `new`/`malloc` on the hot path. All memory is pre-allocated in contiguous pools.
+- **Cache Locality**: Critical data structures are aligned to 64-byte cache lines to prevent false sharing and maximize L1/L2 hits.
+- **Determinism**: The engine state is a pure function of the input event stream, allowing for bit-exact replay and debugging.
 
 ---
 
@@ -49,6 +54,7 @@ Benchmarks were conducted on a consumer workstation (WSL2) under standard load.
 ## 🏗️ Technical Architecture
 
 ### System Architecture
+
 ```mermaid
 graph TD
     A[External Events] -->|std::variant| B(Event Sourcing Engine)
@@ -61,37 +67,43 @@ graph TD
 ```
 
 ### 1. Memory Layout (Hot Path)
+
 The engine abandons standard STL containers for the order storage to ensure pointer stability and locality.
 
-* **Object Pool**: Orders are stored in a pre-allocated `std::vector<Order>`. Pointers are stable 64-bit addresses within this block.
-* **Intrusive List**: Instead of `std::list` or `std::vector`, orders contain `prev` and `next` pointers. This allows **O(1) removal** from the book without memory deallocation or list traversal.
-* **Cache Alignment**:
-    ```cpp
-    struct Order {
-        // ... fields ...
-        Order* next;
-        Order* prev;
-    } __attribute__((aligned(64))); // Fits exactly in one Cache Line
-    ```
+- **Object Pool**: Orders are stored in a pre-allocated `std::vector<Order>`. Pointers are stable 64-bit addresses within this block.
+- **Intrusive List**: Instead of `std::list` or `std::vector`, orders contain `prev` and `next` pointers. This allows **O(1) removal** from the book without memory deallocation or list traversal.
+- **Cache Alignment**:
+  ```cpp
+  struct Order {
+      // ... fields ...
+      Order* next;
+      Order* prev;
+  } __attribute__((aligned(64))); // Fits exactly in one Cache Line
+  ```
 
 ### 2. Event Sourcing
+
 State mutations are driven strictly by a stream of `Event` variants (`std::variant`).
-* **No Virtual Functions**: Polymorphism is handled via `std::visit`, enabling compiler inlining and avoiding vtable lookups.
-* **Replay Engine**: The system can reload a CSV log and reconstruct the exact state of the Order Book at any timestamp.
+
+- **No Virtual Functions**: Polymorphism is handled via `std::visit`, enabling compiler inlining and avoiding vtable lookups.
+- **Replay Engine**: The system can reload a CSV log and reconstruct the exact state of the Order Book at any timestamp.
 
 ### 3. Type Safety
-* **Strong Typing**: `Price`, `Quantity`, and `OrderId` are distinct types (via template wrappers) to prevent semantic errors (e.g., adding a Price to a Quantity).
-* **Fixed-Point Arithmetic**: Prices are stored as `int64_t` (scaled by 10,000) to avoid floating-point inaccuracies.
+
+- **Strong Typing**: `Price`, `Quantity`, and `OrderId` are distinct types (via template wrappers) to prevent semantic errors (e.g., adding a Price to a Quantity).
+- **Fixed-Point Arithmetic**: Prices are stored as `int64_t` (scaled by 10,000) to avoid floating-point inaccuracies.
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-* C++17 compliant compiler (GCC/Clang/MSVC)
-* CMake 3.14+
+
+- C++17 compliant compiler (GCC/Clang/MSVC)
+- CMake 3.14+
 
 ### Build & Run
+
 The project includes a unified test script that handles build configuration and execution.
 
 ```bash
@@ -109,12 +121,12 @@ The project includes a unified test script that handles build configuration and 
 
 - **Unit Tests**: Verification of matching logic (FIFO priority, partial fills, multi-level sweeps).
 - **Property-Based Tests**: Randomized fuzz testing to verify global invariants:
-  - *Non-Crossing*: Best Bid is strictly less than Best Ask.
-  - *Conservation*: Executed volume <= Submitted volume.
-  - *Idempotence*: `State(Replay(Log)) == State(Original)`.
+  - _Non-Crossing_: Best Bid is strictly less than Best Ask.
+  - _Conservation_: Executed volume <= Submitted volume.
+  - _Idempotence_: `State(Replay(Log)) == State(Original)`.
 - **Sanitizers**: Compatible with ASan (AddressSanitizer) and UBSan for memory safety auditing.
 
-------
+---
 
 ## 🔮 Roadmap
 
@@ -125,7 +137,7 @@ The project includes a unified test script that handles build configuration and 
 - [ ] Snapshot mechanism for fast recovery
 - [ ] FIX Protocol Gateway (QuickFIX)
 
-------
+---
 
 ## 🤝 License
 
