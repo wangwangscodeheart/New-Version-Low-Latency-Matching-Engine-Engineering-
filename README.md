@@ -1,6 +1,6 @@
 # Deterministic Low-Latency Matching Engine
 
-> **Note: This is the raw C++ core engine. I am currently building a Python-wrapped version for easier backtesting. Join the waitlist here:** https://forms.gle/BrEMDX3qCx5JfgFz9
+**Note: This is the raw C++ core engine. I am currently building a Python-wrapped version for easier backtesting. Join the waitlist here:** https://forms.gle/BrEMDX3qCx5JfgFz9
 
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Standard](https://img.shields.io/badge/C%2B%2B-17-00599C.svg?logo=c%2B%2B)
@@ -11,8 +11,6 @@
 > Features zero runtime allocation, cache-aligned memory layout, and deterministic event sourcing.
 
 ---
-
-Note: This is the raw C++ core engine. I am currently building a Python-wrapped version for easier backtesting. Join the waitlist here: https://forms.gle/BrEMDX3qCx5JfgFz9
 
 ## 📖 Overview
 
