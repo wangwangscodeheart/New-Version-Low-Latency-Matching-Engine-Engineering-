@@ -89,13 +89,17 @@ public:
         
         for (int trial = 0; trial < 50; ++trial) {
             OrderBook book1(1000); // Pre-allocate
+            std::vector<Command> commands;
+            commands.reserve(50);
             
             for (uint64_t i = 0; i < 50; ++i) {
                 auto order = generate_random_order(trial * 50 + i + 1);
-                book1.process_new_order(order.id, order.side, order.price, order.quantity);
+                commands.emplace_back(std::in_place_type<NewOrderCommand>,
+                                      order.id, order.side, order.price, order.quantity);
+                book1.process(commands.back());
             }
             
-            OrderBook book2 = ReplayEngine::replay_from_log(book1.get_event_log());
+            OrderBook book2 = ReplayEngine::replay_commands(commands);
             TEST_ASSERT(book1.check_invariants());
             TEST_ASSERT(book2.check_invariants());
             TEST_ASSERT(book1.state_hash() == book2.state_hash());

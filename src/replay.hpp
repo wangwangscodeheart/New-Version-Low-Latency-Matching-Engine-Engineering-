@@ -1,16 +1,13 @@
 #ifndef REPLAY_HPP
 #define REPLAY_HPP
 
+#include "commands.hpp"
 #include "orderbook.hpp"
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
-#include <stdexcept>
-
-// ============================================================================
-// REPLAY ENGINE - Determinism Verification
-// ============================================================================
 
 class ReplayEngine {
 private:
@@ -61,6 +58,19 @@ private:
         }
     }
 
+    static Side parse_side(const std::string& value, size_t line_number) {
+        if (value == "BUY") return Side::BUY;
+        if (value == "SELL") return Side::SELL;
+        throw std::runtime_error("Invalid side at log line " + std::to_string(line_number));
+    }
+
+    static CommandType parse_command_type(const std::string& value, size_t line_number) {
+        if (value == "NEW_ORDER") return CommandType::NEW_ORDER;
+        if (value == "CANCEL_ORDER") return CommandType::CANCEL_ORDER;
+        throw std::runtime_error("Invalid command type at log line " +
+                                 std::to_string(line_number));
+    }
+
     static RejectReason parse_reject_reason(const std::string& value, size_t line_number) {
         const RejectReason reasons[] = {
             RejectReason::DUPLICATE_ORDER_ID, RejectReason::INVALID_PRICE,
@@ -77,122 +87,97 @@ private:
     }
 
 public:
-    // Replay from in-memory event log
-    // Returns a reconstructed OrderBook state
-    static OrderBook replay_from_log(const std::vector<Event>& log,
+    static OrderBook replay_commands(const std::vector<Command>& commands,
                                      InstrumentConfig instrument_config = {},
-                                     PriceLadderConfig price_config = {}) {
-        // Estimate capacity from log size to avoid reallocation
-        const size_t capacity = log.empty() ? 1 : log.size() * 2;
+                                     PriceLadderConfig price_config = {},
+                                     size_t requested_capacity = 0) {
+        const size_t capacity = requested_capacity != 0
+            ? requested_capacity : (commands.empty() ? 1 : commands.size() * 2);
         OrderBook book(capacity, true, price_config, 2, instrument_config);
-        
-        for (const auto& event : log) {
-            std::visit([&book](auto&& e) {
-                using T = std::decay_t<decltype(e)>;
-                if constexpr (std::is_same_v<T, NewOrderEvent>) {
-                    // Replay NewOrder: Re-inject into book
-                    book.process_new_order(e.order_id, e.side, e.price, e.quantity);
-                }
-                else if constexpr (std::is_same_v<T, CancelOrderEvent>) {
-                    // Replay Cancel: Re-inject into book
-                    book.process_cancel(e.order_id);
-                }
-                else if constexpr (std::is_same_v<T, RejectOrderEvent>) {
-                    // Rejections are outcomes, but their logical time must be preserved.
-                    book.advance_replay_time(e.timestamp);
-                }
-            }, event);
+        for (const Command& command : commands) {
+            (void)book.process(command);
         }
-        
         return book;
     }
-    
-    // Save event log to CSV file
-    static void save_log(const std::vector<Event>& log, const std::string& filename) {
+
+    // Existing CSV support is retained only as a diagnostic event round-trip.
+    // Replay input is now an explicit Command sequence, never this event file.
+    static void save_log(const std::vector<EngineEvent>& log, const std::string& filename) {
         std::ofstream file(filename);
-        if (!file) {
-            throw std::runtime_error("Cannot open file: " + filename);
-        }
-        
+        if (!file) throw std::runtime_error("Cannot open file: " + filename);
         char buffer[256];
-        for (const auto& event : log) {
-            // Use our zero-alloc to_buffer helper
+        for (const EngineEvent& event : log) {
             event_to_buffer(event, buffer, sizeof(buffer));
-            file << buffer << "\n";
+            file << buffer << '\n';
         }
     }
-    
-    // Load events from CSV file
-    static std::vector<Event> load_log(const std::string& filename) {
+
+    static std::vector<EngineEvent> load_log(const std::string& filename) {
         std::ifstream file(filename);
-        if (!file) {
-            throw std::runtime_error("Cannot open file: " + filename);
-        }
-        
-        std::vector<Event> log;
+        if (!file) throw std::runtime_error("Cannot open file: " + filename);
+
+        std::vector<EngineEvent> log;
         std::string line;
         size_t line_number = 0;
-        
         while (std::getline(file, line)) {
             ++line_number;
             if (line.empty()) continue;
-            
-            // Minimalistic CSV parser (Fast)
-            std::stringstream ss(line);
+
+            std::stringstream stream(line);
             std::string segment;
             std::vector<std::string> parts;
-            
-            while (std::getline(ss, segment, ',')) {
-                parts.push_back(segment);
-            }
-            
+            while (std::getline(stream, segment, ',')) parts.push_back(segment);
             if (parts.empty()) continue;
-            
-            const std::string& type = parts[0];
-            
-            if (type == "NEW_ORDER") {
-                if (parts.size() != 6) throw std::runtime_error("Invalid NEW_ORDER field count at log line " + std::to_string(line_number));
-                // Format: NEW_ORDER,timestamp,id,side,price,qty
-                Timestamp ts(parse_u64(parts[1], line_number, "timestamp"));
-                OrderId id(parse_u64(parts[2], line_number, "order id"));
-                Side side;
-                if (parts[3] == "BUY") side = Side::BUY;
-                else if (parts[3] == "SELL") side = Side::SELL;
-                else throw std::runtime_error("Invalid side at log line " + std::to_string(line_number));
-                Price price(parse_i64(parts[4], line_number, "price"));
-                Quantity qty(parse_u64(parts[5], line_number, "quantity"));
-                
-                log.emplace_back(std::in_place_type<NewOrderEvent>, ts, id, side, price, qty);
-            }
-            else if (type == "CANCEL_ORDER") {
-                if (parts.size() != 3) throw std::runtime_error("Invalid CANCEL_ORDER field count at log line " + std::to_string(line_number));
-                // Format: CANCEL_ORDER,timestamp,id
-                Timestamp ts(parse_u64(parts[1], line_number, "timestamp"));
-                OrderId id(parse_u64(parts[2], line_number, "order id"));
-                
-                log.emplace_back(std::in_place_type<CancelOrderEvent>, ts, id);
-            }
-            else if (type == "TRADE") {
-                if (parts.size() != 6) throw std::runtime_error("Invalid TRADE field count at log line " + std::to_string(line_number));
+
+            if (parts[0] == "TRADE") {
+                if (parts.size() != 6) {
+                    throw std::runtime_error("Invalid TRADE field count at log line " +
+                                             std::to_string(line_number));
+                }
                 log.emplace_back(std::in_place_type<TradeEvent>,
                     Timestamp(parse_u64(parts[1], line_number, "timestamp")),
                     OrderId(parse_u64(parts[2], line_number, "passive order id")),
                     OrderId(parse_u64(parts[3], line_number, "aggressive order id")),
                     Price(parse_i64(parts[4], line_number, "price")),
                     Quantity(parse_u64(parts[5], line_number, "quantity")));
-            }
-            else if (type == "REJECT_ORDER") {
-                if (parts.size() != 4) throw std::runtime_error("Invalid REJECT_ORDER field count at log line " + std::to_string(line_number));
-                log.emplace_back(std::in_place_type<RejectOrderEvent>,
+            } else if (parts[0] == "ORDER_RESTED") {
+                if (parts.size() != 7) {
+                    throw std::runtime_error("Invalid ORDER_RESTED field count at log line " +
+                                             std::to_string(line_number));
+                }
+                log.emplace_back(std::in_place_type<OrderRestedEvent>,
                     Timestamp(parse_u64(parts[1], line_number, "timestamp")),
                     OrderId(parse_u64(parts[2], line_number, "order id")),
-                    parse_reject_reason(parts[3], line_number));
-            }
-            else {
-                throw std::runtime_error("Unknown event type at log line " + std::to_string(line_number));
+                    parse_side(parts[3], line_number),
+                    Price(parse_i64(parts[4], line_number, "price")),
+                    Quantity(parse_u64(parts[5], line_number, "original quantity")),
+                    Quantity(parse_u64(parts[6], line_number, "remaining quantity")));
+            } else if (parts[0] == "ORDER_CANCELLED") {
+                if (parts.size() != 6) {
+                    throw std::runtime_error("Invalid ORDER_CANCELLED field count at log line " +
+                                             std::to_string(line_number));
+                }
+                log.emplace_back(std::in_place_type<OrderCancelledEvent>,
+                    Timestamp(parse_u64(parts[1], line_number, "timestamp")),
+                    OrderId(parse_u64(parts[2], line_number, "order id")),
+                    parse_side(parts[3], line_number),
+                    Price(parse_i64(parts[4], line_number, "price")),
+                    Quantity(parse_u64(parts[5], line_number, "cancelled quantity")));
+            } else if (parts[0] == "ORDER_REJECTED") {
+                if (parts.size() != 5) {
+                    throw std::runtime_error("Invalid ORDER_REJECTED field count at log line " +
+                                             std::to_string(line_number));
+                }
+                log.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                    Timestamp(parse_u64(parts[1], line_number, "timestamp")),
+                    parse_command_type(parts[2], line_number),
+                    OrderId(parse_u64(parts[3], line_number, "order id")),
+                    parse_reject_reason(parts[4], line_number));
+            } else {
+                throw std::runtime_error("Unknown event type at log line " +
+                                         std::to_string(line_number));
             }
         }
-        
         return log;
     }
 };

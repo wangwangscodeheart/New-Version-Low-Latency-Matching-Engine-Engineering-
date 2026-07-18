@@ -42,6 +42,7 @@ public:
             test_crossed_order();
             test_rejects_invalid_input();
             test_rejects_duplicate_id();
+            test_command_event_sequences();
             test_pool_exhaustion_is_deterministic();
             test_price_ladder_fallback();
             test_high_frequency_cancel_reuse();
@@ -132,7 +133,7 @@ private:
         
         // Verify cancel event
         const auto& log = book.get_event_log();
-        TEST_ASSERT(std::holds_alternative<CancelOrderEvent>(log.back()));
+        TEST_ASSERT(std::holds_alternative<OrderCancelledEvent>(log.back()));
         std::cout << "Passed\n";
     }
     
@@ -151,7 +152,7 @@ private:
         TEST_ASSERT(!log.empty());
         
         // Verify last event is Trade matching Order 1
-        const Event& last_evt = log.back();
+        const EngineEvent& last_evt = log.back();
         const TradeEvent* trade = std::get_if<TradeEvent>(&last_evt);
         
         TEST_ASSERT(trade != nullptr);
@@ -178,15 +179,16 @@ private:
     static void test_replay_determinism() {
         std::cout << "Test 7: Replay Determinism... ";
         OrderBook book1;
-        
-        book1.process_new_order(OrderId(1), Side::SELL, from_double(100.0), Quantity(10));
-        book1.process_new_order(OrderId(2), Side::BUY, from_double(100.0), Quantity(5)); // Trade
-        book1.process_new_order(OrderId(3), Side::SELL, from_double(101.0), Quantity(10));
-        
-        auto log = book1.get_event_log();
+
+        const std::vector<Command> commands{
+            NewOrderCommand(OrderId(1), Side::SELL, from_double(100.0), Quantity(10)),
+            NewOrderCommand(OrderId(2), Side::BUY, from_double(100.0), Quantity(5)),
+            NewOrderCommand(OrderId(3), Side::SELL, from_double(101.0), Quantity(10))
+        };
+        for (const Command& command : commands) book1.process(command);
         
         // Replay
-        OrderBook book2 = ReplayEngine::replay_from_log(log);
+        OrderBook book2 = ReplayEngine::replay_commands(commands);
         
         // Verify state equality
         // 1. Check Best Ask
@@ -237,8 +239,8 @@ private:
         book.process_new_order(OrderId(11), Side::BUY, from_double(100.0), Quantity(0));
         TEST_ASSERT(!book.best_bid().has_value());
         TEST_ASSERT(book.get_event_log().size() == 2);
-        TEST_ASSERT(std::holds_alternative<RejectOrderEvent>(book.get_event_log()[0]));
-        TEST_ASSERT(std::get<RejectOrderEvent>(book.get_event_log()[0]).reason == RejectReason::INVALID_PRICE);
+        TEST_ASSERT(std::holds_alternative<OrderRejectedEvent>(book.get_event_log()[0]));
+        TEST_ASSERT(std::get<OrderRejectedEvent>(book.get_event_log()[0]).reason == RejectReason::INVALID_PRICE);
         std::cout << "Passed\n";
     }
 
@@ -253,22 +255,105 @@ private:
         book.process_new_order(OrderId(1), Side::SELL, Price(0), Quantity(0));
         book.process_cancel(OrderId(1));
         TEST_ASSERT(!book.best_bid().has_value());
-        TEST_ASSERT(std::holds_alternative<RejectOrderEvent>(book.get_event_log()[1]));
-        TEST_ASSERT(std::get<RejectOrderEvent>(book.get_event_log()[1]).reason == RejectReason::DUPLICATE_ORDER_ID);
-        TEST_ASSERT(std::get<RejectOrderEvent>(book.get_event_log()[2]).reason == RejectReason::DUPLICATE_ORDER_ID);
+        TEST_ASSERT(std::holds_alternative<OrderRejectedEvent>(book.get_event_log()[1]));
+        TEST_ASSERT(std::get<OrderRejectedEvent>(book.get_event_log()[1]).reason == RejectReason::DUPLICATE_ORDER_ID);
+        TEST_ASSERT(std::get<OrderRejectedEvent>(book.get_event_log()[2]).reason == RejectReason::DUPLICATE_ORDER_ID);
         std::cout << "Passed\n";
     }
 
     static void test_pool_exhaustion_is_deterministic() {
         std::cout << "Test 12: Pool Exhaustion... ";
         OrderBook book(1);
-        book.process_new_order(OrderId(1), Side::BUY, from_double(100.0), Quantity(10));
-        book.process_new_order(OrderId(2), Side::BUY, from_double(99.0), Quantity(10));
+        const std::vector<Command> commands{
+            NewOrderCommand(OrderId(1), Side::BUY, from_double(100.0), Quantity(10)),
+            NewOrderCommand(OrderId(2), Side::BUY, from_double(99.0), Quantity(10))
+        };
+        for (const Command& command : commands) book.process(command);
         const auto& log = book.get_event_log();
         TEST_ASSERT(log.size() == 2);
-        TEST_ASSERT(std::holds_alternative<RejectOrderEvent>(log.back()));
-        TEST_ASSERT(std::get<RejectOrderEvent>(log.back()).reason == RejectReason::POOL_EXHAUSTED);
-        TEST_ASSERT(book.state_hash() == ReplayEngine::replay_from_log(log).state_hash());
+        TEST_ASSERT(std::holds_alternative<OrderRejectedEvent>(log.back()));
+        TEST_ASSERT(std::get<OrderRejectedEvent>(log.back()).reason == RejectReason::POOL_EXHAUSTED);
+        TEST_ASSERT(book.state_hash() ==
+                    ReplayEngine::replay_commands(commands, {}, {}, 1).state_hash());
+        std::cout << "Passed\n";
+    }
+
+    static void test_command_event_sequences() {
+        std::cout << "Test 12: Command/EngineEvent Sequences... ";
+
+        {
+            OrderBook book(16);
+            const ProcessResult result = book.process(NewOrderCommand(
+                OrderId(1), Side::SELL, from_double(100.0), Quantity(10)));
+            TEST_ASSERT(result.applied());
+            TEST_ASSERT(result.event_begin == 0 && result.event_count == 1);
+            const auto* rested = std::get_if<OrderRestedEvent>(&book.engine_events()[0]);
+            TEST_ASSERT(rested != nullptr);
+            TEST_ASSERT(rested->order_id.get() == 1);
+            TEST_ASSERT(rested->original_quantity.get() == 10);
+            TEST_ASSERT(rested->remaining_quantity.get() == 10);
+        }
+
+        {
+            OrderBook book(16);
+            book.process(NewOrderCommand(OrderId(1), Side::SELL,
+                                         from_double(100.0), Quantity(10)));
+            book.process(NewOrderCommand(OrderId(2), Side::SELL,
+                                         from_double(101.0), Quantity(10)));
+            book.process(NewOrderCommand(OrderId(3), Side::SELL,
+                                         from_double(102.0), Quantity(10)));
+            const ProcessResult result = book.process(NewOrderCommand(
+                OrderId(4), Side::BUY, from_double(105.0), Quantity(25)));
+            TEST_ASSERT(result.applied() && result.event_count == 3);
+            for (size_t i = 0; i < result.event_count; ++i) {
+                const auto* trade = std::get_if<TradeEvent>(
+                    &book.engine_events()[result.event_begin + i]);
+                TEST_ASSERT(trade != nullptr);
+                TEST_ASSERT(trade->passive_order_id.get() == i + 1);
+                TEST_ASSERT(trade->aggressive_order_id.get() == 4);
+            }
+        }
+
+        {
+            OrderBook book(16);
+            book.process(NewOrderCommand(OrderId(1), Side::SELL,
+                                         from_double(100.0), Quantity(10)));
+            const ProcessResult result = book.process(NewOrderCommand(
+                OrderId(2), Side::BUY, from_double(100.0), Quantity(15)));
+            TEST_ASSERT(result.applied() && result.event_count == 2);
+            TEST_ASSERT(std::holds_alternative<TradeEvent>(
+                book.engine_events()[result.event_begin]));
+            const auto* rested = std::get_if<OrderRestedEvent>(
+                &book.engine_events()[result.event_begin + 1]);
+            TEST_ASSERT(rested != nullptr);
+            TEST_ASSERT(rested->order_id.get() == 2);
+            TEST_ASSERT(rested->remaining_quantity.get() == 5);
+        }
+
+        {
+            OrderBook book(16);
+            book.process(NewOrderCommand(OrderId(1), Side::BUY,
+                                         from_double(100.0), Quantity(10)));
+            const ProcessResult duplicate = book.process(NewOrderCommand(
+                OrderId(1), Side::SELL, from_double(101.0), Quantity(10)));
+            TEST_ASSERT(duplicate.status == ProcessStatus::REJECTED);
+            TEST_ASSERT(duplicate.event_count == 1);
+            const auto* rejected = std::get_if<OrderRejectedEvent>(
+                &book.engine_events()[duplicate.event_begin]);
+            TEST_ASSERT(rejected != nullptr);
+            TEST_ASSERT(rejected->command_type == CommandType::NEW_ORDER);
+            TEST_ASSERT(rejected->reason == RejectReason::DUPLICATE_ORDER_ID);
+
+            const ProcessResult missing = book.process(CancelOrderCommand(OrderId(999)));
+            TEST_ASSERT(missing.status == ProcessStatus::REJECTED);
+            TEST_ASSERT(missing.event_count == 1);
+            rejected = std::get_if<OrderRejectedEvent>(
+                &book.engine_events()[missing.event_begin]);
+            TEST_ASSERT(rejected != nullptr);
+            TEST_ASSERT(rejected->command_type == CommandType::CANCEL_ORDER);
+            TEST_ASSERT(rejected->reason == RejectReason::ORDER_NOT_FOUND);
+        }
+
         std::cout << "Passed\n";
     }
 
@@ -371,18 +456,21 @@ private:
         rules.max_price = 2000000;
         rules.max_order_quantity = 100;
         OrderBook book(16, true, {}, 2, rules);
-        book.process_new_order(OrderId(1), Side::BUY, Price(1000001), Quantity(10));
-        book.process_new_order(OrderId(2), Side::BUY, Price(999900), Quantity(10));
-        book.process_new_order(OrderId(3), Side::BUY, Price(1000000), Quantity(11));
-        book.process_new_order(OrderId(4), Side::BUY, Price(1000000), Quantity(110));
-        book.process_new_order(OrderId(5), Side::BUY, Price(1000000), Quantity(10));
+        const std::vector<Command> commands{
+            NewOrderCommand(OrderId(1), Side::BUY, Price(1000001), Quantity(10)),
+            NewOrderCommand(OrderId(2), Side::BUY, Price(999900), Quantity(10)),
+            NewOrderCommand(OrderId(3), Side::BUY, Price(1000000), Quantity(11)),
+            NewOrderCommand(OrderId(4), Side::BUY, Price(1000000), Quantity(110)),
+            NewOrderCommand(OrderId(5), Side::BUY, Price(1000000), Quantity(10))
+        };
+        for (const Command& command : commands) book.process(command);
         const auto& log = book.get_event_log();
-        TEST_ASSERT(std::get<RejectOrderEvent>(log[0]).reason == RejectReason::OFF_TICK_PRICE);
-        TEST_ASSERT(std::get<RejectOrderEvent>(log[1]).reason == RejectReason::PRICE_OUT_OF_RANGE);
-        TEST_ASSERT(std::get<RejectOrderEvent>(log[2]).reason == RejectReason::INVALID_LOT_SIZE);
-        TEST_ASSERT(std::get<RejectOrderEvent>(log[3]).reason == RejectReason::QUANTITY_LIMIT);
-        TEST_ASSERT(std::holds_alternative<NewOrderEvent>(log[4]));
-        TEST_ASSERT(book.state_hash() == ReplayEngine::replay_from_log(log, rules).state_hash());
+        TEST_ASSERT(std::get<OrderRejectedEvent>(log[0]).reason == RejectReason::OFF_TICK_PRICE);
+        TEST_ASSERT(std::get<OrderRejectedEvent>(log[1]).reason == RejectReason::PRICE_OUT_OF_RANGE);
+        TEST_ASSERT(std::get<OrderRejectedEvent>(log[2]).reason == RejectReason::INVALID_LOT_SIZE);
+        TEST_ASSERT(std::get<OrderRejectedEvent>(log[3]).reason == RejectReason::QUANTITY_LIMIT);
+        TEST_ASSERT(std::holds_alternative<OrderRestedEvent>(log[4]));
+        TEST_ASSERT(book.state_hash() == ReplayEngine::replay_commands(commands, rules).state_hash());
         std::cout << "Passed\n";
     }
 
@@ -390,10 +478,13 @@ private:
         std::cout << "Test 18: Disk Log Roundtrip... ";
         const auto path = std::filesystem::temp_directory_path() / "matching_engine_roundtrip.csv";
         OrderBook original(32);
-        original.process_new_order(OrderId(99), Side::BUY, Price(1000001), Quantity(10));
-        original.process_new_order(OrderId(1), Side::SELL, Price(1000000), Quantity(10));
-        original.process_new_order(OrderId(2), Side::BUY, Price(1000000), Quantity(10));
-        original.process_cancel(OrderId(888));
+        const std::vector<Command> commands{
+            NewOrderCommand(OrderId(99), Side::BUY, Price(1000001), Quantity(10)),
+            NewOrderCommand(OrderId(1), Side::SELL, Price(1000000), Quantity(10)),
+            NewOrderCommand(OrderId(2), Side::BUY, Price(1000000), Quantity(10)),
+            CancelOrderCommand(OrderId(888))
+        };
+        for (const Command& command : commands) original.process(command);
         ReplayEngine::save_log(original.get_event_log(), path.string());
         const auto loaded = ReplayEngine::load_log(path.string());
         TEST_ASSERT(loaded.size() == original.get_event_log().size());
@@ -404,7 +495,7 @@ private:
             event_to_buffer(loaded[i], rhs, sizeof(rhs));
             TEST_ASSERT(std::string(lhs) == std::string(rhs));
         }
-        TEST_ASSERT(original.state_hash() == ReplayEngine::replay_from_log(loaded).state_hash());
+        TEST_ASSERT(original.state_hash() == ReplayEngine::replay_commands(commands).state_hash());
         std::filesystem::remove(path);
         std::cout << "Passed\n";
     }

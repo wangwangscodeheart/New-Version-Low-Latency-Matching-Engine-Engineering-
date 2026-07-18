@@ -128,7 +128,7 @@ private:
         size_t level_pool_size = capacity *
             (sizeof(LimitLevel) + sizeof(size_t) + sizeof(uint8_t));
         // OrderBook reserves up to 2x capacity for NEW/CANCEL plus trade events.
-        size_t event_log_size = capacity * 2 * sizeof(Event);
+        size_t event_log_size = capacity * 2 * sizeof(EngineEvent);
         // Estimate map overhead (rough)
         size_t map_overhead = capacity * 16; 
 

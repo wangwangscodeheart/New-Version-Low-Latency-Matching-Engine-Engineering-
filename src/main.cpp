@@ -3,14 +3,16 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <utility>
 #include <variant>
+#include <vector>
 
 // ============================================================================
 // HELPERS FOR DEMO
 // ============================================================================
 
-// Helper to print event details using std::visit (since Event is a variant)
-std::string event_to_string(const Event& event) {
+// Helper to print event details using std::visit (EngineEvent is a variant)
+std::string event_to_string(const EngineEvent& event) {
     char buffer[256];
     event_to_buffer(event, buffer, sizeof(buffer));
     return std::string(buffer);
@@ -44,28 +46,33 @@ int main() {
     
     // Allocate capacity for demo
     OrderBook book(1000);
+    std::vector<Command> commands;
+    auto submit = [&](Command command) {
+        commands.push_back(std::move(command));
+        return book.process(commands.back());
+    };
     
     std::cout << "========== SCENARIO 1: Building Order Book ==========\n";
     std::cout << "\n📝 Adding sell orders...\n";
-    book.process_new_order(OrderId(1), Side::SELL, from_double(101.00), Quantity(50));
-    book.process_new_order(OrderId(2), Side::SELL, from_double(100.50), Quantity(30));
-    book.process_new_order(OrderId(3), Side::SELL, from_double(100.00), Quantity(20));
+    submit(NewOrderCommand(OrderId(1), Side::SELL, from_double(101.00), Quantity(50)));
+    submit(NewOrderCommand(OrderId(2), Side::SELL, from_double(100.50), Quantity(30)));
+    submit(NewOrderCommand(OrderId(3), Side::SELL, from_double(100.00), Quantity(20)));
     print_book_state(book);
     
     std::cout << "\n📝 Adding buy orders...\n";
-    book.process_new_order(OrderId(4), Side::BUY, from_double(99.00), Quantity(40));
-    book.process_new_order(OrderId(5), Side::BUY, from_double(99.50), Quantity(35));
+    submit(NewOrderCommand(OrderId(4), Side::BUY, from_double(99.00), Quantity(40)));
+    submit(NewOrderCommand(OrderId(5), Side::BUY, from_double(99.50), Quantity(35)));
     print_book_state(book);
     
     std::cout << "\n========== SCENARIO 2: Aggressive Order ==========\n";
     std::cout << "\n💥 Aggressive buy order (sweeps multiple levels)...\n";
     // Buy @ 101.50, enough to eat 100.00, 100.50 and part of 101.00
-    book.process_new_order(OrderId(6), Side::BUY, from_double(101.50), Quantity(80));
+    submit(NewOrderCommand(OrderId(6), Side::BUY, from_double(101.50), Quantity(80)));
     print_book_state(book);
     
     std::cout << "\n========== SCENARIO 3: Order Cancellation ==========\n";
     std::cout << "\n🗑️  Cancelling order ID 4 (Buy @ 99.00)...\n";
-    book.process_cancel(OrderId(4));
+    submit(CancelOrderCommand(OrderId(4)));
     print_book_state(book);
     
     std::cout << "\n========== EVENT LOG ==========\n";
@@ -88,7 +95,7 @@ int main() {
     }
     
     std::cout << "\n🔄 Replaying from log...\n";
-    OrderBook replayed = ReplayEngine::replay_from_log(events);
+    OrderBook replayed = ReplayEngine::replay_commands(commands);
     
     // Verify they're identical
     bool identical = true;

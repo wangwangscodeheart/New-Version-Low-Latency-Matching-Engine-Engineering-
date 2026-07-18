@@ -7,6 +7,7 @@
 #include "price_ladder.hpp"
 #include "price_level_store.hpp"
 #include "instrument_config.hpp"
+#include "commands.hpp"
 #include "events.hpp"
 #include <map>
 #include <unordered_map>
@@ -17,9 +18,23 @@
 #include <cassert>
 #include <cstdint>
 #include <limits>
+#include <type_traits>
+
+enum class ProcessStatus : uint8_t {
+    APPLIED = 0,
+    REJECTED = 1
+};
+
+struct ProcessResult {
+    ProcessStatus status;
+    size_t event_begin;
+    size_t event_count;
+
+    bool applied() const noexcept { return status == ProcessStatus::APPLIED; }
+};
 
 // ============================================================================
-// ORDER BOOK - HFT Optimized Matching Engine
+// ORDER BOOK - deterministic price-time matching core
 // ============================================================================
 
 class OrderBook {
@@ -43,7 +58,7 @@ private:
     PriceLadder price_ladder_;
     
     // Event Log: Stores objects by value (contiguous memory)
-    std::vector<Event> event_log_;
+    std::vector<EngineEvent> event_log_;
     
     Timestamp current_time_;
     bool record_events_;
@@ -104,62 +119,92 @@ public:
 
     OrderBook& operator=(OrderBook&&) = delete;
 
-    // ========================================================================
-    // PROCESS: NEW ORDER
-    // ========================================================================
+    ProcessResult process(const Command& command) {
+        const size_t event_begin = event_log_.size();
+        const ProcessStatus status = std::visit([this](const auto& value) {
+            using T = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<T, NewOrderCommand>) {
+                return process_new_order_impl(value.order_id, value.side,
+                                              value.price, value.quantity);
+            } else {
+                return process_cancel_impl(value.order_id);
+            }
+        }, command);
+        return ProcessResult{status, event_begin, event_log_.size() - event_begin};
+    }
+
+    // Compatibility wrappers. All matching logic is routed through process().
     void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
+        (void)process(NewOrderCommand(id, side, price, qty));
+    }
+
+    void process_cancel(OrderId id) {
+        (void)process(CancelOrderCommand(id));
+    }
+
+private:
+    ProcessStatus process_new_order_impl(OrderId id, Side side, Price price, Quantity qty) {
         current_time_ = Timestamp(current_time_.get() + 1);
 
         if (id.get() == 0) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::DUPLICATE_ORDER_ID);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::DUPLICATE_ORDER_ID);
+            return ProcessStatus::REJECTED;
         }
         const FixedOrderIndex::InsertReservation index_reservation =
             order_index_.prepare_insert(id.get());
         if (index_reservation.status == FixedOrderIndex::InsertStatus::DUPLICATE) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::DUPLICATE_ORDER_ID);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::DUPLICATE_ORDER_ID);
+            return ProcessStatus::REJECTED;
         }
         if (price.get() <= 0) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::INVALID_PRICE);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::INVALID_PRICE);
+            return ProcessStatus::REJECTED;
         }
         if (!instrument_config_.price_in_range(price.get())) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::PRICE_OUT_OF_RANGE);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::PRICE_OUT_OF_RANGE);
+            return ProcessStatus::REJECTED;
         }
         if (!instrument_config_.price_on_tick(price.get())) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::OFF_TICK_PRICE);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::OFF_TICK_PRICE);
+            return ProcessStatus::REJECTED;
         }
         if (qty.get() == 0) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::INVALID_QUANTITY);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::INVALID_QUANTITY);
+            return ProcessStatus::REJECTED;
         }
         if (!instrument_config_.quantity_in_range(qty.get())) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::QUANTITY_LIMIT);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::QUANTITY_LIMIT);
+            return ProcessStatus::REJECTED;
         }
         if (!instrument_config_.quantity_on_lot(qty.get())) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::INVALID_LOT_SIZE);
-            return;
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::INVALID_LOT_SIZE);
+            return ProcessStatus::REJECTED;
         }
 
         // Reserve the order object before acknowledging the command.
         Order* order = order_pool_.allocate();
         if (!order) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::POOL_EXHAUSTED);
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::POOL_EXHAUSTED);
             std::cerr << "CRITICAL: Order Pool Exhausted!\n";
-            return;
+            return ProcessStatus::REJECTED;
         }
 
         order->activate(id, current_time_, side, price, qty);
@@ -169,14 +214,11 @@ public:
           if (index_reservation.status != FixedOrderIndex::InsertStatus::AVAILABLE ||
               !order_index_.commit_insert(index_reservation, id.get(), order)) {
               order_pool_.deallocate(order);
-              if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::INDEX_EXHAUSTED);
-              return;
+              if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::NEW_ORDER, id,
+                                    RejectReason::INDEX_EXHAUSTED);
+              return ProcessStatus::REJECTED;
           }
-
-          // Only accepted commands are logged as NEW_ORDER.
-          if (record_events_) event_log_.emplace_back(std::in_place_type<NewOrderEvent>,
-                                current_time_, id, side, price, qty);
 
           // 3. Match logic
 
@@ -190,28 +232,33 @@ public:
         // 5. Add remaining to book
         if (!order->is_filled()) {
             add_to_book(order);
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRestedEvent>,
+                                    current_time_, order->id, order->side, order->price,
+                                    order->original_qty, order->remaining_qty);
         } else {
             order_index_.erase(id.get());
             order_pool_.deallocate(order);
         }
+        return ProcessStatus::APPLIED;
     }
 
     // ========================================================================
     // PROCESS: CANCEL ORDER (Optimized to O(1))
     // ========================================================================
-    void process_cancel(OrderId id) {
+    ProcessStatus process_cancel_impl(OrderId id) {
         current_time_ = Timestamp(current_time_.get() + 1);
-        
-        // Log event
-        if (record_events_) event_log_.emplace_back(std::in_place_type<CancelOrderEvent>,
-                              current_time_, id);
 
         Order* order = order_index_.find(id.get());
         if (!order) {
-            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
-                                    current_time_, id, RejectReason::ORDER_NOT_FOUND);
-            return; // Order not found (already filled or cancelled)
+            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
+                                    current_time_, CommandType::CANCEL_ORDER, id,
+                                    RejectReason::ORDER_NOT_FOUND);
+            return ProcessStatus::REJECTED;
         }
+
+        const Side side = order->side;
+        const Price price = order->price;
+        const Quantity remaining = order->remaining_qty;
 
         // 1. Remove from LimitLevel (Intrusive Unlink O(1))
         remove_from_level(order);
@@ -219,11 +266,15 @@ public:
         // 2. Free memory
         order_index_.erase(id.get());
         order_pool_.deallocate(order);
+        if (record_events_) event_log_.emplace_back(std::in_place_type<OrderCancelledEvent>,
+                                current_time_, id, side, price, remaining);
+        return ProcessStatus::APPLIED;
     }
 
     // ========================================================================
     // READ-ONLY ACCESSORS
     // ========================================================================
+public:
     std::optional<Price> best_bid() const {
         if (bids_.empty()) return std::nullopt;
         return Price(bids_.begin()->first);
@@ -234,7 +285,11 @@ public:
         return Price(asks_.begin()->first);
     }
 
-      const std::vector<Event>& get_event_log() const {
+      const std::vector<EngineEvent>& get_event_log() const {
+          return event_log_;
+      }
+
+      const std::vector<EngineEvent>& engine_events() const noexcept {
           return event_log_;
       }
 
