@@ -308,6 +308,28 @@ private:
             TEST_ASSERT(!book.best_bid().has_value());
             TEST_ASSERT(book.available_level_slots() == book.level_pool_capacity());
         }
+
+        // capacity=4 creates a 16-slot table. Because the Fibonacci multiplier
+        // is odd, IDs separated by 16 share the same masked start slot.
+        FixedOrderIndex collision_index(4);
+        Order first(OrderId(1), Timestamp(1), Side::BUY, Price(100), Quantity(1));
+        Order middle(OrderId(17), Timestamp(2), Side::BUY, Price(100), Quantity(1));
+        Order last(OrderId(33), Timestamp(3), Side::BUY, Price(100), Quantity(1));
+        const auto first_slot = collision_index.prepare_insert(first.id.get());
+        TEST_ASSERT(first_slot.status == FixedOrderIndex::InsertStatus::AVAILABLE);
+        TEST_ASSERT(collision_index.commit_insert(first_slot, first.id.get(), &first));
+        const auto middle_slot = collision_index.prepare_insert(middle.id.get());
+        TEST_ASSERT(middle_slot.status == FixedOrderIndex::InsertStatus::AVAILABLE);
+        TEST_ASSERT(collision_index.commit_insert(middle_slot, middle.id.get(), &middle));
+        const auto last_slot = collision_index.prepare_insert(last.id.get());
+        TEST_ASSERT(last_slot.status == FixedOrderIndex::InsertStatus::AVAILABLE);
+        TEST_ASSERT(collision_index.commit_insert(last_slot, last.id.get(), &last));
+        TEST_ASSERT(collision_index.prepare_insert(middle.id.get()).status ==
+                    FixedOrderIndex::InsertStatus::DUPLICATE);
+        TEST_ASSERT(collision_index.erase(middle.id.get()));
+        TEST_ASSERT(collision_index.find(first.id.get()) == &first);
+        TEST_ASSERT(collision_index.find(middle.id.get()) == nullptr);
+        TEST_ASSERT(collision_index.find(last.id.get()) == &last);
         std::cout << "Passed\n";
     }
 
