@@ -46,12 +46,18 @@ struct OrderIdTag {};
 struct PriceTag {};
 struct QuantityTag {};
 struct TimestampTag {};
+struct CommandSequenceTag {};
+struct EventIndexTag {};
+struct PrioritySequenceTag {};
 
 // Strong type aliases
 using OrderId = StrongType<uint64_t, OrderIdTag>;
 using Price = StrongType<int64_t, PriceTag>;
 using Quantity = StrongType<uint64_t, QuantityTag>;
 using Timestamp = StrongType<uint64_t, TimestampTag>;
+using CommandSequence = StrongType<uint64_t, CommandSequenceTag>;
+using EventIndex = StrongType<uint32_t, EventIndexTag>;
+using PrioritySequence = StrongType<uint64_t, PrioritySequenceTag>;
 
 // Price scaling factor
 constexpr int64_t PRICE_SCALE = 10000;

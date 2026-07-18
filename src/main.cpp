@@ -54,25 +54,25 @@ int main() {
     
     std::cout << "========== SCENARIO 1: Building Order Book ==========\n";
     std::cout << "\n📝 Adding sell orders...\n";
-    submit(NewOrderCommand(OrderId(1), Side::SELL, from_double(101.00), Quantity(50)));
-    submit(NewOrderCommand(OrderId(2), Side::SELL, from_double(100.50), Quantity(30)));
-    submit(NewOrderCommand(OrderId(3), Side::SELL, from_double(100.00), Quantity(20)));
+    submit(NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL, from_double(101.00), Quantity(50)));
+    submit(NewOrderCommand(CommandSequence(2), OrderId(2), Side::SELL, from_double(100.50), Quantity(30)));
+    submit(NewOrderCommand(CommandSequence(3), OrderId(3), Side::SELL, from_double(100.00), Quantity(20)));
     print_book_state(book);
     
     std::cout << "\n📝 Adding buy orders...\n";
-    submit(NewOrderCommand(OrderId(4), Side::BUY, from_double(99.00), Quantity(40)));
-    submit(NewOrderCommand(OrderId(5), Side::BUY, from_double(99.50), Quantity(35)));
+    submit(NewOrderCommand(CommandSequence(4), OrderId(4), Side::BUY, from_double(99.00), Quantity(40)));
+    submit(NewOrderCommand(CommandSequence(5), OrderId(5), Side::BUY, from_double(99.50), Quantity(35)));
     print_book_state(book);
     
     std::cout << "\n========== SCENARIO 2: Aggressive Order ==========\n";
     std::cout << "\n💥 Aggressive buy order (sweeps multiple levels)...\n";
     // Buy @ 101.50, enough to eat 100.00, 100.50 and part of 101.00
-    submit(NewOrderCommand(OrderId(6), Side::BUY, from_double(101.50), Quantity(80)));
+    submit(NewOrderCommand(CommandSequence(6), OrderId(6), Side::BUY, from_double(101.50), Quantity(80)));
     print_book_state(book);
     
     std::cout << "\n========== SCENARIO 3: Order Cancellation ==========\n";
     std::cout << "\n🗑️  Cancelling order ID 4 (Buy @ 99.00)...\n";
-    submit(CancelOrderCommand(OrderId(4)));
+    submit(CancelOrderCommand(CommandSequence(7), OrderId(4)));
     print_book_state(book);
     
     std::cout << "\n========== EVENT LOG ==========\n";

@@ -13,7 +13,7 @@ struct LimitLevel;
 
 struct Order {
     OrderId id;
-    Timestamp timestamp;
+    PrioritySequence priority_sequence;
     Side side;
     Price price;
     Quantity original_qty;
@@ -24,13 +24,13 @@ struct Order {
     Order* prev;
     LimitLevel* parent_level;
     
-    Order(OrderId id_, Timestamp ts, Side s, Price p, Quantity q)
-        : id(id_), timestamp(ts), side(s), price(p), 
+    Order(OrderId id_, PrioritySequence priority, Side s, Price p, Quantity q)
+        : id(id_), priority_sequence(priority), side(s), price(p),
           original_qty(q), remaining_qty(q), next(nullptr), prev(nullptr), parent_level(nullptr) {}
 
-    void activate(OrderId id_, Timestamp ts, Side s, Price p, Quantity q) noexcept {
+    void activate(OrderId id_, PrioritySequence priority, Side s, Price p, Quantity q) noexcept {
         id = id_;
-        timestamp = ts;
+        priority_sequence = priority;
         side = s;
         price = p;
         original_qty = q;
@@ -67,7 +67,7 @@ public:
 
         // Pre-allocate all objects
         for (size_t i = 0; i < capacity; ++i) {
-            pool_.emplace_back(OrderId(0), Timestamp(0), Side::BUY, 
+            pool_.emplace_back(OrderId(0), PrioritySequence(0), Side::BUY,
                               Price(0), Quantity(0));
             free_list_.push_back(&pool_[i]);
         }

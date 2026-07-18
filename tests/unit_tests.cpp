@@ -43,6 +43,7 @@ public:
             test_rejects_invalid_input();
             test_rejects_duplicate_id();
             test_command_event_sequences();
+            test_command_sequence_rules();
             test_pool_exhaustion_is_deterministic();
             test_price_ladder_fallback();
             test_high_frequency_cancel_reuse();
@@ -181,9 +182,9 @@ private:
         OrderBook book1;
 
         const std::vector<Command> commands{
-            NewOrderCommand(OrderId(1), Side::SELL, from_double(100.0), Quantity(10)),
-            NewOrderCommand(OrderId(2), Side::BUY, from_double(100.0), Quantity(5)),
-            NewOrderCommand(OrderId(3), Side::SELL, from_double(101.0), Quantity(10))
+            NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL, from_double(100.0), Quantity(10)),
+            NewOrderCommand(CommandSequence(2), OrderId(2), Side::BUY, from_double(100.0), Quantity(5)),
+            NewOrderCommand(CommandSequence(3), OrderId(3), Side::SELL, from_double(101.0), Quantity(10))
         };
         for (const Command& command : commands) book1.process(command);
         
@@ -265,8 +266,8 @@ private:
         std::cout << "Test 12: Pool Exhaustion... ";
         OrderBook book(1);
         const std::vector<Command> commands{
-            NewOrderCommand(OrderId(1), Side::BUY, from_double(100.0), Quantity(10)),
-            NewOrderCommand(OrderId(2), Side::BUY, from_double(99.0), Quantity(10))
+            NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY, from_double(100.0), Quantity(10)),
+            NewOrderCommand(CommandSequence(2), OrderId(2), Side::BUY, from_double(99.0), Quantity(10))
         };
         for (const Command& command : commands) book.process(command);
         const auto& log = book.get_event_log();
@@ -284,7 +285,8 @@ private:
         {
             OrderBook book(16);
             const ProcessResult result = book.process(NewOrderCommand(
-                OrderId(1), Side::SELL, from_double(100.0), Quantity(10)));
+                CommandSequence(1), OrderId(1), Side::SELL,
+                from_double(100.0), Quantity(10)));
             TEST_ASSERT(result.applied());
             TEST_ASSERT(result.event_begin == 0 && result.event_count == 1);
             const auto* rested = std::get_if<OrderRestedEvent>(&book.engine_events()[0]);
@@ -296,19 +298,22 @@ private:
 
         {
             OrderBook book(16);
-            book.process(NewOrderCommand(OrderId(1), Side::SELL,
+            book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL,
                                          from_double(100.0), Quantity(10)));
-            book.process(NewOrderCommand(OrderId(2), Side::SELL,
+            book.process(NewOrderCommand(CommandSequence(2), OrderId(2), Side::SELL,
                                          from_double(101.0), Quantity(10)));
-            book.process(NewOrderCommand(OrderId(3), Side::SELL,
+            book.process(NewOrderCommand(CommandSequence(3), OrderId(3), Side::SELL,
                                          from_double(102.0), Quantity(10)));
             const ProcessResult result = book.process(NewOrderCommand(
-                OrderId(4), Side::BUY, from_double(105.0), Quantity(25)));
+                CommandSequence(4), OrderId(4), Side::BUY,
+                from_double(105.0), Quantity(25)));
             TEST_ASSERT(result.applied() && result.event_count == 3);
             for (size_t i = 0; i < result.event_count; ++i) {
                 const auto* trade = std::get_if<TradeEvent>(
                     &book.engine_events()[result.event_begin + i]);
                 TEST_ASSERT(trade != nullptr);
+                TEST_ASSERT(trade->command_sequence.get() == 4);
+                TEST_ASSERT(trade->event_index.get() == i);
                 TEST_ASSERT(trade->passive_order_id.get() == i + 1);
                 TEST_ASSERT(trade->aggressive_order_id.get() == 4);
             }
@@ -316,26 +321,30 @@ private:
 
         {
             OrderBook book(16);
-            book.process(NewOrderCommand(OrderId(1), Side::SELL,
+            book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL,
                                          from_double(100.0), Quantity(10)));
             const ProcessResult result = book.process(NewOrderCommand(
-                OrderId(2), Side::BUY, from_double(100.0), Quantity(15)));
+                CommandSequence(2), OrderId(2), Side::BUY,
+                from_double(100.0), Quantity(15)));
             TEST_ASSERT(result.applied() && result.event_count == 2);
             TEST_ASSERT(std::holds_alternative<TradeEvent>(
                 book.engine_events()[result.event_begin]));
+            TEST_ASSERT(get_event_index(book.engine_events()[result.event_begin]).get() == 0);
             const auto* rested = std::get_if<OrderRestedEvent>(
                 &book.engine_events()[result.event_begin + 1]);
             TEST_ASSERT(rested != nullptr);
             TEST_ASSERT(rested->order_id.get() == 2);
             TEST_ASSERT(rested->remaining_quantity.get() == 5);
+            TEST_ASSERT(rested->event_index.get() == 1);
         }
 
         {
             OrderBook book(16);
-            book.process(NewOrderCommand(OrderId(1), Side::BUY,
+            book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
                                          from_double(100.0), Quantity(10)));
             const ProcessResult duplicate = book.process(NewOrderCommand(
-                OrderId(1), Side::SELL, from_double(101.0), Quantity(10)));
+                CommandSequence(2), OrderId(1), Side::SELL,
+                from_double(101.0), Quantity(10)));
             TEST_ASSERT(duplicate.status == ProcessStatus::REJECTED);
             TEST_ASSERT(duplicate.event_count == 1);
             const auto* rejected = std::get_if<OrderRejectedEvent>(
@@ -344,7 +353,8 @@ private:
             TEST_ASSERT(rejected->command_type == CommandType::NEW_ORDER);
             TEST_ASSERT(rejected->reason == RejectReason::DUPLICATE_ORDER_ID);
 
-            const ProcessResult missing = book.process(CancelOrderCommand(OrderId(999)));
+            const ProcessResult missing = book.process(
+                CancelOrderCommand(CommandSequence(3), OrderId(999)));
             TEST_ASSERT(missing.status == ProcessStatus::REJECTED);
             TEST_ASSERT(missing.event_count == 1);
             rejected = std::get_if<OrderRejectedEvent>(
@@ -354,6 +364,74 @@ private:
             TEST_ASSERT(rejected->reason == RejectReason::ORDER_NOT_FOUND);
         }
 
+        std::cout << "Passed\n";
+    }
+
+    static void test_command_sequence_rules() {
+        std::cout << "Test: Deterministic Command Sequence... ";
+        OrderBook book(16);
+
+        const ProcessResult first = book.process(NewOrderCommand(
+            CommandSequence(10), OrderId(1), Side::SELL,
+            from_double(100.0), Quantity(10)));
+        TEST_ASSERT(first.applied());
+        TEST_ASSERT(book.last_applied_command_sequence().get() == 10);
+        const auto* first_rested = std::get_if<OrderRestedEvent>(
+            &book.engine_events()[first.event_begin]);
+        TEST_ASSERT(first_rested != nullptr);
+        TEST_ASSERT(first_rested->priority_sequence.get() == 10);
+
+        const uint64_t before_invalid_sequence = book.state_hash();
+        const ProcessResult duplicate_sequence = book.process(NewOrderCommand(
+            CommandSequence(10), OrderId(2), Side::SELL,
+            from_double(100.0), Quantity(10)));
+        TEST_ASSERT(duplicate_sequence.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(book.state_hash() == before_invalid_sequence);
+        const auto* sequence_reject = std::get_if<OrderRejectedEvent>(
+            &book.engine_events()[duplicate_sequence.event_begin]);
+        TEST_ASSERT(sequence_reject != nullptr);
+        TEST_ASSERT(sequence_reject->reason == RejectReason::INVALID_COMMAND_SEQUENCE);
+        TEST_ASSERT(sequence_reject->command_sequence.get() == 10);
+        TEST_ASSERT(sequence_reject->event_index.get() == 0);
+
+        const ProcessResult backwards = book.process(
+            CancelOrderCommand(CommandSequence(9), OrderId(1)));
+        TEST_ASSERT(backwards.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(book.state_hash() == before_invalid_sequence);
+
+        const ProcessResult zero = book.process(
+            CancelOrderCommand(CommandSequence(0), OrderId(1)));
+        TEST_ASSERT(zero.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(book.state_hash() == before_invalid_sequence);
+
+        const ProcessResult business_reject = book.process(NewOrderCommand(
+            CommandSequence(20), OrderId(99), Side::BUY, Price(0), Quantity(1)));
+        TEST_ASSERT(business_reject.status == ProcessStatus::REJECTED);
+        TEST_ASSERT(book.last_applied_command_sequence().get() == 20);
+        TEST_ASSERT(get_event_index(book.engine_events()[business_reject.event_begin]).get() == 0);
+
+        const ProcessResult second = book.process(NewOrderCommand(
+            CommandSequence(30), OrderId(2), Side::SELL,
+            from_double(100.0), Quantity(10)));
+        TEST_ASSERT(second.applied());
+        const auto* second_rested = std::get_if<OrderRestedEvent>(
+            &book.engine_events()[second.event_begin]);
+        TEST_ASSERT(second_rested != nullptr);
+        TEST_ASSERT(second_rested->priority_sequence.get() == 30);
+
+        const ProcessResult sweep = book.process(NewOrderCommand(
+            CommandSequence(40), OrderId(3), Side::BUY,
+            from_double(100.0), Quantity(20)));
+        TEST_ASSERT(sweep.applied() && sweep.event_count == 2);
+        for (size_t i = 0; i < sweep.event_count; ++i) {
+            const auto* trade = std::get_if<TradeEvent>(
+                &book.engine_events()[sweep.event_begin + i]);
+            TEST_ASSERT(trade != nullptr);
+            TEST_ASSERT(trade->event_index.get() == i);
+            TEST_ASSERT(trade->passive_order_id.get() == i + 1);
+        }
+        TEST_ASSERT(book.last_applied_command_sequence().get() == 40);
+        TEST_ASSERT(book.check_invariants());
         std::cout << "Passed\n";
     }
 
@@ -397,9 +475,9 @@ private:
         // capacity=4 creates a 16-slot table. Because the Fibonacci multiplier
         // is odd, IDs separated by 16 share the same masked start slot.
         FixedOrderIndex collision_index(4);
-        Order first(OrderId(1), Timestamp(1), Side::BUY, Price(100), Quantity(1));
-        Order middle(OrderId(17), Timestamp(2), Side::BUY, Price(100), Quantity(1));
-        Order last(OrderId(33), Timestamp(3), Side::BUY, Price(100), Quantity(1));
+        Order first(OrderId(1), PrioritySequence(1), Side::BUY, Price(100), Quantity(1));
+        Order middle(OrderId(17), PrioritySequence(2), Side::BUY, Price(100), Quantity(1));
+        Order last(OrderId(33), PrioritySequence(3), Side::BUY, Price(100), Quantity(1));
         const auto first_slot = collision_index.prepare_insert(first.id.get());
         TEST_ASSERT(first_slot.status == FixedOrderIndex::InsertStatus::AVAILABLE);
         TEST_ASSERT(collision_index.commit_insert(first_slot, first.id.get(), &first));
@@ -457,11 +535,11 @@ private:
         rules.max_order_quantity = 100;
         OrderBook book(16, true, {}, 2, rules);
         const std::vector<Command> commands{
-            NewOrderCommand(OrderId(1), Side::BUY, Price(1000001), Quantity(10)),
-            NewOrderCommand(OrderId(2), Side::BUY, Price(999900), Quantity(10)),
-            NewOrderCommand(OrderId(3), Side::BUY, Price(1000000), Quantity(11)),
-            NewOrderCommand(OrderId(4), Side::BUY, Price(1000000), Quantity(110)),
-            NewOrderCommand(OrderId(5), Side::BUY, Price(1000000), Quantity(10))
+            NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY, Price(1000001), Quantity(10)),
+            NewOrderCommand(CommandSequence(2), OrderId(2), Side::BUY, Price(999900), Quantity(10)),
+            NewOrderCommand(CommandSequence(3), OrderId(3), Side::BUY, Price(1000000), Quantity(11)),
+            NewOrderCommand(CommandSequence(4), OrderId(4), Side::BUY, Price(1000000), Quantity(110)),
+            NewOrderCommand(CommandSequence(5), OrderId(5), Side::BUY, Price(1000000), Quantity(10))
         };
         for (const Command& command : commands) book.process(command);
         const auto& log = book.get_event_log();
@@ -479,10 +557,10 @@ private:
         const auto path = std::filesystem::temp_directory_path() / "matching_engine_roundtrip.csv";
         OrderBook original(32);
         const std::vector<Command> commands{
-            NewOrderCommand(OrderId(99), Side::BUY, Price(1000001), Quantity(10)),
-            NewOrderCommand(OrderId(1), Side::SELL, Price(1000000), Quantity(10)),
-            NewOrderCommand(OrderId(2), Side::BUY, Price(1000000), Quantity(10)),
-            CancelOrderCommand(OrderId(888))
+            NewOrderCommand(CommandSequence(1), OrderId(99), Side::BUY, Price(1000001), Quantity(10)),
+            NewOrderCommand(CommandSequence(2), OrderId(1), Side::SELL, Price(1000000), Quantity(10)),
+            NewOrderCommand(CommandSequence(3), OrderId(2), Side::BUY, Price(1000000), Quantity(10)),
+            CancelOrderCommand(CommandSequence(4), OrderId(888))
         };
         for (const Command& command : commands) original.process(command);
         ReplayEngine::save_log(original.get_event_log(), path.string());

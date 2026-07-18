@@ -95,7 +95,8 @@ public:
             for (uint64_t i = 0; i < 50; ++i) {
                 auto order = generate_random_order(trial * 50 + i + 1);
                 commands.emplace_back(std::in_place_type<NewOrderCommand>,
-                                      order.id, order.side, order.price, order.quantity);
+                                      CommandSequence(i + 1), order.id, order.side,
+                                      order.price, order.quantity);
                 book1.process(commands.back());
             }
             
