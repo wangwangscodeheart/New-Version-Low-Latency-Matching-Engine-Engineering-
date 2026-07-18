@@ -162,7 +162,7 @@ public:
             return;
         }
 
-        *order = Order(id, current_time_, side, price, qty);
+        order->activate(id, current_time_, side, price, qty);
 
           // Index before acknowledging the command. A failed index insertion must
           // never leave a NEW_ORDER event in the replay stream.
