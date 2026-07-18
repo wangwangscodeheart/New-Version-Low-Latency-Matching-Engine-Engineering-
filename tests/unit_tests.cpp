@@ -206,6 +206,9 @@ private:
         TEST_ASSERT(book1.capture_state() == book2.capture_state());
         TEST_ASSERT(book1.state_hash() == book2.state_hash());
         TEST_ASSERT(verification.success());
+        TEST_ASSERT(verification.expected_invariants_hold);
+        TEST_ASSERT(verification.replayed_invariants_hold);
+        TEST_ASSERT(std::string(verification.invariant_error()) == "NONE");
         TEST_ASSERT(verification.first_mismatched_event ==
                     CommandReplayVerification::NO_EVENT_MISMATCH);
 
@@ -398,31 +401,34 @@ private:
         TEST_ASSERT(first_rested->priority_sequence.get() == 10);
 
         const uint64_t before_invalid_sequence = book.state_hash();
+        const size_t events_before_invalid_sequence = book.engine_events().size();
         const ProcessResult duplicate_sequence = book.process(NewOrderCommand(
             CommandSequence(10), OrderId(2), Side::SELL,
             from_double(100.0), Quantity(10)));
         TEST_ASSERT(duplicate_sequence.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(duplicate_sequence.event_count == 0);
+        TEST_ASSERT(book.engine_events().size() == events_before_invalid_sequence);
         TEST_ASSERT(book.state_hash() == before_invalid_sequence);
-        const auto* sequence_reject = std::get_if<OrderRejectedEvent>(
-            &book.engine_events()[duplicate_sequence.event_begin]);
-        TEST_ASSERT(sequence_reject != nullptr);
-        TEST_ASSERT(sequence_reject->reason == RejectReason::INVALID_COMMAND_SEQUENCE);
-        TEST_ASSERT(sequence_reject->command_sequence.get() == 10);
-        TEST_ASSERT(sequence_reject->event_index.get() == 0);
 
         const ProcessResult backwards = book.process(
             CancelOrderCommand(CommandSequence(9), OrderId(1)));
         TEST_ASSERT(backwards.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(backwards.event_count == 0);
+        TEST_ASSERT(book.engine_events().size() == events_before_invalid_sequence);
         TEST_ASSERT(book.state_hash() == before_invalid_sequence);
 
         const ProcessResult zero = book.process(
             CancelOrderCommand(CommandSequence(0), OrderId(1)));
         TEST_ASSERT(zero.status == ProcessStatus::SEQUENCE_REJECTED);
+        TEST_ASSERT(zero.event_count == 0);
+        TEST_ASSERT(book.engine_events().size() == events_before_invalid_sequence);
         TEST_ASSERT(book.state_hash() == before_invalid_sequence);
 
         const ProcessResult business_reject = book.process(NewOrderCommand(
             CommandSequence(20), OrderId(99), Side::BUY, Price(0), Quantity(1)));
         TEST_ASSERT(business_reject.status == ProcessStatus::REJECTED);
+        TEST_ASSERT(business_reject.event_count == 1);
+        TEST_ASSERT(book.engine_events().size() == events_before_invalid_sequence + 1);
         TEST_ASSERT(book.last_applied_command_sequence().get() == 20);
         TEST_ASSERT(get_event_index(book.engine_events()[business_reject.event_begin]).get() == 0);
 
@@ -448,6 +454,28 @@ private:
         }
         TEST_ASSERT(book.last_applied_command_sequence().get() == 40);
         TEST_ASSERT(book.check_invariants());
+
+        const std::vector<Command> replay_with_admission_rejections{
+            NewOrderCommand(CommandSequence(10), OrderId(11), Side::BUY,
+                            from_double(99.0), Quantity(1)),
+            NewOrderCommand(CommandSequence(10), OrderId(12), Side::BUY,
+                            from_double(98.0), Quantity(1)),
+            CancelOrderCommand(CommandSequence(9), OrderId(11)),
+            NewOrderCommand(CommandSequence(20), OrderId(13), Side::BUY,
+                            Price(0), Quantity(1)),
+            CancelOrderCommand(CommandSequence(30), OrderId(999))
+        };
+        OrderBook replay_source(16);
+        for (const Command& command : replay_with_admission_rejections) {
+            (void)replay_source.process(command);
+        }
+        TEST_ASSERT(replay_source.engine_events().size() == 3);
+        const CommandReplayVerification replay_verification =
+            ReplayEngine::verify_commands(replay_with_admission_rejections,
+                                          replay_source);
+        TEST_ASSERT(replay_verification.success());
+        TEST_ASSERT(replay_verification.expected_invariants_hold);
+        TEST_ASSERT(replay_verification.replayed_invariants_hold);
         std::cout << "Passed\n";
     }
 

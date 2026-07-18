@@ -135,13 +135,8 @@ public:
         const CommandSequence sequence = get_command_sequence(command);
         if (sequence.get() == 0 ||
             sequence.get() <= last_applied_command_sequence_.get()) {
-            if (record_events_) {
-                event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
-                    sequence, EventIndex(0), get_command_type(command),
-                    get_order_id(command), RejectReason::INVALID_COMMAND_SEQUENCE);
-            }
             return ProcessResult{ProcessStatus::SEQUENCE_REJECTED, event_begin,
-                                 event_log_.size() - event_begin};
+                                 0};
         }
 
         current_command_sequence_ = sequence;

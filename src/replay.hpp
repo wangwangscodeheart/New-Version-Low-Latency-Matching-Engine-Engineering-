@@ -16,6 +16,8 @@ struct CommandReplayVerification {
 
     bool engine_events_equal = false;
     bool order_book_state_equal = false;
+    bool expected_invariants_hold = false;
+    bool replayed_invariants_hold = false;
     bool state_hash_equal = false;
     size_t first_mismatched_event = NO_EVENT_MISMATCH;
     size_t expected_event_count = 0;
@@ -24,7 +26,19 @@ struct CommandReplayVerification {
     uint64_t actual_state_hash = 0;
 
     bool success() const noexcept {
-        return engine_events_equal && order_book_state_equal && state_hash_equal;
+        return engine_events_equal && order_book_state_equal &&
+               expected_invariants_hold && replayed_invariants_hold &&
+               state_hash_equal;
+    }
+
+    const char* invariant_error() const noexcept {
+        if (expected_invariants_hold && replayed_invariants_hold) return "NONE";
+        if (!expected_invariants_hold && !replayed_invariants_hold) {
+            return "EXPECTED_AND_REPLAYED_BOOK_INVARIANTS_FAILED";
+        }
+        return expected_invariants_hold
+            ? "REPLAYED_BOOK_INVARIANTS_FAILED"
+            : "EXPECTED_BOOK_INVARIANTS_FAILED";
     }
 };
 
@@ -105,8 +119,7 @@ private:
             RejectReason::INVALID_QUANTITY, RejectReason::POOL_EXHAUSTED,
             RejectReason::INDEX_EXHAUSTED, RejectReason::ORDER_NOT_FOUND,
             RejectReason::PRICE_OUT_OF_RANGE, RejectReason::OFF_TICK_PRICE,
-            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE,
-            RejectReason::INVALID_COMMAND_SEQUENCE
+            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE
         };
         for (RejectReason reason : reasons) {
             if (value == to_string(reason)) return reason;
@@ -161,6 +174,8 @@ public:
 
         verification.order_book_state_equal =
             expected_book.capture_state() == replayed.capture_state();
+        verification.expected_invariants_hold = expected_book.check_invariants();
+        verification.replayed_invariants_hold = replayed.check_invariants();
         verification.expected_state_hash = expected_book.state_hash();
         verification.actual_state_hash = replayed.state_hash();
         verification.state_hash_equal =
