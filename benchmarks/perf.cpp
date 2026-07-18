@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <random>
 #include <iomanip>
+#include <stdexcept>
 
 // ============================================================================
 // PERFORMANCE BENCHMARKS
@@ -19,12 +20,43 @@ public:
         benchmark_latency();
         benchmark_core_latency();
         benchmark_core_batch_latency();
+        benchmark_hot_path_matrix();
         benchmark_memory();
         benchmark_cancel();
         benchmark_price_level_churn();
     }
     
 private:
+    struct BatchSummary {
+        double minimum;
+        double median;
+        double maximum;
+    };
+
+    template <typename RunOnce>
+    static BatchSummary measure_repetitions(int repetitions, RunOnce&& run_once) {
+        std::vector<double> samples;
+        samples.reserve(static_cast<size_t>(repetitions));
+        for (int repetition = 0; repetition < repetitions; ++repetition) {
+            samples.push_back(run_once());
+        }
+        std::sort(samples.begin(), samples.end());
+        return BatchSummary{
+            samples.front(), samples[samples.size() / 2], samples.back()
+        };
+    }
+
+    static void print_matrix_result(const char* scenario, size_t operations,
+                                    int repetitions, const BatchSummary& result) {
+        std::cout << "   " << scenario << ": min=" << result.minimum
+                  << " ns, median=" << result.median
+                  << " ns, max=" << result.maximum << " ns/order\n";
+        // Stable, machine-readable output for before/after data capture.
+        std::cout << "RESULT_CSV," << scenario << ',' << operations << ','
+                  << repetitions << ',' << result.minimum << ','
+                  << result.median << ',' << result.maximum << "\n";
+    }
+
     static void benchmark_throughput() {
         std::cout << "Benchmark 1: Throughput Test\n";
         const int num_orders = 100000;
@@ -86,7 +118,7 @@ private:
     }
     
     static void benchmark_memory() {
-        std::cout << "Benchmark 5: Memory Usage (Pre-allocated)\n";
+        std::cout << "Benchmark 6: Memory Usage (Pre-allocated)\n";
         
         const int capacity = 100000;
         OrderBook book(capacity);
@@ -165,9 +197,139 @@ private:
         std::cout << "   Median: " << averages[averages.size() / 2] << " ns/order\n";
         std::cout << "   Max: " << averages.back() << " ns/order\n\n";
     }
+
+    static void benchmark_hot_path_matrix() {
+        std::cout << "Benchmark 5: Hot-Path Scenario Matrix (events disabled)\n";
+        std::cout << "   Timings exclude setup and invariant checks.\n";
+        constexpr int repetitions = 7;
+
+        constexpr int resting_operations = 100000;
+        const BatchSummary same_price = measure_repetitions(repetitions, [=] {
+            OrderBook book(resting_operations + 100, false);
+            const Price price = from_double(100.00);
+            book.process_new_order(OrderId(1), Side::BUY, price, Quantity(1));
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < resting_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 2),
+                                       Side::BUY, price, Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants()) {
+                throw std::runtime_error("same-price benchmark invariant failure");
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / resting_operations;
+        });
+        print_matrix_result("same_price_existing_level", resting_operations,
+                            repetitions, same_price);
+
+        constexpr int active_prices = 64;
+        const BatchSummary multiple_prices = measure_repetitions(repetitions, [=] {
+            OrderBook book(resting_operations + active_prices + 100, false);
+            std::vector<Price> prices;
+            prices.reserve(active_prices);
+            for (int i = 0; i < active_prices; ++i) {
+                prices.emplace_back(1'000'000 - i * 100);
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::BUY, prices[static_cast<size_t>(i)], Quantity(1));
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < resting_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1'000),
+                                       Side::BUY,
+                                       prices[static_cast<size_t>(i % active_prices)],
+                                       Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants()) {
+                throw std::runtime_error("multiple-price benchmark invariant failure");
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / resting_operations;
+        });
+        print_matrix_result("multiple_existing_levels", resting_operations,
+                            repetitions, multiple_prices);
+
+        constexpr int new_level_operations = 10000;
+        const BatchSummary new_levels = measure_repetitions(repetitions, [=] {
+            OrderBook book(new_level_operations + 100, false);
+            std::vector<Price> prices;
+            prices.reserve(new_level_operations);
+            for (int i = 0; i < new_level_operations; ++i) {
+                prices.emplace_back(1'000'000 + static_cast<int64_t>(i) * 100);
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < new_level_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::BUY, prices[static_cast<size_t>(i)], Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants()) {
+                throw std::runtime_error("new-level benchmark invariant failure");
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / new_level_operations;
+        });
+        print_matrix_result("new_price_level", new_level_operations,
+                            repetitions, new_levels);
+
+        constexpr int matching_operations = 100000;
+        const BatchSummary immediate_match = measure_repetitions(repetitions, [=] {
+            OrderBook book(matching_operations + 100, false);
+            const Price price = from_double(100.00);
+            for (int i = 0; i < matching_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::SELL, price, Quantity(1));
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < matching_operations; ++i) {
+                book.process_new_order(
+                    OrderId(static_cast<uint64_t>(matching_operations + i) + 1),
+                    Side::BUY, price, Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants()) {
+                throw std::runtime_error("immediate-match benchmark invariant failure");
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / matching_operations;
+        });
+        print_matrix_result("immediate_match", matching_operations,
+                            repetitions, immediate_match);
+
+        constexpr int sweep_operations = 10000;
+        constexpr int levels_per_sweep = 4;
+        const BatchSummary multi_level_sweep = measure_repetitions(repetitions, [=] {
+            const int passive_orders = sweep_operations * levels_per_sweep;
+            OrderBook book(passive_orders + sweep_operations + 100, false);
+            for (int i = 0; i < passive_orders; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::SELL,
+                                       Price(1'000'000 + static_cast<int64_t>(i) * 100),
+                                       Quantity(1));
+            }
+            const Price sweep_price(1'000'000 +
+                                    static_cast<int64_t>(passive_orders - 1) * 100);
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < sweep_operations; ++i) {
+                book.process_new_order(
+                    OrderId(static_cast<uint64_t>(passive_orders + i) + 1),
+                    Side::BUY, sweep_price, Quantity(levels_per_sweep));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants()) {
+                throw std::runtime_error("multi-level sweep benchmark invariant failure");
+            }
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / sweep_operations;
+        });
+        print_matrix_result("four_level_sweep", sweep_operations,
+                            repetitions, multi_level_sweep);
+        std::cout << '\n';
+    }
     
     static void benchmark_cancel() {
-        std::cout << "Benchmark 6: Cancel Performance\n";
+        std::cout << "Benchmark 7: Cancel Performance\n";
         const int num_orders = 10000;
         OrderBook book(num_orders * 2);
         std::vector<OrderId> order_ids;
@@ -198,7 +360,7 @@ private:
     }
 
     static void benchmark_price_level_churn() {
-        std::cout << "Benchmark 7: Price-Level Churn\n";
+        std::cout << "Benchmark 8: Price-Level Churn\n";
         const int rounds = 20000;
         OrderBook book(rounds + 100, false);
         auto start = std::chrono::high_resolution_clock::now();
