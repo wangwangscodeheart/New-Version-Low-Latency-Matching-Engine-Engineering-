@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "captured_at_local_date": "2026-07-19",
+  "source_commit": "6e641fa18bc5e4ee5d68e225bded6bb0d9b2d7d6",
+  "cpu": "Intel(R) Core(TM) i7-14650HX",
+  "physical_cores": 16,
+  "logical_processors": 24,
+  "operating_system": "Windows 10.0.26200",
+  "compiler": "MSVC 19.44.35222.0",
+  "architecture": "x64",
+  "build_type": "Release",
+  "power_scheme": "Balanced",
+  "thread_affinity": "not pinned",
+  "process_model": "one fresh benchmark process per run",
+  "runs": 10,
+  "benchmark_executable": "build/docs_verify3/Release/matching_engine_benchmarks.exe",
+  "event_recording": {
+    "core_batch": false,
+    "price_level_churn": false,
+    "cancel": true,
+    "stress": true
+  },
+  "csv_file": "2026-07-19-msvc-before-hotpath.csv",
+  "notes": [
+    "No CPU affinity or power-plan changes were applied.",
+    "The core batch workload is rest-heavy after an initial sweep and should not be treated as a complete matching workload.",
+    "The CSV contains raw per-process results; no outlier was removed."
+  ]
+}
