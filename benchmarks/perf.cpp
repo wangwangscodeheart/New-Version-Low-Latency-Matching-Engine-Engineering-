@@ -17,8 +17,11 @@ public:
         
         benchmark_throughput();
         benchmark_latency();
+        benchmark_core_latency();
+        benchmark_core_batch_latency();
         benchmark_memory();
         benchmark_cancel();
+        benchmark_price_level_churn();
     }
     
 private:
@@ -48,6 +51,7 @@ private:
     
     static void benchmark_latency() {
         std::cout << "Benchmark 2: Latency Distribution\n";
+        std::cout << "   Workload: 1,000 asks at 100.0-199.9, then 10,000 buys at 105.0 (rest-heavy after sweep)\n";
         // Capacity for setup + test orders
         OrderBook book(20000);
         std::vector<long long> latencies;
@@ -82,27 +86,88 @@ private:
     }
     
     static void benchmark_memory() {
-        std::cout << "Benchmark 3: Memory Usage (Pre-allocated)\n";
+        std::cout << "Benchmark 5: Memory Usage (Pre-allocated)\n";
         
         const int capacity = 100000;
         OrderBook book(capacity);
         
         // With ObjectPool, we allocate everything upfront.
         size_t pool_size = capacity * sizeof(Order);
-        size_t event_log_size = capacity * sizeof(Event);
+        size_t level_pool_size = capacity *
+            (sizeof(LimitLevel) + sizeof(size_t) + sizeof(uint8_t));
+        // OrderBook reserves up to 2x capacity for NEW/CANCEL plus trade events.
+        size_t event_log_size = capacity * 2 * sizeof(Event);
         // Estimate map overhead (rough)
         size_t map_overhead = capacity * 16; 
 
         std::cout << "   Pool Capacity: " << capacity << "\n";
-        std::cout << "   sizeof(Order): " << sizeof(Order) << " bytes (Aligned to 64)\n";
+        std::cout << "   sizeof(Order): " << sizeof(Order) << " bytes (alignment is compiler/platform dependent)\n";
         std::cout << "   Pool Memory: " << pool_size / 1024.0 / 1024.0 << " MB\n";
+        std::cout << "   Price-Level Pool Memory: " << level_pool_size / 1024.0 / 1024.0 << " MB\n";
         std::cout << "   Event Log Memory: " << event_log_size / 1024.0 / 1024.0 << " MB\n";
-        std::cout << "   Total Pre-allocated: ~" << (pool_size + event_log_size + map_overhead) / 1024.0 / 1024.0 << " MB\n";
-        std::cout << "   Note: No runtime heap allocations occur during trading.\n\n";
+        std::cout << "   Total Pre-allocated: ~" << (pool_size + level_pool_size + event_log_size + map_overhead) / 1024.0 / 1024.0 << " MB\n";
+        std::cout << "   Note: Orders, price-level objects, and a 2x event-log baseline are pre-allocated; ordered price-index nodes may still allocate.\n\n";
+    }
+
+    static void benchmark_core_latency() {
+        std::cout << "Benchmark 3: Core Path Latency (event recording disabled)\n";
+        OrderBook book(20000, false);
+        std::vector<long long> latencies;
+        latencies.reserve(10000);
+
+        for (int i = 0; i < 1000; ++i) {
+            book.process_new_order(OrderId(i + 1), Side::SELL,
+                                   from_double(100.0 + i * 0.1), Quantity(10));
+        }
+        for (int i = 0; i < 10000; ++i) {
+            auto start = std::chrono::high_resolution_clock::now();
+            book.process_new_order(OrderId(10000 + i), Side::BUY,
+                                   from_double(105.0), Quantity(10));
+            auto end = std::chrono::high_resolution_clock::now();
+            latencies.push_back(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+        }
+        std::sort(latencies.begin(), latencies.end());
+        std::cout << "   Same workload as full path, without event-log writes\n";
+        std::cout << "   P50: " << latencies[latencies.size() / 2] << " ns\n";
+        std::cout << "   P99: " << latencies[latencies.size() * 99 / 100] << " ns\n";
+        std::cout << "   P99.9: " << latencies[latencies.size() * 999 / 1000] << " ns\n\n";
+    }
+
+    static void benchmark_core_batch_latency() {
+        std::cout << "Benchmark 4: Core Batch Average Latency\n";
+        constexpr int setup_orders = 1000;
+        constexpr int measured_orders = 100000;
+        constexpr int repetitions = 7;
+        std::vector<double> averages;
+        averages.reserve(repetitions);
+
+        for (int repetition = 0; repetition < repetitions; ++repetition) {
+            OrderBook book(setup_orders + measured_orders + 100, false);
+            for (int i = 0; i < setup_orders; ++i) {
+                book.process_new_order(OrderId(i + 1), Side::SELL,
+                                       from_double(100.0 + i * 0.1), Quantity(10));
+            }
+
+            auto start = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < measured_orders; ++i) {
+                book.process_new_order(OrderId(10000 + i), Side::BUY,
+                                       from_double(105.0), Quantity(10));
+            }
+            auto end = std::chrono::high_resolution_clock::now();
+            auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            averages.push_back(static_cast<double>(elapsed_ns) / measured_orders);
+        }
+
+        std::sort(averages.begin(), averages.end());
+        std::cout << "   Orders per repetition: " << measured_orders << "\n";
+        std::cout << "   Repetitions: " << repetitions << "\n";
+        std::cout << "   Min: " << averages.front() << " ns/order\n";
+        std::cout << "   Median: " << averages[averages.size() / 2] << " ns/order\n";
+        std::cout << "   Max: " << averages.back() << " ns/order\n\n";
     }
     
     static void benchmark_cancel() {
-        std::cout << "Benchmark 4: Cancel Performance\n";
+        std::cout << "Benchmark 6: Cancel Performance\n";
         const int num_orders = 10000;
         OrderBook book(num_orders * 2);
         std::vector<OrderId> order_ids;
@@ -129,7 +194,26 @@ private:
         std::cout << "   Cancelled: 1000 orders\n";
         std::cout << "   Time: " << duration.count() << " μs\n";
         std::cout << "   Avg per cancel: " << (double)duration.count() / 1000.0 << " μs\n";
-        std::cout << "   Note: O(1) complexity (Intrusive List Unlink)\n\n";
+        std::cout << "   Note: fixed-index lookup + intrusive O(1) unlink; level metadata cleanup may touch the price map.\n\n";
+    }
+
+    static void benchmark_price_level_churn() {
+        std::cout << "Benchmark 7: Price-Level Churn\n";
+        const int rounds = 20000;
+        OrderBook book(rounds + 100, false);
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < rounds; ++i) {
+            const OrderId id(static_cast<uint64_t>(i + 1));
+            const double price = 50.0 + static_cast<double>(i % 10000) * 0.01;
+            book.process_new_order(id, Side::BUY, from_double(price), Quantity(1));
+            book.process_cancel(id);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        std::cout << "   Created/destroyed: " << rounds << " price levels\n";
+        std::cout << "   Avg round-trip: " << (static_cast<double>(ns) / rounds) << " ns\n\n";
+        std::cout << "   Residual levels: bid=" << book.bid_level_count()
+                  << ", ask=" << book.ask_level_count() << "\n\n";
     }
 };
 
@@ -170,6 +254,9 @@ public:
         }
         
         auto end = std::chrono::high_resolution_clock::now();
+        if (!book.check_invariants()) {
+            throw std::runtime_error("Stress-test final order-book invariant failure");
+        }
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         
         std::cout << "   ✓ Processed 1,000,000 orders\n";
@@ -179,7 +266,7 @@ public:
 
 private:
     static Price from_double(double p) {
-        return Price(static_cast<int64_t>(p * PRICE_SCALE));
+        return ::from_double(p);
     }
 };
 
@@ -204,7 +291,7 @@ public:
     
 private:
     static Price from_double(double p) {
-        return Price(static_cast<int64_t>(p * PRICE_SCALE));
+        return ::from_double(p);
     }
 
     static void benchmark_scenario_all_match() {

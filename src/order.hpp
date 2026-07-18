@@ -9,6 +9,8 @@
 // ORDER - Cache-aligned order with intrusive list pointers
 // ============================================================================
 
+struct LimitLevel;
+
 struct Order {
     OrderId id;
     Timestamp timestamp;
@@ -20,10 +22,23 @@ struct Order {
     // Intrusive list pointers
     Order* next;
     Order* prev;
+    LimitLevel* parent_level;
     
     Order(OrderId id_, Timestamp ts, Side s, Price p, Quantity q)
         : id(id_), timestamp(ts), side(s), price(p), 
-          original_qty(q), remaining_qty(q), next(nullptr), prev(nullptr) {}
+          original_qty(q), remaining_qty(q), next(nullptr), prev(nullptr), parent_level(nullptr) {}
+
+    void activate(OrderId id_, Timestamp ts, Side s, Price p, Quantity q) noexcept {
+        id = id_;
+        timestamp = ts;
+        side = s;
+        price = p;
+        original_qty = q;
+        remaining_qty = q;
+        next = nullptr;
+        prev = nullptr;
+        parent_level = nullptr;
+    }
     
     bool is_filled() const { 
         return remaining_qty.get() == 0; 
@@ -32,7 +47,7 @@ struct Order {
     bool check_invariants() const {
         return remaining_qty.get() <= original_qty.get();
     }
-} __attribute__((aligned(64)));
+};
 
 // ============================================================================
 // OBJECT POOL - Pre-allocated memory pool for orders
@@ -77,6 +92,10 @@ public:
         return free_list_.size();
     }
 
+    size_t capacity() const {
+        return capacity_;
+    }
+
 };
 
 // ============================================================================
@@ -90,6 +109,8 @@ struct LimitLevel {
     Quantity total_volume;
     size_t order_count;
     
+    LimitLevel() : LimitLevel(Price(0)) {}
+
     explicit LimitLevel(Price p) 
         : price(p), head(nullptr), tail(nullptr), 
           total_volume(Quantity(0)), order_count(0) {}
@@ -97,6 +118,7 @@ struct LimitLevel {
     void add_order(Order* order) {
         order->next = nullptr;
         order->prev = tail;
+        order->parent_level = this;
         
         if (tail) {
             tail->next = order;
@@ -115,6 +137,8 @@ struct LimitLevel {
     
     void pop() {
         if (!head) return;
+
+        Order* removed = head;
         
         head = head->next;
         
@@ -123,6 +147,10 @@ struct LimitLevel {
         } else {
             tail = nullptr;
         }
+
+        removed->next = nullptr;
+        removed->prev = nullptr;
+        removed->parent_level = nullptr;
         
         --order_count;
     }

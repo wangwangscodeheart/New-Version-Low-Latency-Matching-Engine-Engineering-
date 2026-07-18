@@ -58,7 +58,7 @@ constexpr int64_t PRICE_SCALE = 10000;
 
 // Helper function for price conversion
 constexpr Price from_double(double price) {
-    return Price(static_cast<int64_t>(price * PRICE_SCALE));
+    return Price(static_cast<int64_t>(price * PRICE_SCALE + (price >= 0.0 ? 0.5 : -0.5)));
 }
 
 constexpr double to_double(Price price) {

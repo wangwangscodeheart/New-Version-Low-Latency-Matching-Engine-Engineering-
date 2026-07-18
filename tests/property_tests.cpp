@@ -26,7 +26,8 @@
 
 class PropertyTesting {
 private:
-    std::mt19937 rng{std::random_device{}()};
+    // Fixed seed makes failures reproducible from a test report.
+    std::mt19937 rng{0xC0FFEEu};
     
     struct RandomOrder {
         OrderId id;
@@ -47,7 +48,7 @@ private:
         return {
             OrderId(id),
             side_dist(rng) == 0 ? Side::BUY : Side::SELL,
-            Price(static_cast<int64_t>(p * PRICE_SCALE)),
+            from_double(p),
             Quantity(qty_dist(rng))
         };
     }
@@ -63,6 +64,7 @@ public:
             for (uint64_t i = 0; i < 100; ++i) {
                 auto order = generate_random_order(trial * 100 + i + 1);
                 book.process_new_order(order.id, order.side, order.price, order.quantity);
+                TEST_ASSERT(book.check_invariants());
                 
                 // Invariant Check: Best Bid < Best Ask
                 auto bid = book.best_bid();
@@ -94,6 +96,9 @@ public:
             }
             
             OrderBook book2 = ReplayEngine::replay_from_log(book1.get_event_log());
+            TEST_ASSERT(book1.check_invariants());
+            TEST_ASSERT(book2.check_invariants());
+            TEST_ASSERT(book1.state_hash() == book2.state_hash());
             
             auto bid1 = book1.best_bid();
             auto bid2 = book2.best_bid();

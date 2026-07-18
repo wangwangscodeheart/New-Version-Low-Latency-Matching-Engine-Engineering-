@@ -13,11 +13,36 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+
 # Compilation Options
 if(MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/W4 /utf-8)
+    # Prefer the dynamically linked MSVC runtime. The local toolchain does not
+    # ship the static C++ runtime library (libcpmt.lib).
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    add_link_options(/NODEFAULTLIB:libcpmt.lib /DEFAULTLIB:msvcprt.lib)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter)
+endif()
+
+if(ENABLE_ASAN)
+    if(MSVC)
+        add_compile_options(/fsanitize=address)
+    else()
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    endif()
+endif()
+
+if(ENABLE_UBSAN)
+    if(MSVC)
+        message(WARNING "UBSan is not supported by this MSVC configuration; use Clang/GCC")
+    else()
+        add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=undefined)
+    endif()
 endif()
 
 # ============================================================================
@@ -59,6 +84,17 @@ add_executable(matching_engine_benchmarks
 )
 
 # ============================================================================
+# CTest Integration
+# ============================================================================
+
+include(CTest)
+if(BUILD_TESTING)
+    add_test(NAME matching_engine_unit COMMAND matching_engine_unit_tests)
+    add_test(NAME matching_engine_properties COMMAND matching_engine_property_tests)
+    add_test(NAME matching_engine_demo_integration COMMAND matching_engine_demo)
+endif()
+
+# ============================================================================
 # Build Types
 # ============================================================================
 
@@ -66,9 +102,15 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "/Od /DDEBUG /MDd")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG /MD")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Zi /MD")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+endif()
 
 # ============================================================================
 # Installation

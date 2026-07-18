@@ -113,9 +113,9 @@ int main() {
     std::cout << "\nKey Features Demonstrated:\n";
     std::cout << "  ✓ Price-time priority (FIFO)\n";
     std::cout << "  ✓ Multi-level order sweeping\n";
-    std::cout << "  ✓ O(1) Order cancellation\n";
-    std::cout << "  ✓ Zero-allocation Event sourcing\n";
-    std::cout << "  ✓ Deterministic Replay\n";
+    std::cout << "  ✓ Fast order cancellation (O(1) unlink)\n";
+    std::cout << "  ✓ Pre-allocated order objects with event logging\n";
+    std::cout << "  ✓ Deterministic command replay\n";
     
     return 0;
 }
