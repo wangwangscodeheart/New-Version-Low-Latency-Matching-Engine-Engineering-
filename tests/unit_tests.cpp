@@ -244,6 +244,7 @@ private:
 
     static void test_rejects_duplicate_id() {
         std::cout << "Test 11: Duplicate Order ID... ";
+        TEST_ASSERT(sizeof(void*) != 8 || FixedOrderIndex::slot_size_bytes() == 16);
         OrderBook book(16);
         book.process_new_order(OrderId(1), Side::BUY, from_double(100.0), Quantity(10));
         book.process_new_order(OrderId(1), Side::SELL, from_double(101.0), Quantity(10));

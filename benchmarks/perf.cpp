@@ -134,6 +134,7 @@ private:
 
         std::cout << "   Pool Capacity: " << capacity << "\n";
         std::cout << "   sizeof(Order): " << sizeof(Order) << " bytes (alignment is compiler/platform dependent)\n";
+        std::cout << "   Fixed Index Slot: " << FixedOrderIndex::slot_size_bytes() << " bytes\n";
         std::cout << "   Pool Memory: " << pool_size / 1024.0 / 1024.0 << " MB\n";
         std::cout << "   Price-Level Pool Memory: " << level_pool_size / 1024.0 / 1024.0 << " MB\n";
         std::cout << "   Event Log Memory: " << event_log_size / 1024.0 / 1024.0 << " MB\n";

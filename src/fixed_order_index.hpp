@@ -14,7 +14,6 @@ private:
     struct Slot {
         uint64_t key = 0;
         Order* value = nullptr;
-        uint8_t state = 0; // 0 empty, 1 occupied
     };
 
     std::vector<Slot> slots_;
@@ -58,8 +57,8 @@ public:
         size_t index = static_cast<size_t>(hash_key(key)) & mask_;
         for (size_t probes = 0; probes < slots_.size(); ++probes) {
             const Slot& slot = slots_[index];
-            if (slot.state == 0) return nullptr;
-            if (slot.state == 1 && slot.key == key) return slot.value;
+            if (slot.key == 0) return nullptr;
+            if (slot.key == key) return slot.value;
             index = (index + 1) & mask_;
         }
         return nullptr;
@@ -69,10 +68,10 @@ public:
         size_t index = static_cast<size_t>(hash_key(key)) & mask_;
         for (size_t probes = 0; probes < slots_.size(); ++probes) {
             const Slot& slot = slots_[index];
-            if (slot.state == 1 && slot.key == key) {
+            if (slot.key == key) {
                 return InsertReservation{index, InsertStatus::DUPLICATE};
             }
-            if (slot.state == 0) {
+            if (slot.key == 0) {
                 return InsertReservation{index, InsertStatus::AVAILABLE};
             }
             index = (index + 1) & mask_;
@@ -87,10 +86,10 @@ public:
                        uint64_t key, Order* value) noexcept {
         if (reservation.status != InsertStatus::AVAILABLE ||
             reservation.slot >= slots_.size() ||
-            slots_[reservation.slot].state != 0) {
+            slots_[reservation.slot].key != 0) {
             return false;
         }
-        slots_[reservation.slot] = Slot{key, value, 1};
+        slots_[reservation.slot] = Slot{key, value};
         ++size_;
         return true;
     }
@@ -104,19 +103,19 @@ public:
         size_t index = static_cast<size_t>(hash_key(key)) & mask_;
         for (size_t probes = 0; probes < slots_.size(); ++probes) {
             Slot& slot = slots_[index];
-            if (slot.state == 0) return false;
-            if (slot.state == 1 && slot.key == key) {
+            if (slot.key == 0) return false;
+            if (slot.key == key) {
+                slot.key = 0;
                 slot.value = nullptr;
-                slot.state = 0;
                 --size_;
 
                 // Backward-shift deletion keeps probe chains intact without
                 // accumulating tombstones during long order churn.
                 size_t next = (index + 1) & mask_;
-                while (slots_[next].state == 1) {
+                while (slots_[next].key != 0) {
                     const uint64_t moved_key = slots_[next].key;
                     Order* moved_value = slots_[next].value;
-                    slots_[next].state = 0;
+                    slots_[next].key = 0;
                     slots_[next].value = nullptr;
                     --size_;
                     insert(moved_key, moved_value);
@@ -131,6 +130,7 @@ public:
 
     size_t size() const { return size_; }
     size_t capacity() const { return slots_.size(); }
+    static constexpr size_t slot_size_bytes() noexcept { return sizeof(Slot); }
 };
 
 #endif
