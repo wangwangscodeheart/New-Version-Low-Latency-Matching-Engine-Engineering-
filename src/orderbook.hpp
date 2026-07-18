@@ -414,14 +414,14 @@ private:
     // ========================================================================
     void add_to_book(Order* order) {
         if (order->side == Side::BUY) {
+            if (cached_bid_level_ && cached_bid_price_ == order->price.get()) {
+                cached_bid_level_->add_order(order);
+                return;
+            }
             if (LimitLevel* level = price_ladder_.find(order->price.get())) {
                 level->add_order(order);
                 cached_bid_level_ = level;
                 cached_bid_price_ = order->price.get();
-                return;
-            }
-            if (cached_bid_level_ && cached_bid_price_ == order->price.get()) {
-                cached_bid_level_->add_order(order);
                 return;
             }
             auto [level, inserted] = bids_.get_or_create(order->price.get());
@@ -434,14 +434,14 @@ private:
             cached_bid_level_ = level;
             cached_bid_price_ = order->price.get();
         } else {
+            if (cached_ask_level_ && cached_ask_price_ == order->price.get()) {
+                cached_ask_level_->add_order(order);
+                return;
+            }
             if (LimitLevel* level = price_ladder_.find(order->price.get())) {
                 level->add_order(order);
                 cached_ask_level_ = level;
                 cached_ask_price_ = order->price.get();
-                return;
-            }
-            if (cached_ask_level_ && cached_ask_price_ == order->price.get()) {
-                cached_ask_level_->add_order(order);
                 return;
             }
             auto [level, inserted] = asks_.get_or_create(order->price.get());
