@@ -110,7 +110,14 @@ public:
     void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
         current_time_ = Timestamp(current_time_.get() + 1);
 
-        if (id.get() == 0 || order_index_.find(id.get()) != nullptr) {
+        if (id.get() == 0) {
+            if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
+                                    current_time_, id, RejectReason::DUPLICATE_ORDER_ID);
+            return;
+        }
+        const FixedOrderIndex::InsertReservation index_reservation =
+            order_index_.prepare_insert(id.get());
+        if (index_reservation.status == FixedOrderIndex::InsertStatus::DUPLICATE) {
             if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
                                     current_time_, id, RejectReason::DUPLICATE_ORDER_ID);
             return;
@@ -159,7 +166,8 @@ public:
 
           // Index before acknowledging the command. A failed index insertion must
           // never leave a NEW_ORDER event in the replay stream.
-          if (!order_index_.insert(id.get(), order)) {
+          if (index_reservation.status != FixedOrderIndex::InsertStatus::AVAILABLE ||
+              !order_index_.commit_insert(index_reservation, id.get(), order)) {
               order_pool_.deallocate(order);
               if (record_events_) event_log_.emplace_back(std::in_place_type<RejectOrderEvent>,
                                     current_time_, id, RejectReason::INDEX_EXHAUSTED);

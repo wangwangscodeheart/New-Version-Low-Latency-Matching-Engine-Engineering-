@@ -247,10 +247,14 @@ private:
         OrderBook book(16);
         book.process_new_order(OrderId(1), Side::BUY, from_double(100.0), Quantity(10));
         book.process_new_order(OrderId(1), Side::SELL, from_double(101.0), Quantity(10));
+        // Duplicate detection remains the first stateful rejection even when
+        // later fields are also invalid; the reservation must not be committed.
+        book.process_new_order(OrderId(1), Side::SELL, Price(0), Quantity(0));
         book.process_cancel(OrderId(1));
         TEST_ASSERT(!book.best_bid().has_value());
         TEST_ASSERT(std::holds_alternative<RejectOrderEvent>(book.get_event_log()[1]));
         TEST_ASSERT(std::get<RejectOrderEvent>(book.get_event_log()[1]).reason == RejectReason::DUPLICATE_ORDER_ID);
+        TEST_ASSERT(std::get<RejectOrderEvent>(book.get_event_log()[2]).reason == RejectReason::DUPLICATE_ORDER_ID);
         std::cout << "Passed\n";
     }
 
