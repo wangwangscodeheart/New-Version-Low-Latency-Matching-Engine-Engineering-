@@ -3,12 +3,30 @@
 
 #include "commands.hpp"
 #include "orderbook.hpp"
+#include <algorithm>
 #include <fstream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+struct CommandReplayVerification {
+    static constexpr size_t NO_EVENT_MISMATCH = std::numeric_limits<size_t>::max();
+
+    bool engine_events_equal = false;
+    bool order_book_state_equal = false;
+    bool state_hash_equal = false;
+    size_t first_mismatched_event = NO_EVENT_MISMATCH;
+    size_t expected_event_count = 0;
+    size_t actual_event_count = 0;
+    uint64_t expected_state_hash = 0;
+    uint64_t actual_state_hash = 0;
+
+    bool success() const noexcept {
+        return engine_events_equal && order_book_state_equal && state_hash_equal;
+    }
+};
 
 class ReplayEngine {
 private:
@@ -109,6 +127,45 @@ public:
             (void)book.process(command);
         }
         return book;
+    }
+
+    static CommandReplayVerification verify_commands(
+        const std::vector<Command>& commands, const OrderBook& expected_book) {
+        OrderBook replayed(expected_book.capacity(), true,
+                           expected_book.price_ladder_config(), 2,
+                           expected_book.instrument_config());
+        for (const Command& command : commands) {
+            (void)replayed.process(command);
+        }
+
+        CommandReplayVerification verification;
+        const auto& expected_events = expected_book.engine_events();
+        const auto& actual_events = replayed.engine_events();
+        verification.expected_event_count = expected_events.size();
+        verification.actual_event_count = actual_events.size();
+
+        const size_t shared_count = std::min(expected_events.size(), actual_events.size());
+        verification.engine_events_equal = expected_events.size() == actual_events.size();
+        for (size_t i = 0; i < shared_count; ++i) {
+            if (!(expected_events[i] == actual_events[i])) {
+                verification.engine_events_equal = false;
+                verification.first_mismatched_event = i;
+                break;
+            }
+        }
+        if (verification.first_mismatched_event ==
+                CommandReplayVerification::NO_EVENT_MISMATCH &&
+            expected_events.size() != actual_events.size()) {
+            verification.first_mismatched_event = shared_count;
+        }
+
+        verification.order_book_state_equal =
+            expected_book.capture_state() == replayed.capture_state();
+        verification.expected_state_hash = expected_book.state_hash();
+        verification.actual_state_hash = replayed.state_hash();
+        verification.state_hash_equal =
+            verification.expected_state_hash == verification.actual_state_hash;
+        return verification;
     }
 
     // Existing CSV support is retained only as a diagnostic event round-trip.

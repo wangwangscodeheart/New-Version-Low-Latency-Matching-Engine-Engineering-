@@ -179,7 +179,7 @@ private:
     
     static void test_replay_determinism() {
         std::cout << "Test 7: Replay Determinism... ";
-        OrderBook book1;
+        OrderBook book1(32);
 
         const std::vector<Command> commands{
             NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL, from_double(100.0), Quantity(10)),
@@ -190,6 +190,8 @@ private:
         
         // Replay
         OrderBook book2 = ReplayEngine::replay_commands(commands);
+        const CommandReplayVerification verification =
+            ReplayEngine::verify_commands(commands, book1);
         
         // Verify state equality
         // 1. Check Best Ask
@@ -200,7 +202,21 @@ private:
         
         // 2. Check Best Bid
         TEST_ASSERT(book1.best_bid().has_value() == book2.best_bid().has_value());
+        TEST_ASSERT(book1.engine_events() == book2.engine_events());
+        TEST_ASSERT(book1.capture_state() == book2.capture_state());
         TEST_ASSERT(book1.state_hash() == book2.state_hash());
+        TEST_ASSERT(verification.success());
+        TEST_ASSERT(verification.first_mismatched_event ==
+                    CommandReplayVerification::NO_EVENT_MISMATCH);
+
+        std::vector<Command> changed_commands = commands;
+        std::get<NewOrderCommand>(changed_commands[1]).quantity = Quantity(6);
+        const CommandReplayVerification changed =
+            ReplayEngine::verify_commands(changed_commands, book1);
+        TEST_ASSERT(!changed.success());
+        TEST_ASSERT(!changed.engine_events_equal);
+        TEST_ASSERT(changed.first_mismatched_event !=
+                    CommandReplayVerification::NO_EVENT_MISMATCH);
         
         std::cout << "Passed\n";
     }

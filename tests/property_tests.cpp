@@ -103,7 +103,10 @@ public:
             OrderBook book2 = ReplayEngine::replay_commands(commands);
             TEST_ASSERT(book1.check_invariants());
             TEST_ASSERT(book2.check_invariants());
+            TEST_ASSERT(book1.engine_events() == book2.engine_events());
+            TEST_ASSERT(book1.capture_state() == book2.capture_state());
             TEST_ASSERT(book1.state_hash() == book2.state_hash());
+            TEST_ASSERT(ReplayEngine::verify_commands(commands, book1).success());
             
             auto bid1 = book1.best_bid();
             auto bid2 = book2.best_bid();

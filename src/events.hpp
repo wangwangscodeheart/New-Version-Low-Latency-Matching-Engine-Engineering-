@@ -67,6 +67,14 @@ struct TradeEvent {
                       command_sequence.get(), event_index.get(), passive_order_id.get(),
                       aggressive_order_id.get(), price.get(), quantity.get());
     }
+
+    bool operator==(const TradeEvent& other) const noexcept {
+        return type == other.type && command_sequence == other.command_sequence &&
+               event_index == other.event_index &&
+               passive_order_id == other.passive_order_id &&
+               aggressive_order_id == other.aggressive_order_id &&
+               price == other.price && quantity == other.quantity;
+    }
 };
 
 struct OrderRestedEvent {
@@ -96,6 +104,15 @@ struct OrderRestedEvent {
                       to_string(side), price.get(), original_quantity.get(),
                       remaining_quantity.get(), priority_sequence.get());
     }
+
+    bool operator==(const OrderRestedEvent& other) const noexcept {
+        return type == other.type && command_sequence == other.command_sequence &&
+               event_index == other.event_index && order_id == other.order_id &&
+               side == other.side && price == other.price &&
+               original_quantity == other.original_quantity &&
+               remaining_quantity == other.remaining_quantity &&
+               priority_sequence == other.priority_sequence;
+    }
 };
 
 struct OrderCancelledEvent {
@@ -123,6 +140,14 @@ struct OrderCancelledEvent {
                       to_string(side), price.get(), cancelled_quantity.get(),
                       priority_sequence.get());
     }
+
+    bool operator==(const OrderCancelledEvent& other) const noexcept {
+        return type == other.type && command_sequence == other.command_sequence &&
+               event_index == other.event_index && order_id == other.order_id &&
+               side == other.side && price == other.price &&
+               cancelled_quantity == other.cancelled_quantity &&
+               priority_sequence == other.priority_sequence;
+    }
 };
 
 struct OrderRejectedEvent {
@@ -146,6 +171,12 @@ struct OrderRejectedEvent {
                       "ORDER_REJECTED,%" PRIu64 ",%" PRIu32 ",%s,%" PRIu64 ",%s",
                       command_sequence.get(), event_index.get(), command_name,
                       order_id.get(), to_string(reason));
+    }
+
+    bool operator==(const OrderRejectedEvent& other) const noexcept {
+        return type == other.type && command_sequence == other.command_sequence &&
+               event_index == other.event_index && command_type == other.command_type &&
+               order_id == other.order_id && reason == other.reason;
     }
 };
 

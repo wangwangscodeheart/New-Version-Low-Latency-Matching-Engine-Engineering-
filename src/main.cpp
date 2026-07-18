@@ -96,21 +96,10 @@ int main() {
     
     std::cout << "\n🔄 Replaying from log...\n";
     OrderBook replayed = ReplayEngine::replay_commands(commands);
-    
-    // Verify they're identical
-    bool identical = true;
-    auto orig_bid = book.best_bid();
-    auto repl_bid = replayed.best_bid();
-    auto orig_ask = book.best_ask();
-    auto repl_ask = replayed.best_ask();
-    
-    // Compare Bids
-    if (orig_bid.has_value() != repl_bid.has_value()) identical = false;
-    if (orig_bid.has_value() && orig_bid->get() != repl_bid->get()) identical = false;
-
-    // Compare Asks
-    if (orig_ask.has_value() != repl_ask.has_value()) identical = false;
-    if (orig_ask.has_value() && orig_ask->get() != repl_ask->get()) identical = false;
+    const CommandReplayVerification verification =
+        ReplayEngine::verify_commands(commands, book);
+    const bool identical = verification.success() &&
+        replayed.capture_state() == book.capture_state();
     
     std::cout << "\n" << (identical ? "✅" : "❌") 
               << " Replay verification: " 

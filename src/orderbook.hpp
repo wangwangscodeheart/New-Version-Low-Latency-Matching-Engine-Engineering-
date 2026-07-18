@@ -9,6 +9,7 @@
 #include "instrument_config.hpp"
 #include "commands.hpp"
 #include "events.hpp"
+#include "book_state.hpp"
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -19,6 +20,7 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
+#include <utility>
 
 enum class ProcessStatus : uint8_t {
     APPLIED = 0,
@@ -310,6 +312,43 @@ public:
 
       CommandSequence last_applied_command_sequence() const noexcept {
           return last_applied_command_sequence_;
+      }
+
+      size_t active_order_count() const noexcept { return order_index_.size(); }
+      size_t capacity() const noexcept { return order_pool_.capacity(); }
+      const InstrumentConfig& instrument_config() const noexcept {
+          return instrument_config_;
+      }
+      PriceLadderConfig price_ladder_config() const noexcept {
+          return price_ladder_.config();
+      }
+
+      OrderBookState capture_state() const {
+          OrderBookState state;
+          state.last_applied_command_sequence = last_applied_command_sequence_;
+          state.active_order_count = order_index_.size();
+          state.best_bid = best_bid();
+          state.best_ask = best_ask();
+
+          auto capture_side = [](const auto& levels, Side side,
+                                 std::vector<BookLevelState>& destination) {
+              destination.reserve(levels.size());
+              for (const auto& [price, level] : levels) {
+                  BookLevelState level_state{side, Price(price), level->total_volume, {}};
+                  level_state.orders.reserve(level->order_count);
+                  for (Order* order = level->head; order; order = order->next) {
+                      level_state.orders.push_back(BookOrderState{
+                          order->id, order->side, order->price, order->original_qty,
+                          order->remaining_qty, order->priority_sequence
+                      });
+                  }
+                  destination.push_back(std::move(level_state));
+              }
+          };
+
+          capture_side(bids_, Side::BUY, state.bid_levels);
+          capture_side(asks_, Side::SELL, state.ask_levels);
+          return state;
       }
 
       // Capacity reserved for event capture (does not imply current size).

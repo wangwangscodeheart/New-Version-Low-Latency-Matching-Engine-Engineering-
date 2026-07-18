@@ -61,6 +61,9 @@ public:
         }
         return count;
     }
+    PriceLadderConfig config() const noexcept {
+        return PriceLadderConfig{min_price_, max_price_, tick_};
+    }
 };
 
 #endif
