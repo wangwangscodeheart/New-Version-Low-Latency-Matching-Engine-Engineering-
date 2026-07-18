@@ -1,0 +1,5 @@
+experiment,comparison_baseline,aggregation,same_price_existing_level_ns,multiple_existing_levels_ns,new_price_level_ns,immediate_match_ns,four_level_sweep_ns,decision
+common_grid_large_switch,cache_first,median_of_5_process_medians,43.256,45.427,79.780,42.336,181.780,rejected_hot_code_growth_hurt_common_resting_paths
+default_grid_small_branch,cache_first,median_of_5_process_medians,44.179,44.725,82.220,42.406,189.250,rejected_no_stable_global_improvement
+order_64_byte_aligned,compact_index_slot,median_of_5_process_medians,34.832,39.847,77.360,35.194,192.240,rejected_primary_paths_regressed
+order_64_byte_natural_alignment,compact_index_slot,median_of_5_process_medians,36.370,33.464,77.780,29.261,177.330,rejected_same_price_primary_path_regressed

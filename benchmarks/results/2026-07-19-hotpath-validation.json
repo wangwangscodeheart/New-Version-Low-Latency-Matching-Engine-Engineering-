@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "final_code_commit": "e4d59e2",
+  "test_commit": "4e6a5ee",
+  "release": {
+    "configuration": "MSVC 19.44.35222.0 x64 Release",
+    "ctest_passed": 3,
+    "ctest_failed": 0,
+    "unit_test_cases": 19,
+    "property_test_groups": 5
+  },
+  "address_sanitizer": {
+    "configuration": "MSVC x64 RelWithDebInfo ENABLE_ASAN=ON",
+    "unit_tests": "passed",
+    "property_tests": "passed",
+    "runtime_directory_added_to_path": "VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64",
+    "debug_configuration": "link_blocked_by_existing_MDd_vs_release_msvcprt_runtime_mismatch"
+  },
+  "index_collision_regression": {
+    "keys": [1, 17, 33],
+    "table_slots": 16,
+    "checks": [
+      "same_initial_slot",
+      "duplicate_reservation",
+      "erase_middle",
+      "backward_shift_preserves_last_lookup"
+    ],
+    "result": "passed"
+  },
+  "benchmark_environment": {
+    "cpu": "Intel(R) Core(TM) i7-14650HX",
+    "power_scheme": "Balanced",
+    "thread_affinity": "not pinned",
+    "event_recording": false,
+    "aggregation": "five fresh processes; seven repetitions per process; median of process medians"
+  }
+}

@@ -1,0 +1,6 @@
+phase,commit,aggregation,same_price_existing_level_ns,multiple_existing_levels_ns,new_price_level_ns,immediate_match_ns,four_level_sweep_ns
+before,3ba27a4,median_of_5_process_medians,44.559,43.876,79.730,43.838,200.090
+cache_first,ba12af0,median_of_5_process_medians,42.329,41.521,77.420,42.915,188.200
+single_index_probe,559554f,median_of_5_process_medians,37.436,38.239,77.600,36.750,182.130
+compact_index_slot,1f813e3,median_of_5_process_medians,30.410,34.801,78.540,30.256,185.000
+in_place_order_activation,e4d59e2,median_of_5_process_medians,26.663,27.104,73.090,24.988,186.440
