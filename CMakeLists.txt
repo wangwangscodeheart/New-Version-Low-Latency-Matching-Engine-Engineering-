@@ -76,6 +76,14 @@ add_executable(matching_engine_property_tests
 )
 
 # ============================================================================
+# Snapshot Tests
+# ============================================================================
+
+add_executable(matching_engine_snapshot_tests
+    tests/snapshot_tests.cpp
+)
+
+# ============================================================================
 # Benchmarks
 # ============================================================================
 
@@ -91,6 +99,7 @@ include(CTest)
 if(BUILD_TESTING)
     add_test(NAME matching_engine_unit COMMAND matching_engine_unit_tests)
     add_test(NAME matching_engine_properties COMMAND matching_engine_property_tests)
+    add_test(NAME matching_engine_snapshot COMMAND matching_engine_snapshot_tests)
     add_test(NAME matching_engine_demo_integration COMMAND matching_engine_demo)
 endif()
 
@@ -120,6 +129,7 @@ install(TARGETS
     matching_engine_demo
     matching_engine_unit_tests
     matching_engine_property_tests
+    matching_engine_snapshot_tests
     matching_engine_benchmarks
     DESTINATION bin
 )
@@ -140,6 +150,7 @@ message(STATUS "  Targets:")
 message(STATUS "    - matching_engine_demo           (Main demo)")
 message(STATUS "    - matching_engine_unit_tests     (Unit tests)")
 message(STATUS "    - matching_engine_property_tests (Property tests)")
+message(STATUS "    - matching_engine_snapshot_tests (Snapshot tests)")
 message(STATUS "    - matching_engine_benchmarks     (Performance)")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "")

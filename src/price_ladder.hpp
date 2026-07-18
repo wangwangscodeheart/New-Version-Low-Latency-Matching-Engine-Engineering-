@@ -13,6 +13,11 @@ struct PriceLadderConfig {
     int64_t min_price = 900000;
     int64_t max_price = 2100000;
     int64_t tick = 100; // PRICE_SCALE=10000 -> 0.01
+
+    bool operator==(const PriceLadderConfig& other) const noexcept {
+        return min_price == other.min_price && max_price == other.max_price &&
+               tick == other.tick;
+    }
 };
 
 class PriceLadder {

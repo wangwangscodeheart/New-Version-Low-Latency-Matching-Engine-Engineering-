@@ -37,6 +37,12 @@ struct InstrumentConfig {
     bool quantity_on_lot(uint64_t value) const noexcept {
         return value % lot_size == 0;
     }
+
+    bool operator==(const InstrumentConfig& other) const noexcept {
+        return tick_size == other.tick_size && lot_size == other.lot_size &&
+               min_price == other.min_price && max_price == other.max_price &&
+               max_order_quantity == other.max_order_quantity;
+    }
 };
 
 #endif

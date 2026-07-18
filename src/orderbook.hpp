@@ -10,6 +10,7 @@
 #include "commands.hpp"
 #include "events.hpp"
 #include "book_state.hpp"
+#include "snapshot.hpp"
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -40,7 +41,10 @@ struct ProcessResult {
 // ORDER BOOK - deterministic price-time matching core
 // ============================================================================
 
+class SnapshotRecovery;
+
 class OrderBook {
+    friend class SnapshotRecovery;
 private:
     // ------------------------------------------------------------------------
     // Memory Management (Hot Path)
@@ -349,6 +353,29 @@ public:
           capture_side(bids_, Side::BUY, state.bid_levels);
           capture_side(asks_, Side::SELL, state.ask_levels);
           return state;
+      }
+
+      OrderBookSnapshot create_snapshot() const {
+          OrderBookSnapshot snapshot;
+          snapshot.last_applied_command_sequence = last_applied_command_sequence_;
+          snapshot.instrument_config = instrument_config_;
+          snapshot.price_ladder_config = price_ladder_.config();
+          snapshot.active_orders.reserve(order_index_.size());
+
+          auto capture_orders = [&snapshot](const auto& levels) {
+              for (const auto& [price, level] : levels) {
+                  (void)price;
+                  for (Order* order = level->head; order; order = order->next) {
+                      snapshot.active_orders.push_back(SnapshotOrder{
+                          order->id, order->side, order->price, order->original_qty,
+                          order->remaining_qty, order->priority_sequence
+                      });
+                  }
+              }
+          };
+          capture_orders(bids_);
+          capture_orders(asks_);
+          return snapshot;
       }
 
       // Capacity reserved for event capture (does not imply current size).

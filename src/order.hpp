@@ -39,6 +39,19 @@ struct Order {
         prev = nullptr;
         parent_level = nullptr;
     }
+
+    void activate_from_snapshot(OrderId id_, PrioritySequence priority, Side s, Price p,
+                                Quantity original, Quantity remaining) noexcept {
+        id = id_;
+        priority_sequence = priority;
+        side = s;
+        price = p;
+        original_qty = original;
+        remaining_qty = remaining;
+        next = nullptr;
+        prev = nullptr;
+        parent_level = nullptr;
+    }
     
     bool is_filled() const { 
         return remaining_qty.get() == 0; 
