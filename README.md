@@ -1,95 +1,112 @@
 # 低延迟撮合引擎工程
 
-这是一个面向量化开发学习、历史订单回放和撮合机制研究的 C++17 限价订单簿项目。
+这是一个面向量化开发学习、订单簿回测和确定性撮合研究的 C++17 项目。
 
-我不是从一张白纸开始写这个项目。它最初建立在开源项目
-[voyager-jhk/DeterministicMatchingEngine](https://github.com/voyager-jhk/DeterministicMatchingEngine)
-的代码和思路之上。原项目提供了一个很好的教学骨架：用整数保存价格、用订单池保存订单、用双向链表维护同价位订单、按照价格优先和时间优先完成撮合，并通过事件日志做回放演示。
+项目以开源仓库 [voyager-jhk/DeterministicMatchingEngine](https://github.com/voyager-jhk/DeterministicMatchingEngine) 为起点。原项目提供了整数价格、订单对象池、同价 FIFO 队列和价格优先撮合等教学骨架。本仓库在保留 MIT 许可证和来源说明的前提下，对它进行了跨平台修复、正确性补强、热路径改造和最小架构重构。
 
-在实际阅读、编译、测试和压测后，我发现原项目更适合作为“思路演示”，还不能直接当作成熟的低延迟撮合工程使用。它的宣传数字、跨平台构建、拒单处理、订单索引、价格层生命周期、磁盘回放、真实交易规则和测试完整度之间存在明显差距。因此，我以“先保证账本正确，再改善性能，最后补真实交易场景”为原则，对项目进行了持续重构。
+本项目不把“在开源代码上继续开发”包装成从零原创。它想展示的是另一种同样重要的能力：读懂已有系统，找出宣传、实现和真实场景之间的差距，用测试约束改动，再把原型整理成结构清楚、可以运行、可以解释的工程。
 
-当前仓库保留了原项目的 MIT 许可证和 Git 历史，也明确说明了继承关系。我的重点不是把原项目包装成原创，而是展示我如何阅读一个已有系统、识别问题、设计改进方案、编写测试并逐步把它变成更可靠的工程。
+## 当前定位
 
-## 建议阅读顺序
+当前版本是一个单品种、单写者、进程内运行的确定性限价订单簿核心，适合：
 
-项目说明拆成四份专题文档，建议按顺序阅读：
+- 学习交易所撮合的价格优先和同价 FIFO；
+- 给量化回测提供可控的撮合内核；
+- 研究对象池、固定容量索引、价格层和尾延迟；
+- 学习 Command、EngineEvent、Replay 和 Snapshot 的边界；
+- 作为量化开发实习项目继续拆解和扩展。
 
-1. [原项目框架与问题分析](docs/01-原项目框架与问题分析.md)
+它不是可以直接管理真实资金的交易所生产系统，也没有接入网络、账户、持仓、风控和持久化日志。
 
-   介绍原项目如何组织订单、如何撮合、哪些设计值得保留，以及代码和宣传之间有哪些差距。
+## 最终版本解决了什么
 
-2. [从原项目到当前版本的改造报告](docs/02-从原项目到当前版本的改造报告.md)
+### 撮合与业务规则
 
-   按阶段说明每一项修改：原来的不足、修改思路、代码变化、带来的优势和仍然存在的限制。
-
-3. [当前项目的后续改进路线](docs/03-当前项目的后续改进路线.md)
-
-   说明哪些问题还没有解决、为什么不能只追求 30ns，以及后续如何继续提高正确性、性能和实际应用价值。
-
-4. [新项目完整介绍与使用说明](docs/04-新项目完整介绍与使用说明.md)
-
-   从使用者角度介绍当前新项目的总体架构、关键数据结构、订单处理流程、回放方式、测试方法、构建步骤和性能口径。
-
-## 当前项目能做什么
-
-目前已经实现并验证：
-
-- 单品种限价订单簿；
-- 买卖盘价格优先；
-- 同价位时间优先（FIFO）；
-- 完全成交和部分成交；
-- 主动订单跨多个价格层成交；
+- 基础限价买单和卖单；
+- 价格优先、同价 FIFO；
+- 完全成交、部分成交和跨多个价格档成交；
 - 按订单 ID 撤单；
-- 重复订单 ID、非法价格、非法数量和容量耗尽拒单；
-- 每个品种独立配置价格最小变动单位、最小交易数量、价格范围和订单数量上限；
-- 固定容量订单池、固定容量订单 ID 索引和价格层池；
-- 内存事件回放；
-- CSV 日志保存、严格加载和确定性恢复；
-- 完整订单簿状态哈希；
-- 完整账本不变量审计；
-- 单元测试、随机属性测试、CTest 和 MSVC AddressSanitizer；
-- 吞吐、延迟、撤单、价格层变化、内存和百万订单压力测试。
+- tick、lot、价格范围和最大单笔数量校验；
+- 重复订单 ID、非法字段、容量不足和不存在订单的明确拒绝结果。
 
-## 当前项目还不能做什么
+### 确定性架构
 
-这不是一个可以直接连接交易所并管理真实资金的生产系统。目前尚未实现：
+- 输入命令与输出事件分离；
+- 统一入口 `ProcessResult process(const Command&)`；
+- `CommandSequence` 管理命令准入顺序；
+- `EventIndex` 标记同一命令产生的事件顺序；
+- `PrioritySequence` 独立保证同价 FIFO；
+- 核心撮合顺序不再依赖系统时间或成交数量。
 
-- Market、IOC、FOK、Post Only 和 Replace 等完整订单类型；
-- 自成交保护、账户资金、持仓和撮合前风险控制；
-- 多品种路由和多线程分片；
-- L2/L3 行情接入、序列号和丢包恢复；
-- 二进制预写日志、快照和崩溃恢复；
-- 固定容量事件环；
-- 配置价格区间内完全绕过 `std::map` 的连续价格索引；
-- Linux 裸机 CPU 隔离、NUMA 和用户态网络接入。
+当前输入只有：
 
-因此，当前最准确的定位是：
+- `NewOrderCommand`；
+- `CancelOrderCommand`。
 
-> 一个经过较大幅度工程化改造、能够运行和验证的单线程确定性限价订单簿核心，用于量化开发学习、撮合机制研究和后续回测系统建设。
+当前输出事件只有：
 
-## 当前性能口径
+- `TradeEvent`；
+- `OrderRestedEvent`；
+- `OrderCancelledEvent`；
+- `OrderRejectedEvent`。
 
-以下数据来自本机 Windows、Visual Studio 2022、x64 Release 构建。不同 CPU、电源模式、系统调度和测试负载会产生明显差异。
+没有为了“看起来完整”增加 `OrderAcceptedEvent`。一笔新单如果全部主动成交，本身不需要额外的接受事件；如果产生剩余挂单，`OrderRestedEvent` 已经表达了实际状态变化。
 
-| 测试项目 | 当前大致结果 | 应该如何理解 |
-| --- | ---: | --- |
-| 关闭事件记录的核心批量路径 | 多轮中位数约 40～50 ns/order | 本轮 41.597 ns；进程内微基准，不包含网络、协议和风控 |
-| 单轮批量范围 | 本轮约 38.662～51.169 ns/order | 最低单轮不能当作稳定承诺 |
-| 取消订单 | 多数约 18～30 ns/order | 普通订单取消；清理空价格层时仍会访问有序索引 |
-| 完整路径 P99 | 数百纳秒级 | 包含事件日志写入 |
-| 完整路径 P99.9 | 约 1～3 微秒 | 会受到 Windows 调度和内存分配影响 |
-| 百万订单压力吞吐 | 约 640～680 万 orders/sec | 压力测试结束后执行完整账本审计 |
-| 高频价格层创建/销毁 | 多轮约 66～86 ns/轮 | 本轮 85.78 ns；主要瓶颈仍是 `std::map` 节点分配和维护 |
+### Replay 与 Snapshot
 
-本项目不再宣传“稳定 30ns”。当前更严谨的说法是：部分关闭事件记录的批量核心路径可以进入低 40ns，个别单轮略低于 40ns，但完整系统延迟远高于这个数字，而且端到端实盘延迟还需要加入网络、协议解析、风控和回报发送。
+- Replay 输入是明确的 `std::vector<Command>`，不再从混合事件里猜输入命令；
+- 在全新引擎中重执行 Command，并逐字段比较全部 `EngineEvent`；
+- 比较全部价格档、每档 FIFO、原始/剩余数量、最优价、活跃订单数和最后命令序列；
+- Replay 接口内部同时检查原始引擎和重放引擎的 `check_invariants()`；
+- `state_hash()` 作为辅助校验，不是唯一正确性依据；
+- 支持轻量的进程内 Snapshot，可恢复订单池、索引、价格档、FIFO、BBO 和最后序列；
+- Snapshot 恢复前完整校验，失败返回明确原因且不暴露半恢复状态。
 
-本轮逐笔计时在 Windows 上出现过 `P50 = 0 ns`，这不表示订单真的不耗时间，而是单次操作短于计时器可见粒度。所以上表把批量 100,000 笔、重复 7 轮后的平均值作为核心路径主要参考，逐笔测试主要用来观察 P99/P99.9 尾部。
+这里的 Snapshot 只是内存数据模型，尚未序列化到磁盘，也不等于崩溃恢复。
+
+### 数据结构与工程验证
+
+- 固定容量订单对象池；
+- 固定容量、开放寻址的订单 ID 索引；
+- 后移删除，避免长期撤单后墓碑堆积；
+- 共享价格层对象池；
+- 订单保存所属价格层指针，撤单可直接摘链；
+- `PriceLadder` 加速配置区间内的已知价格层访问；
+- `std::map` 仍作为完整有序价格目录和范围外回退；
+- 完整订单簿状态模型、状态哈希和内部不变量检查；
+- Release CTest、随机属性测试和 MSVC AddressSanitizer 验证。
+
+## 一条命令怎样流过引擎
+
+```text
+NewOrderCommand / CancelOrderCommand
+                 │
+                 ▼
+        CommandSequence 准入检查
+          │                  │
+      失败│                  │通过
+          ▼                  ▼
+ProcessStatus::       参数与业务规则检查
+SEQUENCE_REJECTED        │           │
+无事件、无状态变化      失败         通过
+                         ▼           ▼
+                  OrderRejected   撮合 / 撤单 / 挂单
+                  Event           │
+                                  ▼
+                  Trade / Rested / Cancelled Event
+```
+
+准入拒绝和业务拒绝是两件不同的事：
+
+- sequence 为 0、重复或倒退属于输入准入失败，只返回 `SEQUENCE_REJECTED`，不产生事件、不推进最后序列；
+- 命令通过 sequence gate 后，即使因为重复订单 ID、非法价格或找不到撤单目标而业务拒绝，也会产生 `OrderRejectedEvent`，并推进最后序列；
+- 一个命令产生多个事件时，`EventIndex` 从 0 连续递增。
 
 ## 快速构建
 
 ### Windows + Visual Studio 2022
 
-建议在 **Developer PowerShell for VS 2022** 中执行，或先确保 `cmake` 已加入 `PATH`。
+建议在 **Developer PowerShell for VS 2022** 中执行：
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
@@ -97,24 +114,26 @@ cmake --build build --config Release --parallel
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-运行程序：
+分别运行：
 
 ```powershell
 .\build\Release\matching_engine_demo.exe
 .\build\Release\matching_engine_unit_tests.exe
 .\build\Release\matching_engine_property_tests.exe
+.\build\Release\matching_engine_snapshot_tests.exe
 .\build\Release\matching_engine_benchmarks.exe
 ```
 
-### Linux + GCC/Clang
+### Linux / WSL + GCC 或 Clang
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
+./build/matching_engine_demo
 ```
 
-### AddressSanitizer
+### MSVC AddressSanitizer
 
 ```powershell
 cmake -S . -B build-asan -G "Visual Studio 17 2022" -A x64 -DENABLE_ASAN=ON
@@ -122,51 +141,92 @@ cmake --build build-asan --config RelWithDebInfo --parallel
 ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 ```
 
+如果系统找不到 `clang_rt.asan_dynamic-x86_64.dll`，请从 Developer PowerShell 启动，或把当前 Visual Studio MSVC 的 `Hostx64\x64` 运行库目录加入本次终端的 `PATH`。Sanitizer 构建用于查内存问题，不用于性能比较。
+
+## 当前测试状态
+
+最终代码收官版本已经通过：
+
+| 验证层 | 当前内容 |
+|---|---|
+| Unit Test 可执行文件 | 21 个固定测试函数，覆盖撮合、撤单、拒绝、事件顺序、Sequence、Replay、索引和池化 |
+| Property Test 可执行文件 | 5 组随机/属性测试 |
+| Snapshot Test 可执行文件 | 4 组恢复测试，包含继续执行和非法快照原子失败 |
+| Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
+| Release CTest | 4/4 通过 |
+| MSVC ASan RelWithDebInfo CTest | 4/4 通过 |
+
+本次文档收尾复验耗时为 Release `0.74 s`、ASan `3.80 s`。耗时只是本机参考，重要结论是四个 CTest 入口均通过。
+
+## 性能结论：怎样理解“30 ns”
+
+性能优化阶段保留了原始数据，位于 `benchmarks/results/`。下表对应提交 `e4d59e2`，环境为 Intel Core i7-14650HX、MSVC 19.44、x64 Release、Windows Balanced 电源计划、线程未绑核、关闭事件记录。每个值是“5 个全新进程 × 每进程 7 次”的进程中位数再取中位数。
+
+| 关闭事件的批量微基准 | 优化前 | 优化后 | 结论 |
+|---|---:|---:|---|
+| 同价已有价格层挂单 | 44.559 ns/order | 26.663 ns/order | 进入 30 ns 内，但只代表最短挂单场景 |
+| 多个已有价格层挂单 | 43.876 ns/order | 27.104 ns/order | 进入 30 ns 内，仍是批量微基准 |
+| 新建价格层挂单 | 79.730 ns/order | 73.090 ns/order | `std::map` 节点仍是主要成本 |
+| 立即成交 | 43.838 ns/order | 24.988 ns/order | 进入 30 ns 内，不含外部链路 |
+| 一笔扫四档 | 200.090 ns/order | 186.440 ns/order | 多次成交和跨档访问成本明显更高 |
+
+这些数据说明：在特定预热、批量、关闭事件的窄场景里，项目已经能够靠近或低于 30 ns；但不能据此宣称“撮合引擎稳定 30 ns”，更不能说端到端交易链路是 30 ns。网络收包、协议解析、风控、事件发布、日志持久化、线程调度和真实订单分布都没有包含在表内。
+
+之后的架构 Sprint 增加了 Command/Event 分离、Sequence gate、完整 Replay 验证和 Snapshot。为了遵守“停止追纳秒、先把结构讲清楚”的目标，没有在最终提交 `9e43b8e` 上重新执行同口径性能矩阵。因此上表是可追溯的性能阶段结果，不冒充最终架构版本的新测数据。
+
+## 当前明确没有实现
+
+- Market、IOC、FOK、Post Only、Replace 和自成交保护；
+- 账户资金、持仓、交易时段、手续费和完整风控；
+- 多品种路由、多线程分片和 NUMA 部署；
+- 网络协议、行情发布和交易所接入；
+- CommandJournal、ExecutionJournal 和 Event Application；
+- 磁盘 Snapshot、校验和、原子落盘和崩溃恢复；
+- Reference Engine、Differential Testing 和大规模故障注入；
+- 固定容量事件日志；
+- 完全消除 `std::map` 节点分配。
+
+CSV 的 `save_log/load_log` 只用于 `EngineEvent` 的可读诊断往返，不是 Replay 输入，也不是持久化恢复协议。
+
 ## 主要目录
 
 ```text
 src/
-  types.hpp                 强类型、价格缩放和方向定义
-  order.hpp                 订单对象、订单池和同价位链表
+  types.hpp                 强类型、方向和价格缩放
+  commands.hpp              NewOrderCommand / CancelOrderCommand
+  events.hpp                四种 EngineEvent 和拒绝原因
+  order.hpp                 订单、同价链表和订单对象池
+  book_state.hpp            可逐字段比较的完整订单簿状态
+  instrument_config.hpp     tick、lot、价格和数量规则
   fixed_order_index.hpp     固定容量订单 ID 索引
-  instrument_config.hpp     品种 tick、lot、价格和数量规则
-  limit_level_pool.hpp      固定容量价格层池
-  price_ladder.hpp          配置价格区间内的快速价格层指针表
-  price_level_store.hpp     有序价格索引与价格层所有权边界
-  events.hpp                命令结果与成交事件
-  orderbook.hpp             撮合、撤单、拒单和账本审计核心
-  replay.hpp                日志保存、严格加载和确定性回放
-  main.cpp                  演示程序
+  limit_level_pool.hpp      共享价格层对象池
+  price_ladder.hpp          配置区间内的快速价格层表
+  price_level_store.hpp     完整有序价格目录
+  orderbook.hpp             统一入口、撮合、撤单和状态审计
+  replay.hpp                Command 重执行验证和 CSV 事件诊断
+  snapshot.hpp              轻量内存 Snapshot 数据模型
+  snapshot_recovery.hpp     Snapshot 校验与恢复
+  main.cpp                  可运行演示
 
 tests/
-  unit_tests.cpp            功能、拒单、池化和磁盘恢复测试
-  property_tests.cpp        随机属性、FIFO和回放一致性测试
+  unit_tests.cpp            21 个固定测试函数
+  property_tests.cpp        5 组属性/随机测试
+  snapshot_tests.cpp        4 组 Snapshot 测试
 
 benchmarks/
-  perf.cpp                  延迟、吞吐、撤单、内存和压力测试
-
-docs/
-  01-原项目框架与问题分析.md
-  02-从原项目到当前版本的改造报告.md
-  03-当前项目的后续改进路线.md
-  04-新项目完整介绍与使用说明.md
+  perf.cpp                  延迟、吞吐和压力基准
+  results/                  性能阶段的原始结果与验证元数据
 ```
 
-## 测试状态
+## 文档阅读顺序
 
-当前阶段已经通过：
-
-- 19 项单元测试；
-- 5 组随机属性测试；
-- 3 个 CTest 入口；
-- MSVC AddressSanitizer 单元测试和属性测试；
-- Demo 确定性回放；
-- 百万订单压力测试和终态账本审计。
-
-测试通过只能说明当前覆盖场景没有发现错误，不代表项目已经达到交易所生产标准。仓库文档会持续明确“已经验证的内容”和“尚未实现的内容”。
+1. [原项目框架与问题分析](docs/01-原项目框架与问题分析.md)：原项目做了什么，哪些思路值得保留，哪些宣传需要重新验证。
+2. [从原项目到当前版本的改造报告](docs/02-从原项目到当前版本的改造报告.md)：按阶段记录全部主要改动、效果和失败实验。
+3. [当前项目的后续改进路线](docs/03-当前项目的后续改进路线.md)：只列当前仍未完成的问题、选择理由和验收标准。
+4. [新项目完整介绍与使用说明](docs/04-新项目完整介绍与使用说明.md)：从金融概念、最终架构到代码调用、Replay 和 Snapshot 的完整说明。
 
 ## 许可证与致谢
 
-本项目基于 MIT 许可证开源项目进行学习和重构，保留原许可证与历史记录。感谢原作者提供订单簿、对象池、事件回放和基准测试的初始框架。
+本项目沿用 MIT License。感谢原作者提供可以继续学习和验证的开源起点。
 
-本仓库新增内容主要集中在跨平台构建、输入规则、拒单语义、固定索引、价格层池化、回放完整性、账本审计、测试体系、Sanitizer 验证和性能口径修正。
+本仓库新增和重构的主要内容包括：Visual Studio/CMake 兼容、交易规则校验、固定订单索引、价格层池化、撤单直达、热路径实验、Command/Event 分离、确定性 Sequence、Command Replay 全量验证、轻量内存 Snapshot、内部不变量、测试体系和完整文档。
