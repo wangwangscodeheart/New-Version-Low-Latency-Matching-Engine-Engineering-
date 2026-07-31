@@ -3,7 +3,9 @@
 # ============================================================================
 
 cmake_minimum_required(VERSION 3.14)
-project(MatchingEngine VERSION 1.0.0 LANGUAGES CXX)
+project(MatchingEngine VERSION 2.0.0 LANGUAGES CXX)
+
+find_package(Threads REQUIRED)
 
 # ============================================================================
 # Compiler Settings
@@ -59,6 +61,15 @@ add_executable(matching_engine_demo
     src/main.cpp
 )
 
+add_executable(matching_engine_v2_demo
+    src/v2_main.cpp
+)
+target_link_libraries(matching_engine_v2_demo PRIVATE Threads::Threads)
+
+add_executable(matching_engine_market_data_generator
+    src/market_data_generator_main.cpp
+)
+
 # ============================================================================
 # Unit Tests
 # ============================================================================
@@ -83,6 +94,48 @@ add_executable(matching_engine_snapshot_tests
     tests/snapshot_tests.cpp
 )
 
+add_executable(matching_engine_market_manager_tests
+    tests/market_manager_tests.cpp
+)
+
+add_executable(matching_engine_event_system_tests
+    tests/event_system_tests.cpp
+)
+
+add_executable(matching_engine_journal_replay_tests
+    tests/journal_replay_tests.cpp
+)
+
+add_executable(matching_engine_async_logger_tests
+    tests/async_logger_tests.cpp
+)
+target_link_libraries(matching_engine_async_logger_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_monitor_tests
+    tests/monitor_tests.cpp
+)
+target_link_libraries(matching_engine_monitor_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_market_data_tests
+    tests/market_data_tests.cpp
+)
+target_link_libraries(matching_engine_market_data_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_strategy_tests
+    tests/strategy_tests.cpp
+)
+target_link_libraries(matching_engine_strategy_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_async_journal_tests
+    tests/async_journal_tests.cpp
+)
+target_link_libraries(matching_engine_async_journal_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_market_data_generator_tests
+    tests/market_data_generator_tests.cpp
+)
+target_link_libraries(matching_engine_market_data_generator_tests PRIVATE Threads::Threads)
+
 # ============================================================================
 # Benchmarks
 # ============================================================================
@@ -90,6 +143,11 @@ add_executable(matching_engine_snapshot_tests
 add_executable(matching_engine_benchmarks
     benchmarks/perf.cpp
 )
+
+add_executable(matching_engine_v2_benchmarks
+    benchmarks/v2_perf.cpp
+)
+target_link_libraries(matching_engine_v2_benchmarks PRIVATE Threads::Threads)
 
 # ============================================================================
 # CTest Integration
@@ -100,7 +158,17 @@ if(BUILD_TESTING)
     add_test(NAME matching_engine_unit COMMAND matching_engine_unit_tests)
     add_test(NAME matching_engine_properties COMMAND matching_engine_property_tests)
     add_test(NAME matching_engine_snapshot COMMAND matching_engine_snapshot_tests)
+    add_test(NAME matching_engine_market_manager COMMAND matching_engine_market_manager_tests)
+    add_test(NAME matching_engine_event_system COMMAND matching_engine_event_system_tests)
+    add_test(NAME matching_engine_journal_replay COMMAND matching_engine_journal_replay_tests)
+    add_test(NAME matching_engine_async_logger COMMAND matching_engine_async_logger_tests)
+    add_test(NAME matching_engine_monitor COMMAND matching_engine_monitor_tests)
+    add_test(NAME matching_engine_market_data COMMAND matching_engine_market_data_tests)
+    add_test(NAME matching_engine_strategy COMMAND matching_engine_strategy_tests)
+    add_test(NAME matching_engine_async_journal COMMAND matching_engine_async_journal_tests)
+    add_test(NAME matching_engine_market_data_generator COMMAND matching_engine_market_data_generator_tests)
     add_test(NAME matching_engine_demo_integration COMMAND matching_engine_demo)
+    add_test(NAME matching_engine_v2_demo_integration COMMAND matching_engine_v2_demo)
 endif()
 
 # ============================================================================
@@ -127,10 +195,22 @@ endif()
 
 install(TARGETS 
     matching_engine_demo
+    matching_engine_v2_demo
+    matching_engine_market_data_generator
     matching_engine_unit_tests
     matching_engine_property_tests
     matching_engine_snapshot_tests
+    matching_engine_market_manager_tests
+    matching_engine_event_system_tests
+    matching_engine_journal_replay_tests
+    matching_engine_async_logger_tests
+    matching_engine_monitor_tests
+    matching_engine_market_data_tests
+    matching_engine_strategy_tests
+    matching_engine_async_journal_tests
+    matching_engine_market_data_generator_tests
     matching_engine_benchmarks
+    matching_engine_v2_benchmarks
     DESTINATION bin
 )
 
@@ -148,9 +228,12 @@ message(STATUS "  Compiler: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "")
 message(STATUS "  Targets:")
 message(STATUS "    - matching_engine_demo           (Main demo)")
+message(STATUS "    - matching_engine_v2_demo        (V2 infrastructure demo)")
+message(STATUS "    - matching_engine_market_data_generator (synthetic CSV generator)")
 message(STATUS "    - matching_engine_unit_tests     (Unit tests)")
 message(STATUS "    - matching_engine_property_tests (Property tests)")
 message(STATUS "    - matching_engine_snapshot_tests (Snapshot tests)")
 message(STATUS "    - matching_engine_benchmarks     (Performance)")
+message(STATUS "    - matching_engine_v2_benchmarks  (V2 routed event path)")
 message(STATUS "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 message(STATUS "")
