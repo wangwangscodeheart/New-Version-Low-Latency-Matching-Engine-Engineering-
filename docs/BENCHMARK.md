@@ -38,17 +38,17 @@ Windows 或 Linux 上可对 Release/RelWithDebInfo 的两个 benchmark 分别执
 
 ## 当前 V2 本机基线
 
-2026-08-07 在 Windows 10、Intel Family 6 Model 183、MSVC 19.44、Release `/O2` 下运行。基准元数据 HEAD 为 `3c30270c5f8b`，其后工作树包含本轮语义收口修复，因此这组结果应在修复提交后以新 commit 再复跑一次；它不是 CI 或生产延迟承诺。
+2026-08-07 在 Windows 10、Intel Family 6 Model 183、MSVC 19.44、Release `/O2` 下运行。基准元数据 commit 为 `7b4de2ee75ce`；它不是 CI 或生产延迟承诺。
 
 | 场景 | Batch avg ns | Throughput/s | Sample median ns | P99 ns |
 |---|---:|---:|---:|---:|
-| Core/pre-resolved | 49.48 | 20,209,505 | 100 | 200 |
-| String routing | 50.50 | 19,801,980 | 100 | 200 |
-| Dispatcher | 127.26 | 7,857,723 | 100 | 200 |
-| Dispatcher + Monitor | 173.15 | 5,775,450 | 200 | 300 |
-| Dispatcher + Async Logger | 593.76 | 1,684,177 | 400 | 2,500 |
-| Dispatcher + Async Journal | 392.76 | 2,546,052 | 300 | 1,300 |
-| Full V2 | 904.73 | 1,105,300 | 600 | 2,100 |
+| Core/pre-resolved | 61.03 | 16,384,937 | 100 | 200 |
+| String routing | 51.29 | 19,496,978 | 100 | 200 |
+| Dispatcher | 125.39 | 7,974,800 | 100 | 300 |
+| Dispatcher + Monitor | 174.53 | 5,729,783 | 200 | 400 |
+| Dispatcher + Async Logger | 575.35 | 1,738,072 | 400 | 1,800 |
+| Dispatcher + Async Journal | 379.83 | 2,632,780 | 1,400 | 3,500 |
+| Full V2 | 4,129.91 | 242,136 | 2,700 | 8,300 |
 
 每层使用 60,000 次预热、60,000 次测量、5 个独立 fixture 的 batch 中位数。异步场景受后台线程调度和磁盘缓存影响，单次结果不可用于跨机器比较。
 
