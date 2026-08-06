@@ -140,6 +140,27 @@ void test_trade_reduces_passive_order() {
     TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 0);
 }
 
+void test_invalid_business_message_marks_feed_stale() {
+    MarketDataGateway gateway(1);
+    auto send = [&](const std::vector<uint8_t>& bytes) {
+        FeedDecoder decoder;
+        bool accepted = false;
+        decoder.consume(bytes, [&](const FeedMessage& message) {
+            accepted = gateway.on_message(message);
+        });
+        decoder.finish();
+        return accepted;
+    };
+    TEST_ASSERT(send(add(0, 1, 10, 1000000, 5, Side::BUY)));
+    TEST_ASSERT(!send(cancel(0, 2, 999))); // unknown order corrupts continuity
+    TEST_ASSERT(gateway.metrics().invalid_messages == 1);
+    TEST_ASSERT(gateway.state(InstrumentId(0)) == FeedState::STALE);
+    TEST_ASSERT(gateway.last_sequence(InstrumentId(0)) == 2);
+    TEST_ASSERT(!send(add(0, 3, 11, 1000001, 1, Side::BUY)));
+    TEST_ASSERT(gateway.metrics().stale_messages == 1);
+    TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 1);
+}
+
 void test_malformed_and_incomplete() {
     std::vector<uint8_t> invalid = add(0, 1, 1, 1000000, 1, Side::BUY);
     invalid[2] = 0; invalid[3] = 8;
@@ -168,6 +189,7 @@ int main() {
         test_partial_multi_symbol_and_replay();
         test_sequence_and_checkpoint();
         test_trade_reduces_passive_order();
+        test_invalid_business_message_marks_feed_stale();
         test_malformed_and_incomplete();
         std::cout << "Feed gateway tests passed\n";
         return 0;

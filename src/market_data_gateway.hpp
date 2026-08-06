@@ -60,6 +60,7 @@ public:
         }
         if (!books_[id.get()].apply(message.payload)) {
             ++metrics_.invalid_messages;
+            states_[id.get()] = FeedState::STALE;
             return false;
         }
         ++metrics_.applied;
