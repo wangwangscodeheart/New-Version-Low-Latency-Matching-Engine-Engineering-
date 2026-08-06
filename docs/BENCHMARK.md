@@ -38,19 +38,19 @@ Windows 或 Linux 上可对 Release/RelWithDebInfo 的两个 benchmark 分别执
 
 ## 当前 V2 本机基线
 
-2026-08-07 在 Windows 10、Intel Family 6 Model 183、MSVC 19.44、Release `/O2` 下运行。基准元数据 commit 为 `7b4de2ee75ce`；它不是 CI 或生产延迟承诺。
+2026-08-07 在 Windows 10、Intel Family 6 Model 183、MSVC 19.44、Release `/O2`、Balanced 电源计划下运行。基准元数据 commit 为 `a99dd15e6cad`。表格取 5 个独立进程各自结果的中位数；[原始 stdout、环境 JSON 和逐轮 CSV](../benchmarks/results/2026-08-07-v2-baseline/) 与表格一起入库。它不是 CI 或生产延迟承诺。
 
 | 场景 | Batch avg ns | Throughput/s | Sample median ns | P99 ns |
 |---|---:|---:|---:|---:|
-| Core/pre-resolved | 61.03 | 16,384,937 | 100 | 200 |
-| String routing | 51.29 | 19,496,978 | 100 | 200 |
-| Dispatcher | 125.39 | 7,974,800 | 100 | 300 |
-| Dispatcher + Monitor | 174.53 | 5,729,783 | 200 | 400 |
-| Dispatcher + Async Logger | 575.35 | 1,738,072 | 400 | 1,800 |
-| Dispatcher + Async Journal | 379.83 | 2,632,780 | 1,400 | 3,500 |
-| Full V2 | 4,129.91 | 242,136 | 2,700 | 8,300 |
+| Core/pre-resolved | 52.25 | 19,139,977 | 100 | 200 |
+| String routing | 48.91 | 20,446,413 | 100 | 200 |
+| Dispatcher | 120.82 | 8,277,004 | 100 | 300 |
+| Dispatcher + Monitor | 168.91 | 5,920,371 | 200 | 300 |
+| Dispatcher + Async Logger | 622.32 | 1,606,899 | 400 | 1,900 |
+| Dispatcher + Async Journal | 374.47 | 2,670,453 | 300 | 2,100 |
+| Full V2 | 3,976.93 | 251,450 | 2,800 | 7,300 |
 
-每层使用 60,000 次预热、60,000 次测量、5 个独立 fixture 的 batch 中位数。异步场景受后台线程调度和磁盘缓存影响，单次结果不可用于跨机器比较。
+每个进程内每层使用 60,000 次预热、60,000 次测量、5 个独立 fixture 的 batch 中位数。五轮中 pre-resolved 为 47.05–94.46 ns，而字符串路由为 48.26–50.87 ns；这说明前者“反而更慢”尚不能解释为代码因果，当前 Windows Balanced、未绑核环境存在明显调度/频率噪声。Full V2 同样为 832.79–4,234.44 ns。后续比较必须固定 CPU/电源策略并保存逐轮结果；异步场景不可用单次结果跨机器比较。
 
 ## 结果解释模板
 

@@ -1,0 +1,9 @@
+﻿METADATA_JSON,{"git_commit":"a99dd15e6cad","cpu":"Intel64 Family 6 Model 183 Stepping 1, GenuineIntel","logical_processors":"24","os":"Windows-10.0.26200","compiler":"MSVC-19.44.35222.0","compiler_flags":"/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG","build_type":"Release","events_enabled":true,"warmup_operations":60000,"measured_operations":60000,"process_runs":5,"sampling_clock":"steady_clock"}
+RESULT_CSV,scenario,operations,batch_avg_ns,throughput_per_sec,sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum
+RESULT_CSV,core_pre_resolved_instrument,60000,56.24,17781993,100,200,200,3800,16435168435000393696
+RESULT_CSV,core_plus_routing,60000,48.43,20649069,100,200,200,2900,16435168435000393696
+RESULT_CSV,dispatcher,60000,124.42,8037078,100,200,300,3300,16435168435000393696
+RESULT_CSV,dispatcher_monitor,60000,168.43,5937126,200,300,400,8100,16435168435000393696
+RESULT_CSV,dispatcher_async_logger,60000,553.85,1805554,400,1900,54500,442500,16435168435000393696
+RESULT_CSV,dispatcher_async_journal,60000,355.64,2811832,300,2100,20600,307700,16435168435000393696
+RESULT_CSV,full_v2,60000,4234.44,236159,2900,7300,249700,1437400,16435168435000393696

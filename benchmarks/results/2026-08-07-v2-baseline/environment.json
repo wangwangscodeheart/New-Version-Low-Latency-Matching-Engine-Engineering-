@@ -1,0 +1,13 @@
+﻿{
+    "schema_version":  1,
+    "captured_at_utc":  "2026-08-06T19:38:47.0069560Z",
+    "git_commit":  "a99dd15e6cad84c15043618d1ea8bb14faf8631a",
+    "tracked_worktree_clean":  true,
+    "executable":  "build/v2_ninja/matching_engine_v2_benchmarks.exe",
+    "operating_system":  "Microsoft Windows 10.0.26200 ",
+    "os_version":  "Microsoft Windows NT 10.0.26200.0",
+    "cpu":  "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_processors":  24,
+    "power_plan":  "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+    "requested_runs":  5
+}
