@@ -9,33 +9,21 @@
 #include "instrument_config.hpp"
 #include "commands.hpp"
 #include "events.hpp"
+#include "event_sink.hpp"
 #include "book_state.hpp"
 #include "snapshot.hpp"
+#include "process_status.hpp"
+#include "capacity_metrics.hpp"
 #include <map>
 #include <unordered_map>
 #include <vector>
 #include <optional>
-#include <iostream>
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
 #include <utility>
-
-enum class ProcessStatus : uint8_t {
-    APPLIED = 0,
-    REJECTED = 1,
-    SEQUENCE_REJECTED = 2
-};
-
-struct ProcessResult {
-    ProcessStatus status;
-    size_t event_begin;
-    size_t event_count;
-
-    bool applied() const noexcept { return status == ProcessStatus::APPLIED; }
-};
 
 // ============================================================================
 // ORDER BOOK - deterministic price-time matching core
@@ -66,6 +54,9 @@ private:
     
     // Event Log: Stores objects by value (contiguous memory)
     std::vector<EngineEvent> event_log_;
+    size_t event_capture_limit_ = 0;
+    bool command_event_capture_complete_ = true;
+    bool command_batch_mode_ = false;
     
     CommandSequence last_applied_command_sequence_{0};
     CommandSequence current_command_sequence_{0};
@@ -76,6 +67,8 @@ private:
     LimitLevel* cached_ask_level_ = nullptr;
     int64_t cached_bid_price_ = 0;
     int64_t cached_ask_price_ = 0;
+    size_t peak_active_orders_ = 0;
+    size_t peak_active_levels_ = 0;
 
 public:
     // Pre-allocate memory to avoid runtime allocation
@@ -99,6 +92,7 @@ public:
                    capacity <= max_size / event_reserve_multiplier)
                       ? capacity * event_reserve_multiplier : capacity;
               event_log_.reserve(reserve_events);
+              event_capture_limit_ = reserve_events;
           }
     }
 
@@ -113,6 +107,9 @@ public:
           order_index_(std::move(other.order_index_)),
           price_ladder_(std::move(other.price_ladder_)),
           event_log_(std::move(other.event_log_)),
+          event_capture_limit_(other.event_capture_limit_),
+          command_event_capture_complete_(other.command_event_capture_complete_),
+          command_batch_mode_(other.command_batch_mode_),
           last_applied_command_sequence_(other.last_applied_command_sequence_),
           current_command_sequence_(other.current_command_sequence_),
           next_event_index_(other.next_event_index_),
@@ -121,7 +118,9 @@ public:
           cached_bid_level_(other.cached_bid_level_),
           cached_ask_level_(other.cached_ask_level_),
           cached_bid_price_(other.cached_bid_price_),
-          cached_ask_price_(other.cached_ask_price_) {
+          cached_ask_price_(other.cached_ask_price_),
+          peak_active_orders_(other.peak_active_orders_),
+          peak_active_levels_(other.peak_active_levels_) {
         bids_.rebind_pool(level_pool_);
         asks_.rebind_pool(level_pool_);
         other.cached_bid_level_ = nullptr;
@@ -132,6 +131,7 @@ public:
 
     ProcessResult process(const Command& command) {
         const size_t event_begin = event_log_.size();
+        command_event_capture_complete_ = true;
         const CommandSequence sequence = get_command_sequence(command);
         if (sequence.get() == 0 ||
             sequence.get() <= last_applied_command_sequence_.get()) {
@@ -145,7 +145,8 @@ public:
             using T = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<T, NewOrderCommand>) {
                 return process_new_order_impl(value.order_id, value.side,
-                                              value.price, value.quantity);
+                                              value.price, value.quantity,
+                                              value.time_in_force);
             } else {
                 return process_cancel_impl(value.order_id);
             }
@@ -153,7 +154,41 @@ public:
         // Passing the sequence gate means the command was consumed even when
         // its business fields were rejected.
         last_applied_command_sequence_ = sequence;
-        return ProcessResult{status, event_begin, event_log_.size() - event_begin};
+        update_capacity_peaks();
+        return ProcessResult{status, event_begin, event_log_.size() - event_begin,
+                             command_event_capture_complete_};
+    }
+
+    // V2/system path: retain events only for the duration of one command,
+    // deliver them in EventIndex order, then release the batch. This prevents
+    // a long-running routed engine from accumulating full event history inside
+    // every OrderBook. The legacy overload above remains temporarily for V1
+    // diagnostics and replay migration.
+    template<typename EventSink>
+    ProcessResult process(const Command& command, EventSink& sink) {
+        event_log_.clear();
+        command_batch_mode_ = true;
+        ProcessResult result{ProcessStatus::REJECTED, 0, 0};
+        try {
+            result = process(command);
+        } catch (...) {
+            command_batch_mode_ = false;
+            event_log_.clear();
+            throw;
+        }
+        command_batch_mode_ = false;
+        bool complete = true;
+        for (size_t i = result.event_begin;
+             i < result.event_begin + result.event_count; ++i) {
+            if (!sink.push(event_log_[i])) {
+                complete = false;
+                break;
+            }
+        }
+        result.event_output_complete = result.event_output_complete && complete;
+        result.event_begin = 0;
+        event_log_.clear();
+        return result;
     }
 
     // Compatibility wrappers. All matching logic is routed through process().
@@ -166,6 +201,25 @@ public:
     }
 
 private:
+    void update_capacity_peaks() noexcept {
+        peak_active_orders_ = std::max(peak_active_orders_, order_index_.size());
+        peak_active_levels_ = std::max(peak_active_levels_, bids_.size() + asks_.size());
+    }
+
+    template<typename Event, typename... Args>
+    void emit_event(Args&&... args) {
+        if (!record_events_) return;
+        // V1 compatibility capture is deliberately bounded. The command-batch
+        // path may grow for a single multi-level sweep, but is drained before
+        // the next command and therefore cannot accumulate history.
+        if (!command_batch_mode_ && event_log_.size() >= event_capture_limit_) {
+            command_event_capture_complete_ = false;
+            return;
+        }
+        event_log_.emplace_back(std::in_place_type<Event>,
+                                std::forward<Args>(args)...);
+    }
+
     CommandSequence next_compatibility_sequence() const noexcept {
         if (last_applied_command_sequence_.get() == std::numeric_limits<uint64_t>::max()) {
             return CommandSequence(0);
@@ -174,14 +228,14 @@ private:
     }
 
     void emit_rejection(CommandType command_type, OrderId id, RejectReason reason) {
-        if (record_events_) {
-            event_log_.emplace_back(std::in_place_type<OrderRejectedEvent>,
-                current_command_sequence_, EventIndex(next_event_index_++),
-                command_type, id, reason);
-        }
+        if (!record_events_) return;
+        emit_event<OrderRejectedEvent>(
+            current_command_sequence_, EventIndex(next_event_index_++),
+            command_type, id, reason);
     }
 
-    ProcessStatus process_new_order_impl(OrderId id, Side side, Price price, Quantity qty) {
+    ProcessStatus process_new_order_impl(OrderId id, Side side, Price price, Quantity qty,
+                                         TimeInForce time_in_force) {
         if (id.get() == 0) {
             emit_rejection(CommandType::NEW_ORDER, id, RejectReason::DUPLICATE_ORDER_ID);
             return ProcessStatus::REJECTED;
@@ -216,12 +270,19 @@ private:
             emit_rejection(CommandType::NEW_ORDER, id, RejectReason::INVALID_LOT_SIZE);
             return ProcessStatus::REJECTED;
         }
+        const bool would_trade = side == Side::BUY
+            ? (best_ask().has_value() && price.get() >= best_ask()->get())
+            : (best_bid().has_value() && price.get() <= best_bid()->get());
+        if (time_in_force == TimeInForce::POST_ONLY && would_trade) {
+            emit_rejection(CommandType::NEW_ORDER, id,
+                           RejectReason::POST_ONLY_WOULD_TRADE);
+            return ProcessStatus::REJECTED;
+        }
 
         // Reserve the order object before acknowledging the command.
         Order* order = order_pool_.allocate();
         if (!order) {
             emit_rejection(CommandType::NEW_ORDER, id, RejectReason::POOL_EXHAUSTED);
-            std::cerr << "CRITICAL: Order Pool Exhausted!\n";
             return ProcessStatus::REJECTED;
         }
 
@@ -246,13 +307,20 @@ private:
         }
 
         // 5. Add remaining to book
-        if (!order->is_filled()) {
+        if (!order->is_filled() && time_in_force == TimeInForce::IOC) {
+            if (record_events_) emit_event<OrderCancelledEvent>(
+                current_command_sequence_, EventIndex(next_event_index_++),
+                order->id, order->side, order->price, order->remaining_qty,
+                order->priority_sequence);
+            order_index_.erase(id.get());
+            order_pool_.deallocate(order);
+        } else if (!order->is_filled()) {
             add_to_book(order);
-            if (record_events_) event_log_.emplace_back(std::in_place_type<OrderRestedEvent>,
-                                    current_command_sequence_, EventIndex(next_event_index_++),
-                                    order->id, order->side, order->price,
-                                    order->original_qty, order->remaining_qty,
-                                    order->priority_sequence);
+            if (record_events_) emit_event<OrderRestedEvent>(
+                current_command_sequence_, EventIndex(next_event_index_++),
+                order->id, order->side, order->price,
+                order->original_qty, order->remaining_qty,
+                order->priority_sequence);
         } else {
             order_index_.erase(id.get());
             order_pool_.deallocate(order);
@@ -281,9 +349,9 @@ private:
         // 2. Free memory
         order_index_.erase(id.get());
         order_pool_.deallocate(order);
-        if (record_events_) event_log_.emplace_back(std::in_place_type<OrderCancelledEvent>,
-                                current_command_sequence_, EventIndex(next_event_index_++),
-                                id, side, price, remaining, priority);
+        if (record_events_) emit_event<OrderCancelledEvent>(
+            current_command_sequence_, EventIndex(next_event_index_++),
+            id, side, price, remaining, priority);
         return ProcessStatus::APPLIED;
     }
 
@@ -382,6 +450,23 @@ public:
       size_t ask_level_count() const noexcept { return asks_.size(); }
       size_t level_pool_capacity() const noexcept { return level_pool_.capacity(); }
       size_t available_level_slots() const noexcept { return level_pool_.available(); }
+
+      CapacityMetrics capacity_metrics() const noexcept {
+          const size_t active_orders = order_index_.size();
+          const size_t active_levels = bids_.size() + asks_.size();
+          return CapacityMetrics{
+              active_orders,
+              std::max(peak_active_orders_, active_orders),
+              active_levels,
+              std::max(peak_active_levels_, active_levels),
+              active_orders,
+              order_index_.capacity(),
+              order_pool_.capacity(),
+              level_pool_.capacity(),
+              event_log_.size(),
+              event_log_.capacity()
+          };
+      }
 
       // Expensive diagnostic audit. Intended for tests, recovery checks, and
       // low-frequency operational health checks—not the matching hot path.
@@ -526,7 +611,7 @@ private:
             );
 
             // 1. Generate Trade Event
-            if (record_events_) event_log_.emplace_back(std::in_place_type<TradeEvent>,
+            if (record_events_) emit_event<TradeEvent>(
                 current_command_sequence_, EventIndex(next_event_index_++),
                 passive->id, aggressive->id,
                 match_price, Quantity(trade_qty));
@@ -564,7 +649,9 @@ private:
             }
             auto [level, inserted] = bids_.get_or_create(order->price.get());
             if (!level) {
-                std::cerr << "CRITICAL: Price-Level Pool Exhausted despite order/level capacity invariant!\n";
+                // With equal order/level capacities, a newly allocated active
+                // order guarantees at least one free level slot. Reaching this
+                // branch means the internal ownership invariant is broken.
                 std::terminate();
             }
             level->add_order(order);
@@ -584,7 +671,8 @@ private:
             }
             auto [level, inserted] = asks_.get_or_create(order->price.get());
             if (!level) {
-                std::cerr << "CRITICAL: Price-Level Pool Exhausted despite order/level capacity invariant!\n";
+                // See the bid-side invariant above. This cannot be reported as
+                // a normal rejection after matching may have changed the book.
                 std::terminate();
             }
             level->add_order(order);

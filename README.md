@@ -8,7 +8,7 @@
 
 ## 当前定位
 
-当前版本是一个单品种、单写者、进程内运行的确定性限价订单簿核心，适合：
+当前仓库是一个用于量化开发学习的 C++17 交易基础设施项目。V1 提供单品种、单写者、进程内运行的确定性限价订单簿与撮合核心；V2 保留该核心，在外层增加多品种路由、统一事件、Journal、Audit、Replay、异步日志、行情校验、简化二进制 feed handler、容量指标、盘前风控和监控。它适合：
 
 - 学习交易所撮合的价格优先和同价 FIFO；
 - 给量化回测提供可控的撮合内核；
@@ -16,7 +16,19 @@
 - 学习 Command、EngineEvent、Replay 和 Snapshot 的边界；
 - 作为量化开发实习项目继续拆解和扩展。
 
-它不是可以直接管理真实资金的交易所生产系统，也没有接入网络、账户、持仓、风控和持久化日志。
+它不是可以直接管理真实资金的交易所生产系统。当前没有真实交易所网络接口、账户资金与持仓系统、完整盘前风控、生产级 WAL、高可用复制或并行撮合分片。
+
+## Version 1 与 Version 2
+
+| 范围 | Version 1 | Version 2 |
+|---|---|---|
+| 核心职责 | `OrderBook`、Price Ladder、价格时间优先撮合、撤单 | 保留 V1 核心并提供系统外围能力 |
+| 品种 | 单个 `OrderBook` | `MarketManager` 管理 AAPL、TSLA、NVDA 等独立订单簿 |
+| 输入输出 | Command 与 EngineEvent | 带 timestamp/type/symbol/InstrumentId/payload 的统一 SystemEvent |
+| 恢复 | Command Replay、进程内 Snapshot | 多品种 Journal Replay 与结果校验 |
+| 可观测性 | 状态、invariant、微基准 | Audit、Async Logger、Monitor、数据质量事件 |
+
+V2 的完整架构、运行方式和模块说明见 [README_V2.md](README_V2.md)。根 README 是当前仓库的统一入口，V1 文档和历史性能结果保留用于说明演进过程，不代表尚未提供 V2。
 
 ## 最终版本解决了什么
 
@@ -60,9 +72,10 @@
 - Replay 接口内部同时检查原始引擎和重放引擎的 `check_invariants()`；
 - `state_hash()` 作为辅助校验，不是唯一正确性依据；
 - 支持轻量的进程内 Snapshot，可恢复订单池、索引、价格档、FIFO、BBO 和最后序列；
+- 单 OrderBook Snapshot 可写入版本化二进制文件，包含显式字段、snapshot sequence 和 checksum，并通过临时文件校验、持久化刷新和原子替换保护上一份有效文件；
 - Snapshot 恢复前完整校验，失败返回明确原因且不暴露半恢复状态。
 
-这里的 Snapshot 只是内存数据模型，尚未序列化到磁盘，也不等于崩溃恢复。
+V2 进一步使用“同代 Book 文件先落盘、manifest 最后原子提交”的方式保存多品种一致性切面，并可只回放 snapshot sequence 之后的 Journal。当前 Journal 仍是教学用途的 CSV 格式，尚不宣称生产级 WAL 或高可用崩溃恢复。
 
 ### 数据结构与工程验证
 
@@ -145,18 +158,21 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 
 ## 当前测试状态
 
-最终代码收官版本已经通过：
+当前 V2 代码已经通过：
 
 | 验证层 | 当前内容 |
 |---|---|
 | Unit Test 可执行文件 | 21 个固定测试函数，覆盖撮合、撤单、拒绝、事件顺序、Sequence、Replay、索引和池化 |
 | Property Test 可执行文件 | 5 组随机/属性测试 |
-| Snapshot Test 可执行文件 | 4 组恢复测试，包含继续执行和非法快照原子失败 |
+| Differential Test 可执行文件 | 25 个固定种子 × 4,000 条命令，逐命令比较状态、事件和完整盘口 |
+| Snapshot Test 可执行文件 | 5 组恢复测试，包含继续执行、非法快照原子失败、磁盘往返、截断与 checksum 损坏检测 |
 | Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
-| Release CTest | 4/4 通过 |
-| MSVC ASan RelWithDebInfo CTest | 4/4 通过 |
+| V1 + V2 Release CTest | 20/20 通过（2026-08-07 本机复验） |
+| MSVC ASan RelWithDebInfo CTest | V1 阶段曾完成 4/4；V2 全量 ASan 尚需重新固定基线 |
 
-本次文档收尾复验耗时为 Release `0.74 s`、ASan `3.80 s`。耗时只是本机参考，重要结论是四个 CTest 入口均通过。
+2026-08-07 的现有 Release 构建复验为 20/20 CTest 通过。历史 Release `0.74 s` 和 ASan `3.80 s` 是 V1 阶段结果，不与当前 V2 测试耗时混用。
+
+`.github/workflows/ci.yml` 配置了 Linux Release、ASan+UBSan、外围异步模块 TSan 和缩小负载的 V2 benchmark smoke。共享 CI 的 benchmark 只验证程序可运行，不作为正式延迟数据。工作流需要推送后由 GitHub runner 实际验证；本节的 20/20 仅代表本机 MSVC Release 结果。
 
 ## 性能结论：怎样理解“30 ns”
 
@@ -176,17 +192,19 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 
 ## 当前明确没有实现
 
-- Market、IOC、FOK、Post Only、Replace 和自成交保护；
+- Market、FOK、Replace 和自成交保护（IOC 与 Post Only 已实现）；
 - 账户资金、持仓、交易时段、手续费和完整风控；
-- 多品种路由、多线程分片和 NUMA 部署；
-- 网络协议、行情发布和交易所接入；
-- CommandJournal、ExecutionJournal 和 Event Application；
-- 磁盘 Snapshot、校验和、原子落盘和崩溃恢复；
+- 多线程撮合分片和 NUMA 部署；
+- 真实交易所网络协议、组播订阅、重传通道和行情发布；
+- 带校验和、版本头、fsync 策略和 fail-stop 语义的生产级 WAL；
+- 生产级二进制 WAL、高可用复制与完整断电恢复；
 - Reference Engine、Differential Testing 和大规模故障注入；
-- 固定容量事件日志；
+- 完全无内部临时事件缓冲的撮合实现；当前 V2 批次会在命令后清空，V1 兼容诊断捕获严格限制在构造时预留容量内；
 - 完全消除 `std::map` 节点分配。
 
 CSV 的 `save_log/load_log` 只用于 `EngineEvent` 的可读诊断往返，不是 Replay 输入，也不是持久化恢复协议。
+
+V2 已实现可重放的 CSV Journal，但只保证正常关闭时排空与 flush；它不具备断电一致性、每批 fsync 或生产级 WAL 语义。V2 的合成行情也只用于确定性测试，不是真实交易所数据。
 
 ## 主要目录
 
@@ -206,12 +224,16 @@ src/
   replay.hpp                Command 重执行验证和 CSV 事件诊断
   snapshot.hpp              轻量内存 Snapshot 数据模型
   snapshot_recovery.hpp     Snapshot 校验与恢复
+  snapshot_file.hpp         版本化磁盘格式、checksum 与原子替换
+  market_snapshot.hpp       多品种代际快照与 manifest 提交
   main.cpp                  可运行演示
 
 tests/
   unit_tests.cpp            21 个固定测试函数
   property_tests.cpp        5 组属性/随机测试
-  snapshot_tests.cpp        4 组 Snapshot 测试
+  differential_tests.cpp   Reference Engine 差分测试
+  snapshot_tests.cpp        5 组 Snapshot 测试
+  market_snapshot_tests.cpp 多品种快照与增量 Journal 恢复
 
 benchmarks/
   perf.cpp                  延迟、吞吐和压力基准
@@ -222,6 +244,7 @@ benchmarks/
 
 1. [原项目框架与问题分析](docs/01-原项目框架与问题分析.md)：原项目做了什么，哪些思路值得保留，哪些宣传需要重新验证。
 2. [从原项目到当前版本的改造报告](docs/02-从原项目到当前版本的改造报告.md)：按阶段记录全部主要改动、效果和失败实验。
+3. [Benchmark 与性能证据](docs/BENCHMARK.md)：说明测量边界、Linux perf/VTune 采集方法和结果解释规范。
 3. [当前项目的后续改进路线](docs/03-当前项目的后续改进路线.md)：只列当前仍未完成的问题、选择理由和验收标准。
 4. [新项目完整介绍与使用说明](docs/04-新项目完整介绍与使用说明.md)：从金融概念、最终架构到代码调用、Replay 和 Snapshot 的完整说明。
 

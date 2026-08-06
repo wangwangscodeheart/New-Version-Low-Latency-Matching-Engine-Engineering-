@@ -67,11 +67,27 @@ void test_unknown_symbol_and_per_instrument_rules() {
                 RejectReason::INVALID_LOT_SIZE);
 }
 
+void test_pre_resolved_instrument_routing() {
+    MarketManager manager(64);
+    const InstrumentId aapl = manager.resolve(Symbol("AAPL"));
+    const InstrumentId tsla = manager.resolve(Symbol("TSLA"));
+    TEST_ASSERT(aapl.valid() && tsla.valid() && aapl != tsla);
+    TEST_ASSERT(manager.symbol(aapl) && manager.symbol(aapl)->value() == "AAPL");
+    NullEventSink sink;
+    const auto result = manager.process(aapl,
+        NewOrderCommand(CommandSequence(1), OrderId(99), Side::BUY,
+                        from_double(90), Quantity(1)), sink);
+    TEST_ASSERT(result.routed() && result.process_result.applied());
+    TEST_ASSERT(manager.find_book(aapl)->best_bid() == from_double(90));
+    TEST_ASSERT(!manager.resolve(Symbol("UNKNOWN")).valid());
+}
+
 int main() {
     try {
         test_default_symbols();
         test_symbol_isolation_and_routing();
         test_unknown_symbol_and_per_instrument_rules();
+        test_pre_resolved_instrument_routing();
         std::cout << "MarketManager tests passed\n";
         return 0;
     } catch (const std::exception& error) {

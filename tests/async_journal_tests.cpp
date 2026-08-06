@@ -33,6 +33,7 @@ void test_async_journal_drain_and_replay() {
     TEST_ASSERT(writer.written_count() == 5);
     TEST_ASSERT(writer.dropped_count() == 0);
     TEST_ASSERT(writer.healthy());
+    TEST_ASSERT(writer.health() == JournalHealth::STOPPED);
 
     const std::vector<JournalRecord> records = Journal::load(path.string());
     TEST_ASSERT(records.size() == 5);
@@ -42,6 +43,36 @@ void test_async_journal_drain_and_replay() {
     const JournalReplayResult replay = JournalReplayEngine::replay(
         records, replay_engine, replay_dispatcher, &source_markets);
     TEST_ASSERT(replay.success());
+    std::filesystem::remove(path);
+}
+
+void test_queue_overflow_is_terminal_and_visible() {
+    const auto path = std::filesystem::temp_directory_path() / "overflow_v2.journal.csv";
+    MarketManager markets(20'000);
+    EventDispatcher dispatcher;
+    AsyncJournalWriter writer(path.string(), 1);
+    writer.attach(dispatcher);
+    TradingEngine engine(markets, dispatcher, &writer);
+    for (uint64_t sequence = 1; sequence <= 10'000 && writer.dropped_count() == 0;
+         ++sequence) {
+        engine.submit(Timestamp(sequence), Symbol("AAPL"),
+            NewOrderCommand(CommandSequence(sequence), OrderId(sequence), Side::BUY,
+                            from_double(90.0), Quantity(1)));
+    }
+    writer.stop();
+    TEST_ASSERT(writer.dropped_count() == 1);
+    TEST_ASSERT(writer.health() == JournalHealth::QUEUE_OVERFLOW);
+    TEST_ASSERT(!writer.healthy());
+    TEST_ASSERT(writer.accepted_count() == writer.written_count());
+    const OrderBookState state_before_rejected_submit =
+        markets.find_book(Symbol("AAPL"))->capture_state();
+    const MarketProcessResult unavailable = engine.submit(
+        Timestamp(20'000), Symbol("AAPL"),
+        NewOrderCommand(CommandSequence(20'000), OrderId(20'000), Side::BUY,
+                        from_double(90.0), Quantity(1)));
+    TEST_ASSERT(unavailable.routing_status == RoutingStatus::SYSTEM_UNAVAILABLE);
+    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->capture_state() ==
+                state_before_rejected_submit);
     std::filesystem::remove(path);
 }
 
@@ -89,6 +120,7 @@ void test_middle_corruption_is_never_ignored() {
 int main() {
     try {
         test_async_journal_drain_and_replay();
+        test_queue_overflow_is_terminal_and_visible();
         test_incomplete_tail_recovery_only();
         test_middle_corruption_is_never_ignored();
         std::cout << "Async journal tests passed\n";

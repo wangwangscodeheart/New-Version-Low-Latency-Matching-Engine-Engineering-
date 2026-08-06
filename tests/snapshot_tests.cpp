@@ -1,5 +1,8 @@
 #include "../src/orderbook.hpp"
 #include "../src/snapshot_recovery.hpp"
+#include "../src/snapshot_file.hpp"
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -175,6 +178,58 @@ void test_invalid_snapshots_are_atomic() {
     expect_failure(crossed, 64, SnapshotRestoreError::CROSSED_BOOK);
 }
 
+void test_disk_snapshot_roundtrip_and_corruption_detection() {
+    const auto directory = std::filesystem::temp_directory_path();
+    const auto path = directory / "matching_engine.snapshot";
+    const auto truncated_path = directory / "matching_engine_truncated.snapshot";
+    const auto corrupted_path = directory / "matching_engine_corrupted.snapshot";
+    const OrderBookSnapshot snapshot = populated_snapshot();
+
+    SnapshotFile::save_atomic(path, 777, snapshot);
+    const SnapshotFileData loaded = SnapshotFile::load(path);
+    TEST_ASSERT(loaded.snapshot_sequence == 777);
+    SnapshotRestoreResult restored = SnapshotRecovery::restore(loaded.snapshot, 64);
+    TEST_ASSERT(restored.success());
+
+    SnapshotFile::save_atomic(path, 778, snapshot);
+    TEST_ASSERT(SnapshotFile::load(path).snapshot_sequence == 778);
+    auto temporary = path;
+    temporary += ".tmp";
+    TEST_ASSERT(!std::filesystem::exists(temporary));
+
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    const auto length = input.tellg();
+    TEST_ASSERT(length > 16);
+    std::vector<char> bytes(static_cast<size_t>(length));
+    input.seekg(0);
+    input.read(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    TEST_ASSERT(static_cast<bool>(input));
+    input.close();
+
+    {
+        std::ofstream truncated(truncated_path, std::ios::binary | std::ios::trunc);
+        truncated.write(bytes.data(), static_cast<std::streamsize>(bytes.size() - 7));
+    }
+    bool truncation_rejected = false;
+    try { (void)SnapshotFile::load(truncated_path); }
+    catch (const std::runtime_error&) { truncation_rejected = true; }
+    TEST_ASSERT(truncation_rejected);
+
+    bytes[bytes.size() / 2] ^= 0x01;
+    {
+        std::ofstream corrupted(corrupted_path, std::ios::binary | std::ios::trunc);
+        corrupted.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    }
+    bool corruption_rejected = false;
+    try { (void)SnapshotFile::load(corrupted_path); }
+    catch (const std::runtime_error&) { corruption_rejected = true; }
+    TEST_ASSERT(corruption_rejected);
+
+    std::filesystem::remove(path);
+    std::filesystem::remove(truncated_path);
+    std::filesystem::remove(corrupted_path);
+}
+
 } // namespace
 
 int main() {
@@ -183,6 +238,7 @@ int main() {
         test_snapshot_state_recovery();
         test_snapshot_continue_execution();
         test_invalid_snapshots_are_atomic();
+        test_disk_snapshot_roundtrip_and_corruption_detection();
         std::cout << "All snapshot tests passed\n";
         return 0;
     } catch (const std::exception& error) {

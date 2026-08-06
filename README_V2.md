@@ -72,13 +72,15 @@ Market Data 可以进入同一 Dispatcher，但不会直接修改 OrderBook。�
 
 ### Event System
 
-`SystemEvent` 统一携带 `timestamp`、`event_type`、`symbol` 和 `payload`。payload 复用 V1 的 `Command` 和 `EngineEvent`。Dispatcher 同步且按订阅顺序执行，避免多线程回调改变事件先后关系。
+`SystemEvent` 统一携带 `timestamp`、`event_type`、`symbol`、预解析 `InstrumentId` 和 `payload`。payload 复用 V1 的 `Command` 和 `EngineEvent`。Dispatcher 同步且按订阅顺序执行；组件连接完成后可调用 `freeze()` 固化订阅，发布路径直接遍历稳定槽位，不再逐事件复制回调数组。
+
+V2 的 TradingEngine 使用可注入 Event Sink 接收单条命令产生的 EngineEvent。事件按 EventIndex 顺序交给 Dispatcher，命令完成后清空 OrderBook 的临时事件批次，因此 V2 长期运行不在每个订单簿中保存全量事件历史。`NullEventSink`、`VectorEventSink` 和 `FixedEventBuffer` 分别用于无记录基准、Replay/测试以及固定容量批次。固定 Sink 容量不足时 `ProcessResult::event_output_complete` 会显式变为 false，不会把不完整输出伪装为成功交付。V1 的旧诊断接口暂时保留，但捕获长度被硬限制在构造时的 event reserve 内，达到上限后同样报告输出不完整且不会扩容。
 
 ### Journal
 
 Journal 保存 `ORDER_INSERT`、`CANCEL`、派生 `TRADE` 和 `COMMAND_RESULT`。结果区分 APPLIED、业务拒绝、sequence 拒绝和未知 symbol。恢复时只重新提交订单与撤单；Trade 必须由撮合核心重新生成，再与历史 Trade 对比。Journal sequence 解决相同 timestamp 下的稳定顺序问题。
 
-`AsyncJournalWriter` 使用独立有界队列和 writer thread 顺序追加记录。正常停止时会取消订阅、排空、flush 和 close，并通过 accepted/written/dropped/write-failed 指标报告健康状态。恢复模式只能忽略最后一条不完整尾记录；文件中间损坏始终失败。它仍不宣称具备每条记录 fsync 的断电持久性。
+`AsyncJournalWriter` 使用无状态 `JournalProjector` 将事件直接投影到独立有界队列，不再持有随历史增长的内存副本。正常停止时会取消订阅、排空、flush 和 close；队列首次溢出后进入 `QUEUE_OVERFLOW` 终态并停止接受后续记录，写失败进入 `WRITE_FAILURE`，不会继续伪装成可恢复状态。它可作为 `TradingEngine` 的 Submission Gate：非健康状态下，下一条命令明确返回 `SYSTEM_UNAVAILABLE`，且不会发布输入事件或修改 OrderBook。恢复模式只能忽略最后一条不完整尾记录；文件中间损坏始终失败。它仍不宣称具备每条记录 fsync 的断电持久性。
 
 ### Audit Log
 
@@ -87,6 +89,10 @@ Audit Log 回答“某个订单经历了什么”，记录 CREATE、SUBMIT、PAR
 ### Replay
 
 V2 Replay 读取 Journal，复用正常的 TradingEngine → MarketManager → OrderBook 路径。完成后比较历史成交、每条命令 outcome、AAPL/TSLA/NVDA 的完整 `OrderBookState` 和 state hash，并报告首个不一致 Journal sequence。没有第二套撮合算法。
+
+### Disk Snapshot
+
+单 OrderBook 的 Snapshot 支持版本化二进制落盘。文件只保存显式整数配置和订单字段，不保存指针、对象池地址或 STL 容器布局；尾部 checksum 检测损坏和截断。写入流程为 `snapshot.tmp → flush/fsync → 重新读取校验 → 原子替换 current`，因此写入失败不会先删除上一份有效快照。多品种层使用代际文件：先完整写入并验证每个 symbol 的同代 Book 文件，最后原子提交带 checksum 的 manifest。恢复先在独立 MarketManager 中恢复全部品种，任一文件失败都不暴露半恢复对象；随后只回放 `journal_sequence > snapshot_sequence` 的记录。
 
 ### Market Data 与数据质量
 
@@ -114,7 +120,7 @@ Trading Thread → non-blocking try_push → Bounded Queue
 
 ### Monitor
 
-Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。`TradingEngine` 使用 `steady_clock` 测量 MarketManager 路由加 OrderBook 处理时间，输出平均值和最大值。Async Logger 丢弃数也进入监控快照。
+Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。已注册品种通过 `InstrumentId` 更新预分配指标槽位，避免逐事件字符串哈希；未知品种和独立数据质量事件走兼容回退表。`TradingEngine` 使用 `steady_clock` 测量 MarketManager 路由加 OrderBook 处理时间，输出平均值和最大值。Async Logger 丢弃数也进入监控快照。当前仍以互斥锁保护 CLI 并发快照，这一点应计入端到端性能口径。
 
 ## 6. Journal 与 Audit 为什么必须分离
 
@@ -158,16 +164,22 @@ V2 Demo 会生成：
 ./build-v2/matching_engine_v2_benchmarks
 ```
 
-原 `matching_engine_benchmarks` 继续用于 V1 撮合核心性能口径。V2 benchmark 测量多品种路由、事件分发和 Monitor 接入后的系统路径，两个数字不能直接混为同一种延迟。
+原 `matching_engine_benchmarks` 继续用于 V1 撮合核心性能口径。V2 benchmark 使用同一确定性挂单/撤单负载，分别输出预解析 `InstrumentId` 的 Core、字符串 Routing、冻结 Dispatcher、Monitor、AsyncLogger、AsyncJournal 和 Full V2。每层包含独立预热、5 个全新 fixture 的 batch 中位数，以及与 batch 分离的逐笔 Median/P99/P99.9/Max；非零 checksum 验证 batch 与采样运行得到一致结果。输出同时包含 commit、CPU、操作系统、编译器和 Build Type 元数据。
+
+一次交互运行只用于冒烟，不能作为正式性能结论。正式结果必须在固定机器、电源模式和后台负载下运行多个全新进程并保存完整原始输出。Batch Average 与逐笔采样使用不同计时边界，不能把两者数值直接混用。
 
 ## 9. 测试范围
 
 V2 新增测试覆盖：
 
+- Reference Engine 差分验证：25 个固定随机种子、每个 4,000 条混合命令，比较 ProcessStatus、逐条 EngineEvent 与完整 OrderBookState；
+
 - 默认品种注册、未知品种和品种隔离
 - 同一 OrderId 跨品种共存
 - 确定性事件订阅和事件类型映射
 - Journal CSV 往返、损坏日志拒绝和多品种恢复
+- 磁盘 Snapshot 往返、截断和 checksum 损坏检测
+- 多品种一致性 Snapshot、manifest 损坏拒绝及 Snapshot 后增量 Journal Replay
 - CSV 行情解析和 DataValidator warning/error
 - Strategy 经正常订单路径提交及非法行情隔离
 - 历史 Trade 与重放 Trade 一致性
@@ -183,7 +195,7 @@ V2 新增测试覆盖：
 
 ## 10. 当前边界
 
-这是教学和面试用途的基础设施化实现，不宣称已经是交易所或券商生产系统。目前仍未实现网络行情协议、持久化二进制 WAL、崩溃一致性 fsync 策略、订单修改、IOC/FOK、市价单、多线程撮合分片、高可用复制和生产级告警系统。
+这是教学和面试用途的基础设施化实现，不宣称已经是交易所或券商生产系统。目前仍未实现真实交易所网络协议、持久化二进制 WAL、完整崩溃一致性 fsync 策略、FOK、市价单、订单修改、自成交保护、多线程撮合分片、高可用复制和生产级告警系统。
 
 Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优先保证代码边界清晰和行为可验证；如性能数据证明队列竞争成为瓶颈，再替换实现而不改变上层接口。
 
@@ -194,6 +206,28 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 ## 12. 确定性多品种模拟行情
 
 项目不包含交易所真实行情，也不会联网抓取数据。`MarketDataGenerator` 使用固定随机种子和整数价格刻度，生成时间交织的 AAPL、TSLA、NVDA 合成 CSV；相同配置会产生逐字节相同的文件。数据只用于验证多品种路由、行情校验、策略接入、监控与回放，不代表真实市场分布。
+
+## 13. 简化二进制行情接入
+
+`FeedDecoder` 按网络字节序解析固定 24 字节帧头以及 Add/Cancel/Trade 消息，流式处理半包、多包、非法长度、未知类型、非法方向和不完整尾包。`SequenceTracker` 按 `InstrumentId` 检测 gap、重复和倒退；`MarketDataGateway` 拒绝非法品种，重复与乱序消息不会更新状态。
+
+外部行情由独立 `MarketDataBook` 重建，绝不直接送入撮合 `OrderBook`：前者描述交易所发布的观察状态，后者主动处理本系统订单并产生成交。`MarketDataReplay` 可从二进制流重新解码并恢复行情状态。`MarketDataGateway` 的内存检查点同时捕获各品种行情簿、各通道最后序号和容量指标；恢复先在临时对象中完整校验，再一次性替换在线状态，避免暴露“序号已恢复但行情簿未恢复”的半状态。该检查点目前不是磁盘持久化快照。该协议是用于展示 feed handler 语义的确定性简化模型，不包含真实交易所组播协议、重传通道和快照服务。
+
+## 14. 容量观测与盘前风控
+
+`OrderBook::capacity_metrics()` 暴露当前和峰值活动订单/价位、订单与价位容量、索引负载以及事件缓冲容量，用于压测后判断预分配是否合理；指标读取不参与撮合决策。
+
+`PreTradeRisk` 位于 `TradingEngine` 之前，支持最大单笔数量、参考价偏离、最大活动订单数、单品种名义价值、持仓、总敞口和 Kill Switch。`RiskCheckedTradingEngine` 仅在风控通过后调用正常交易入口，因此风控拒绝不会进入 `OrderBook`、不会消费撮合 CommandSequence，也能与撮合业务拒绝清楚区分。持仓和参考价由外围账户/行情组件注入；本项目仍不包含完整账户、PnL 和保证金系统。
+
+## 15. IOC 与 Post Only
+
+`NewOrderCommand` 新增 `TimeInForce`，旧调用默认保持 GTC。IOC 按正常价格时间优先级立即撮合，未成交余量生成取消事件且不进入价格档位；Post Only 在修改状态前检查是否会立即成交，会穿价时以 `POST_ONLY_WOULD_TRADE` 拒绝，否则作为普通被动限价单挂入。Journal 新增 `time_in_force` 列并继续兼容旧 11/12 列文件。端到端测试覆盖 Journal 落盘、重新加载、TIF 字段保真和 Replay 后订单簿一致性，确保 IOC/Post Only 不会在恢复时退化为 GTC。
+
+## 16. CI 与 Sanitizer
+
+CI 包含 Linux Release 全量测试、ASan+UBSan 全量测试、异步 Logger/Journal/Monitor 的 TSan 测试，以及通过 `BENCHMARK_SMOKE=ON` 缩小负载的 V2 benchmark 冒烟运行。CI 延迟不写入正式性能结论；正式 benchmark 仍要求固定机器、编译参数和环境元数据。本机 MSVC Release 当前为 20/20 CTest 通过，Linux CI 状态以代码推送后的 runner 结果为准。
+
+普通 CTest 的差分测试使用 25 × 4000 条命令以保持反馈速度。`workflow_dispatch` 提供手动压力任务，运行 100 × 100000 条确定性命令；测试程序也接受 `--seeds`、`--commands` 和 `--seed-base`。失败会报告 seed 和首个不一致 sequence，可将 commands 限制为该 sequence 重放最短失败前缀。
 
 仓库中的 `data/sample_synthetic_market_data.csv` 是一份可直接查看和加载的最小合成样例。
 

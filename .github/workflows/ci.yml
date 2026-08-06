@@ -1,0 +1,82 @@
+name: C++ CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Release
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build/release
+      - name: Test
+        run: ctest --test-dir build/release --output-on-failure
+
+  address-undefined-sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure ASan and UBSan
+        run: >-
+          cmake -S . -B build/asan-ubsan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DENABLE_UBSAN=ON
+      - name: Build
+        run: cmake --build build/asan-ubsan
+      - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: ctest --test-dir build/asan-ubsan --output-on-failure
+
+  thread-sanitizer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure TSan
+        run: >-
+          cmake -S . -B build/tsan -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON
+      - name: Build asynchronous tests
+        run: >-
+          cmake --build build/tsan --target
+          matching_engine_async_logger_tests
+          matching_engine_async_journal_tests
+          matching_engine_monitor_tests
+      - name: Test asynchronous components
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: >-
+          ctest --test-dir build/tsan --output-on-failure
+          -R "matching_engine_(async_logger|async_journal|monitor)"
+
+  benchmark-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure small benchmark workload
+        run: >-
+          cmake -S . -B build/benchmark -G Ninja
+          -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBENCHMARK_SMOKE=ON
+      - name: Build V2 benchmark
+        run: cmake --build build/benchmark --target matching_engine_v2_benchmarks
+      - name: Run smoke test only
+        run: ./build/benchmark/matching_engine_v2_benchmarks
+
+  differential-stress:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Release
+        run: cmake -S . -B build/stress -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build differential test
+        run: cmake --build build/stress --target matching_engine_differential_tests
+      - name: Run 10 million deterministic commands
+        run: >-
+          ./build/stress/matching_engine_differential_tests
+          --seeds 100 --commands 100000 --seed-base 0xD1FF0000

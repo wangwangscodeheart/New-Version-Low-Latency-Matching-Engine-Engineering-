@@ -16,7 +16,8 @@ void test_global_and_symbol_metrics() {
     MarketManager markets(64);
     EventDispatcher dispatcher;
     Monitor monitor;
-    monitor.attach(dispatcher);
+    monitor.attach(dispatcher, &markets);
+    dispatcher.freeze();
     TradingEngine engine(markets, dispatcher);
 
     engine.submit(Timestamp(1), Symbol("AAPL"),
@@ -59,7 +60,7 @@ void test_cli_output_and_logger_metric() {
     MarketManager markets(16);
     EventDispatcher dispatcher;
     Monitor monitor;
-    monitor.attach(dispatcher);
+    monitor.attach(dispatcher, &markets);
     TradingEngine engine(markets, dispatcher);
     engine.submit(Timestamp(1), Symbol("NVDA"),
         NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,

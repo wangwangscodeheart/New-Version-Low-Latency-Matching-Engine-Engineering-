@@ -10,17 +10,30 @@ enum class CommandType : uint8_t {
     CANCEL_ORDER = 1
 };
 
+enum class TimeInForce : uint8_t { GTC = 0, IOC = 1, POST_ONLY = 2 };
+
+inline const char* to_string(TimeInForce value) noexcept {
+    switch (value) {
+        case TimeInForce::GTC: return "GTC";
+        case TimeInForce::IOC: return "IOC";
+        case TimeInForce::POST_ONLY: return "POST_ONLY";
+    }
+    return "UNKNOWN";
+}
+
 struct NewOrderCommand {
     CommandSequence command_sequence;
     OrderId order_id;
     Side side;
     Price price;
     Quantity quantity;
+    TimeInForce time_in_force;
 
     NewOrderCommand(CommandSequence sequence, OrderId id, Side order_side,
-                    Price order_price, Quantity order_quantity)
+                    Price order_price, Quantity order_quantity,
+                    TimeInForce tif = TimeInForce::GTC)
         : command_sequence(sequence), order_id(id), side(order_side),
-          price(order_price), quantity(order_quantity) {}
+          price(order_price), quantity(order_quantity), time_in_force(tif) {}
 };
 
 struct CancelOrderCommand {

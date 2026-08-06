@@ -80,7 +80,8 @@ public:
             if (record.type == JournalRecordType::ORDER_INSERT) {
                 engine.submit(record.timestamp, record.symbol,
                     NewOrderCommand(record.command_sequence, record.order_id,
-                                    record.side, record.price, record.quantity));
+                                    record.side, record.price, record.quantity,
+                                    record.time_in_force));
                 ++result.replayed_commands;
             } else if (record.type == JournalRecordType::CANCEL) {
                 engine.submit(record.timestamp, record.symbol,

@@ -27,6 +27,15 @@ public:
     }
     
 private:
+    static inline uint64_t benchmark_checksum_ = 0;
+
+    static void consume_state(const OrderBook& book) {
+        const uint64_t value = book.state_hash();
+        benchmark_checksum_ ^= value + 0x9e3779b97f4a7c15ULL +
+                               (benchmark_checksum_ << 6U) +
+                               (benchmark_checksum_ >> 2U);
+    }
+
     struct BatchSummary {
         double minimum;
         double median;
@@ -218,6 +227,7 @@ private:
             if (!book.check_invariants()) {
                 throw std::runtime_error("same-price benchmark invariant failure");
             }
+            consume_state(book);
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             return static_cast<double>(elapsed) / resting_operations;
         });
@@ -245,6 +255,7 @@ private:
             if (!book.check_invariants()) {
                 throw std::runtime_error("multiple-price benchmark invariant failure");
             }
+            consume_state(book);
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             return static_cast<double>(elapsed) / resting_operations;
         });
@@ -268,6 +279,7 @@ private:
             if (!book.check_invariants()) {
                 throw std::runtime_error("new-level benchmark invariant failure");
             }
+            consume_state(book);
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             return static_cast<double>(elapsed) / new_level_operations;
         });
@@ -292,6 +304,7 @@ private:
             if (!book.check_invariants()) {
                 throw std::runtime_error("immediate-match benchmark invariant failure");
             }
+            consume_state(book);
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             return static_cast<double>(elapsed) / matching_operations;
         });
@@ -321,11 +334,144 @@ private:
             if (!book.check_invariants()) {
                 throw std::runtime_error("multi-level sweep benchmark invariant failure");
             }
+            consume_state(book);
             const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
             return static_cast<double>(elapsed) / sweep_operations;
         });
         print_matrix_result("four_level_sweep", sweep_operations,
                             repetitions, multi_level_sweep);
+
+        const BatchSummary partial_fill = measure_repetitions(repetitions, [=] {
+            OrderBook book(matching_operations + 100, false);
+            const Price price = from_double(100.00);
+            for (int i = 0; i < matching_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::SELL, price, Quantity(2));
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < matching_operations; ++i) {
+                book.process_new_order(
+                    OrderId(static_cast<uint64_t>(matching_operations + i) + 1),
+                    Side::BUY, price, Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() ||
+                book.active_order_count() != static_cast<size_t>(matching_operations)) {
+                throw std::runtime_error("partial-fill benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / matching_operations;
+        });
+        print_matrix_result("partial_fill", matching_operations,
+                            repetitions, partial_fill);
+
+        constexpr int cancel_operations = 30000;
+        const BatchSummary cancel_middle = measure_repetitions(repetitions, [=] {
+            OrderBook book(cancel_operations * 3 + 100, false);
+            const Price price = from_double(99.00);
+            for (int i = 0; i < cancel_operations * 3; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::BUY, price, Quantity(1));
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < cancel_operations; ++i) {
+                book.process_cancel(OrderId(static_cast<uint64_t>(i * 3) + 2));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() ||
+                book.active_order_count() != static_cast<size_t>(cancel_operations * 2)) {
+                throw std::runtime_error("cancel-middle benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / cancel_operations;
+        });
+        print_matrix_result("cancel_middle", cancel_operations,
+                            repetitions, cancel_middle);
+
+        constexpr int cancel_level_operations = 10000;
+        const BatchSummary cancel_last_level = measure_repetitions(repetitions, [=] {
+            OrderBook book(cancel_level_operations + 100, false);
+            for (int i = 0; i < cancel_level_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1), Side::BUY,
+                                       Price(1'000'000 + static_cast<int64_t>(i) * 100),
+                                       Quantity(1));
+            }
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < cancel_level_operations; ++i) {
+                book.process_cancel(OrderId(static_cast<uint64_t>(i) + 1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() || book.active_order_count() != 0 ||
+                book.bid_level_count() != 0) {
+                throw std::runtime_error("cancel-last-level benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / cancel_level_operations;
+        });
+        print_matrix_result("cancel_last_level", cancel_level_operations,
+                            repetitions, cancel_last_level);
+
+        constexpr int rejection_operations = 100000;
+        const BatchSummary duplicate_reject = measure_repetitions(repetitions, [=] {
+            OrderBook book(100, false);
+            const Price price = from_double(100.00);
+            book.process_new_order(OrderId(1), Side::BUY, price, Quantity(1));
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < rejection_operations; ++i) {
+                book.process_new_order(OrderId(1), Side::BUY, price, Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() || book.active_order_count() != 1) {
+                throw std::runtime_error("duplicate-reject benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / rejection_operations;
+        });
+        print_matrix_result("duplicate_reject", rejection_operations,
+                            repetitions, duplicate_reject);
+
+        const BatchSummary invalid_reject = measure_repetitions(repetitions, [=] {
+            OrderBook book(100, false);
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < rejection_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 1),
+                                       Side::BUY, Price(0), Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() || book.active_order_count() != 0) {
+                throw std::runtime_error("invalid-reject benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / rejection_operations;
+        });
+        print_matrix_result("invalid_reject", rejection_operations,
+                            repetitions, invalid_reject);
+
+        const BatchSummary pool_exhausted = measure_repetitions(repetitions, [=] {
+            OrderBook book(1, false);
+            const Price price = from_double(100.00);
+            book.process_new_order(OrderId(1), Side::BUY, price, Quantity(1));
+            const auto start = std::chrono::steady_clock::now();
+            for (int i = 0; i < rejection_operations; ++i) {
+                book.process_new_order(OrderId(static_cast<uint64_t>(i) + 2),
+                                       Side::BUY, price, Quantity(1));
+            }
+            const auto end = std::chrono::steady_clock::now();
+            if (!book.check_invariants() || book.active_order_count() != 1) {
+                throw std::runtime_error("pool-exhausted benchmark state failure");
+            }
+            consume_state(book);
+            const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            return static_cast<double>(elapsed) / rejection_operations;
+        });
+        print_matrix_result("pool_exhausted", rejection_operations,
+                            repetitions, pool_exhausted);
+        std::cout << "MATRIX_CHECKSUM," << benchmark_checksum_ << '\n';
         std::cout << '\n';
     }
     

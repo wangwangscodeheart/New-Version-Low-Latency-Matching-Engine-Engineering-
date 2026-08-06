@@ -3,6 +3,7 @@
 
 #include "async_logger.hpp"
 #include "event_dispatcher.hpp"
+#include "market_manager.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <iomanip>
@@ -10,6 +11,7 @@
 #include <ostream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 struct TradingMetrics {
     uint64_t orders = 0;
@@ -39,7 +41,9 @@ struct MonitorSnapshot {
 class Monitor {
     mutable std::mutex mutex_;
     TradingMetrics global_;
-    std::unordered_map<std::string, TradingMetrics> by_symbol_;
+    std::vector<TradingMetrics> by_instrument_;
+    std::vector<std::string> instrument_symbols_;
+    std::unordered_map<std::string, TradingMetrics> fallback_by_symbol_;
     EventDispatcher::Subscription subscription_;
 
     static void add_latency(TradingMetrics& metrics, uint64_t latency) noexcept {
@@ -49,14 +53,25 @@ class Monitor {
     }
 
 public:
-    void attach(EventDispatcher& dispatcher) {
+    void attach(EventDispatcher& dispatcher, const MarketManager* markets = nullptr) {
+        if (markets) {
+            by_instrument_.resize(markets->symbol_count());
+            instrument_symbols_.resize(markets->symbol_count());
+            for (const Symbol& symbol : markets->symbols()) {
+                const InstrumentId id = markets->resolve(symbol);
+                instrument_symbols_[id.get()] = symbol.value();
+            }
+        }
         subscription_ = dispatcher.subscribe_all(
             [this](const SystemEvent& event) { on_event(event); });
     }
 
     void on_event(const SystemEvent& event) {
         std::lock_guard<std::mutex> lock(mutex_);
-        TradingMetrics& symbol = by_symbol_[event.symbol.value()];
+        TradingMetrics& symbol = event.instrument_id.valid() &&
+                event.instrument_id.get() < by_instrument_.size()
+            ? by_instrument_[event.instrument_id.get()]
+            : fallback_by_symbol_[event.symbol.value()];
         if (event.event_type == SystemEventType::ORDER) {
             const Command& command = std::get<OrderEvent>(event.payload).command;
             if (std::holds_alternative<NewOrderCommand>(command)) {
@@ -94,7 +109,10 @@ public:
 
     MonitorSnapshot snapshot(const AsyncLogger* logger = nullptr) const {
         std::lock_guard<std::mutex> lock(mutex_);
-        MonitorSnapshot result{global_, by_symbol_, 0};
+        MonitorSnapshot result{global_, fallback_by_symbol_, 0};
+        for (size_t i = 0; i < by_instrument_.size(); ++i) {
+            result.by_symbol[instrument_symbols_[i]] = by_instrument_[i];
+        }
         if (logger) result.dropped_logs = logger->dropped_count();
         return result;
     }

@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 class EventDispatcher {
 public:
@@ -20,13 +21,25 @@ private:
     struct HandlerEntry {
         uint64_t id;
         Handler handler;
+        bool active = true;
     };
     struct State {
         std::array<std::vector<HandlerEntry>, TYPE_COUNT> handlers;
         std::vector<HandlerEntry> all_handlers;
         uint64_t next_id = 1;
+        bool frozen = false;
 
         void unsubscribe(uint64_t id) {
+            if (frozen) {
+                auto deactivate = [id](auto& entries) {
+                    for (HandlerEntry& entry : entries) {
+                        if (entry.id == id) entry.active = false;
+                    }
+                };
+                deactivate(all_handlers);
+                for (auto& entries : handlers) deactivate(entries);
+                return;
+            }
             auto remove = [id](auto& entries) {
                 entries.erase(std::remove_if(entries.begin(), entries.end(),
                     [id](const HandlerEntry& entry) { return entry.id == id; }),
@@ -91,39 +104,58 @@ public:
     EventDispatcher(const EventDispatcher&) = delete;
     EventDispatcher& operator=(const EventDispatcher&) = delete;
 
-    // Subscription order is dispatch order. publish() snapshots callbacks, so
-    // unsubscribe during a callback affects the next event, not the current one.
+    // Subscription order is dispatch order. Mutable mode snapshots callbacks.
+    // After freeze(), publish iterates stable storage directly and allocates no
+    // callback vector; resetting a token merely marks its entry inactive.
     Subscription subscribe(SystemEventType type, Handler handler) {
+        if (state_->frozen) throw std::logic_error("EventDispatcher is frozen");
         const uint64_t id = state_->next_id++;
-        state_->handlers[index(type)].push_back(HandlerEntry{id, std::move(handler)});
+        state_->handlers[index(type)].push_back(HandlerEntry{id, std::move(handler), true});
         return Subscription(state_, id);
     }
 
     Subscription subscribe_all(Handler handler) {
+        if (state_->frozen) throw std::logic_error("EventDispatcher is frozen");
         const uint64_t id = state_->next_id++;
-        state_->all_handlers.push_back(HandlerEntry{id, std::move(handler)});
+        state_->all_handlers.push_back(HandlerEntry{id, std::move(handler), true});
         return Subscription(state_, id);
     }
 
     void publish(const SystemEvent& event) const {
+        if (state_->frozen) {
+            for (const HandlerEntry& entry : state_->all_handlers) {
+                if (entry.active) entry.handler(event);
+            }
+            for (const HandlerEntry& entry : state_->handlers[index(event.event_type)]) {
+                if (entry.active) entry.handler(event);
+            }
+            return;
+        }
         std::vector<Handler> callbacks;
         callbacks.reserve(state_->all_handlers.size() +
                           state_->handlers[index(event.event_type)].size());
         for (const HandlerEntry& entry : state_->all_handlers) {
-            callbacks.push_back(entry.handler);
+            if (entry.active) callbacks.push_back(entry.handler);
         }
         for (const HandlerEntry& entry : state_->handlers[index(event.event_type)]) {
-            callbacks.push_back(entry.handler);
+            if (entry.active) callbacks.push_back(entry.handler);
         }
         for (const Handler& callback : callbacks) callback(event);
     }
 
+    void freeze() noexcept { state_->frozen = true; }
+    bool frozen() const noexcept { return state_->frozen; }
+
     size_t subscriber_count(SystemEventType type) const noexcept {
-        return state_->handlers[index(type)].size();
+        return static_cast<size_t>(std::count_if(
+            state_->handlers[index(type)].begin(), state_->handlers[index(type)].end(),
+            [](const HandlerEntry& entry) { return entry.active; }));
     }
 
     size_t all_event_subscriber_count() const noexcept {
-        return state_->all_handlers.size();
+        return static_cast<size_t>(std::count_if(
+            state_->all_handlers.begin(), state_->all_handlers.end(),
+            [](const HandlerEntry& entry) { return entry.active; }));
     }
 };
 

@@ -5,6 +5,17 @@
 cmake_minimum_required(VERSION 3.14)
 project(MatchingEngine VERSION 2.0.0 LANGUAGES CXX)
 
+execute_process(
+    COMMAND git rev-parse --short=12 HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE MATCHING_ENGINE_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT MATCHING_ENGINE_GIT_COMMIT)
+    set(MATCHING_ENGINE_GIT_COMMIT "unknown")
+endif()
+
 find_package(Threads REQUIRED)
 
 # ============================================================================
@@ -17,6 +28,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
+option(ENABLE_TSAN "Enable ThreadSanitizer (GCC/Clang)" OFF)
+option(BENCHMARK_SMOKE "Use a small workload for CI benchmark smoke tests" OFF)
 
 # Compilation Options
 if(MSVC)
@@ -27,6 +40,15 @@ if(MSVC)
     add_link_options(/NODEFAULTLIB:libcpmt.lib /DEFAULTLIB:msvcprt.lib)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter)
+endif()
+
+if(ENABLE_TSAN)
+    if(MSVC)
+        message(WARNING "TSan is not supported by MSVC; use Clang/GCC")
+    else()
+        add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=thread)
+    endif()
 endif()
 
 if(ENABLE_ASAN)
@@ -86,12 +108,20 @@ add_executable(matching_engine_property_tests
     tests/property_tests.cpp
 )
 
+add_executable(matching_engine_differential_tests
+    tests/differential_tests.cpp
+)
+
 # ============================================================================
 # Snapshot Tests
 # ============================================================================
 
 add_executable(matching_engine_snapshot_tests
     tests/snapshot_tests.cpp
+)
+
+add_executable(matching_engine_market_snapshot_tests
+    tests/market_snapshot_tests.cpp
 )
 
 add_executable(matching_engine_market_manager_tests
@@ -136,6 +166,22 @@ add_executable(matching_engine_market_data_generator_tests
 )
 target_link_libraries(matching_engine_market_data_generator_tests PRIVATE Threads::Threads)
 
+add_executable(matching_engine_feed_gateway_tests
+    tests/feed_gateway_tests.cpp
+)
+
+add_executable(matching_engine_capacity_metrics_tests
+    tests/capacity_metrics_tests.cpp
+)
+
+add_executable(matching_engine_risk_engine_tests
+    tests/risk_engine_tests.cpp
+)
+
+add_executable(matching_engine_order_type_tests
+    tests/order_type_tests.cpp
+)
+
 # ============================================================================
 # Benchmarks
 # ============================================================================
@@ -148,6 +194,22 @@ add_executable(matching_engine_v2_benchmarks
     benchmarks/v2_perf.cpp
 )
 target_link_libraries(matching_engine_v2_benchmarks PRIVATE Threads::Threads)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" MATCHING_ENGINE_BUILD_TYPE_UPPER)
+set(MATCHING_ENGINE_ACTIVE_FLAGS
+    "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${MATCHING_ENGINE_BUILD_TYPE_UPPER}}")
+string(STRIP "${MATCHING_ENGINE_ACTIVE_FLAGS}" MATCHING_ENGINE_ACTIVE_FLAGS)
+target_compile_definitions(matching_engine_v2_benchmarks PRIVATE
+    MATCHING_ENGINE_GIT_COMMIT="${MATCHING_ENGINE_GIT_COMMIT}"
+    MATCHING_ENGINE_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+    MATCHING_ENGINE_COMPILER="${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}"
+    MATCHING_ENGINE_OS="${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}"
+    MATCHING_ENGINE_COMPILER_FLAGS="${MATCHING_ENGINE_ACTIVE_FLAGS}"
+)
+if(BENCHMARK_SMOKE)
+    target_compile_definitions(matching_engine_v2_benchmarks PRIVATE
+        MATCHING_ENGINE_V2_BENCHMARK_PAIRS=100
+    )
+endif()
 
 # ============================================================================
 # CTest Integration
@@ -157,7 +219,9 @@ include(CTest)
 if(BUILD_TESTING)
     add_test(NAME matching_engine_unit COMMAND matching_engine_unit_tests)
     add_test(NAME matching_engine_properties COMMAND matching_engine_property_tests)
+    add_test(NAME matching_engine_differential COMMAND matching_engine_differential_tests)
     add_test(NAME matching_engine_snapshot COMMAND matching_engine_snapshot_tests)
+    add_test(NAME matching_engine_market_snapshot COMMAND matching_engine_market_snapshot_tests)
     add_test(NAME matching_engine_market_manager COMMAND matching_engine_market_manager_tests)
     add_test(NAME matching_engine_event_system COMMAND matching_engine_event_system_tests)
     add_test(NAME matching_engine_journal_replay COMMAND matching_engine_journal_replay_tests)
@@ -167,6 +231,10 @@ if(BUILD_TESTING)
     add_test(NAME matching_engine_strategy COMMAND matching_engine_strategy_tests)
     add_test(NAME matching_engine_async_journal COMMAND matching_engine_async_journal_tests)
     add_test(NAME matching_engine_market_data_generator COMMAND matching_engine_market_data_generator_tests)
+    add_test(NAME matching_engine_feed_gateway COMMAND matching_engine_feed_gateway_tests)
+    add_test(NAME matching_engine_capacity_metrics COMMAND matching_engine_capacity_metrics_tests)
+    add_test(NAME matching_engine_risk_engine COMMAND matching_engine_risk_engine_tests)
+    add_test(NAME matching_engine_order_types COMMAND matching_engine_order_type_tests)
     add_test(NAME matching_engine_demo_integration COMMAND matching_engine_demo)
     add_test(NAME matching_engine_v2_demo_integration COMMAND matching_engine_v2_demo)
 endif()

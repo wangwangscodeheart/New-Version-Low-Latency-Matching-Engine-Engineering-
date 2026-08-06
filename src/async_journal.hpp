@@ -3,51 +3,60 @@
 
 #include "bounded_queue.hpp"
 #include "journal.hpp"
+#include "submission_gate.hpp"
 #include <atomic>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
 
+enum class JournalHealth : uint8_t {
+    HEALTHY = 0,
+    QUEUE_OVERFLOW = 1,
+    WRITE_FAILURE = 2,
+    STOPPED = 3
+};
+
 // Asynchronous append-only journal writer for one process session. It is not a
 // claim of fsync-level crash durability: healthy()==true proves that every
 // accepted in-process record was written and flushed during an orderly stop.
-class AsyncJournalWriter {
+class AsyncJournalWriter : public SubmissionGate {
     BoundedQueue<JournalRecord> queue_;
-    Journal projection_;
     std::ofstream file_;
     std::thread worker_;
     EventDispatcher::Subscription subscription_;
     std::atomic<uint64_t> accepted_{0};
     std::atomic<uint64_t> written_{0};
     std::atomic<uint64_t> dropped_{0};
-    std::atomic<bool> write_failed_{false};
+    std::atomic<JournalHealth> health_{JournalHealth::HEALTHY};
     std::atomic<bool> stopped_{false};
+    uint64_t next_sequence_ = 1; // on_event executes on the single writer path
 
     void run() noexcept {
         JournalRecord record;
         while (queue_.wait_pop(record)) {
             write_journal_record(file_, record);
             if (!file_) {
-                write_failed_.store(true, std::memory_order_release);
+                health_.store(JournalHealth::WRITE_FAILURE, std::memory_order_release);
             } else {
                 written_.fetch_add(1, std::memory_order_relaxed);
             }
         }
         file_.flush();
-        if (!file_) write_failed_.store(true, std::memory_order_release);
+        if (!file_) health_.store(JournalHealth::WRITE_FAILURE, std::memory_order_release);
         file_.close();
     }
 
     void on_event(const SystemEvent& event) {
-        const size_t before = projection_.records().size();
-        projection_.on_event(event);
-        if (projection_.records().size() == before) return;
-        const JournalRecord& record = projection_.records().back();
-        if (!queue_.try_push(record)) {
+        if (health_.load(std::memory_order_acquire) != JournalHealth::HEALTHY) return;
+        auto record = JournalProjector::project(event, next_sequence_);
+        if (!record) return;
+        if (!queue_.try_push(std::move(*record))) {
             dropped_.fetch_add(1, std::memory_order_relaxed);
+            health_.store(JournalHealth::QUEUE_OVERFLOW, std::memory_order_release);
             return;
         }
+        ++next_sequence_;
         accepted_.fetch_add(1, std::memory_order_relaxed);
     }
 
@@ -75,14 +84,25 @@ public:
         subscription_.reset();
         queue_.close();
         if (worker_.joinable()) worker_.join();
+        JournalHealth expected_health = JournalHealth::HEALTHY;
+        health_.compare_exchange_strong(expected_health, JournalHealth::STOPPED,
+                                        std::memory_order_acq_rel);
     }
 
     bool healthy() const noexcept {
-        return dropped_count() == 0 && !write_failed() &&
+        const JournalHealth current = health();
+        return (current == JournalHealth::HEALTHY || current == JournalHealth::STOPPED) &&
+               dropped_count() == 0 && !write_failed() &&
                accepted_count() == written_count();
     }
+    bool available() const noexcept override {
+        return health() == JournalHealth::HEALTHY;
+    }
+    JournalHealth health() const noexcept {
+        return health_.load(std::memory_order_acquire);
+    }
     bool write_failed() const noexcept {
-        return write_failed_.load(std::memory_order_acquire);
+        return health() == JournalHealth::WRITE_FAILURE;
     }
     uint64_t accepted_count() const noexcept {
         return accepted_.load(std::memory_order_relaxed);

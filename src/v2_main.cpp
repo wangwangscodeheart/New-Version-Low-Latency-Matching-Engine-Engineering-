@@ -20,7 +20,7 @@ int main() {
 
         async_journal.attach(dispatcher);
         audit.attach(dispatcher);
-        monitor.attach(dispatcher);
+        monitor.attach(dispatcher, &markets);
         async_logger.attach(dispatcher);
         TradingEngine engine(markets, dispatcher);
 

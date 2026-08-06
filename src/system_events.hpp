@@ -3,6 +3,7 @@
 
 #include "commands.hpp"
 #include "events.hpp"
+#include "instrument_id.hpp"
 #include "symbol.hpp"
 #include "types.hpp"
 #include <cstdint>
@@ -28,7 +29,8 @@ enum class CommandOutcome : uint8_t {
     APPLIED = 0,
     BUSINESS_REJECTED = 1,
     SEQUENCE_REJECTED = 2,
-    UNKNOWN_SYMBOL = 3
+    UNKNOWN_SYMBOL = 3,
+    SYSTEM_UNAVAILABLE = 4
 };
 
 struct ProcessingLatencyEvent {
@@ -85,34 +87,39 @@ struct SystemEvent {
     SystemEventType event_type;
     Symbol symbol;
     SystemEventPayload payload;
+    InstrumentId instrument_id{};
 
     static SystemEvent market_data(Timestamp timestamp, Symbol symbol,
                                    MarketDataEvent event) {
         return SystemEvent{timestamp, SystemEventType::MARKET_DATA,
-                           std::move(symbol), std::move(event)};
+                           std::move(symbol), std::move(event), InstrumentId{}};
     }
 
-    static SystemEvent order(Timestamp timestamp, Symbol symbol, Command command) {
+    static SystemEvent order(Timestamp timestamp, Symbol symbol, Command command,
+                             InstrumentId instrument_id = InstrumentId()) {
         return SystemEvent{timestamp, SystemEventType::ORDER, std::move(symbol),
-                           OrderEvent{std::move(command)}};
+                           OrderEvent{std::move(command)}, instrument_id};
     }
 
     static SystemEvent engine(Timestamp timestamp, Symbol symbol,
-                              EngineEvent event) {
+                              EngineEvent event,
+                              InstrumentId instrument_id = InstrumentId()) {
         const SystemEventType type = to_system_event_type(event);
-        return SystemEvent{timestamp, type, std::move(symbol), std::move(event)};
+        return SystemEvent{timestamp, type, std::move(symbol), std::move(event),
+                           instrument_id};
     }
 
     static SystemEvent processing_latency(Timestamp timestamp, Symbol symbol,
-                                          ProcessingLatencyEvent event) {
+                                          ProcessingLatencyEvent event,
+                                          InstrumentId instrument_id = InstrumentId()) {
         return SystemEvent{timestamp, SystemEventType::PROCESSING_LATENCY,
-                           std::move(symbol), event};
+                           std::move(symbol), event, instrument_id};
     }
 
     static SystemEvent data_quality(Timestamp timestamp, Symbol symbol,
                                     DataQualityEvent event) {
         return SystemEvent{timestamp, SystemEventType::DATA_QUALITY,
-                           std::move(symbol), std::move(event)};
+                           std::move(symbol), std::move(event), InstrumentId{}};
     }
 };
 
