@@ -106,6 +106,7 @@ public:
 
     MarketManager& market_manager() noexcept { return markets_; }
     const MarketManager& market_manager() const noexcept { return markets_; }
+    EventDispatcher& event_dispatcher() noexcept { return dispatcher_; }
 };
 
 #endif

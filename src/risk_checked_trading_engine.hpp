@@ -13,9 +13,14 @@ struct RiskSubmitResult {
 class RiskCheckedTradingEngine {
     PreTradeRisk& risk_;
     TradingEngine& engine_;
+    EventDispatcher::Subscription risk_events_;
 public:
-    RiskCheckedTradingEngine(PreTradeRisk& risk, TradingEngine& engine) noexcept
-        : risk_(risk), engine_(engine) {}
+    RiskCheckedTradingEngine(PreTradeRisk& risk, TradingEngine& engine)
+        : risk_(risk), engine_(engine) {
+        risk_.bind(engine_.market_manager());
+        risk_events_ = engine_.event_dispatcher().subscribe_all(
+            [this](const SystemEvent& event) { risk_.on_event(event); });
+    }
 
     RiskSubmitResult submit(Timestamp timestamp, const Symbol& symbol,
                             const Command& command) {

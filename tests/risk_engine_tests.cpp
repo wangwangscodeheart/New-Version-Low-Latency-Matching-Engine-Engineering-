@@ -40,9 +40,15 @@ int main() {
 
         risk.set_kill_switch(true);
         const Command killed = CancelOrderCommand(CommandSequence(2), OrderId(2));
-        TEST_ASSERT(checked.submit(Timestamp(4), Symbol("AAPL"), killed).risk.reason ==
+        const auto cancelled = checked.submit(Timestamp(4), Symbol("AAPL"), killed);
+        TEST_ASSERT(cancelled.risk.accepted && cancelled.matching->routed());
+        TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 0);
+        TEST_ASSERT(risk.state(markets.resolve(Symbol("AAPL")))->open_orders == 0);
+
+        const Command blocked = NewOrderCommand(CommandSequence(3), OrderId(4),
+            Side::BUY, from_double(100), Quantity(1));
+        TEST_ASSERT(checked.submit(Timestamp(5), Symbol("AAPL"), blocked).risk.reason ==
                     RiskRejectReason::KILL_SWITCH_ENABLED);
-        TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 1);
         std::cout << "Risk engine tests passed\n";
         return 0;
     } catch (const std::exception& error) {
