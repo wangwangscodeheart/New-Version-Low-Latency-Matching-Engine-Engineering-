@@ -168,9 +168,11 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 | Snapshot Test 可执行文件 | 5 组恢复测试，包含继续执行、非法快照原子失败、磁盘往返、截断与 checksum 损坏检测 |
 | Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
 | V1 + V2 Release CTest | 20/20 通过（2026-08-07 本机复验） |
-| MSVC Release CTest | V2 当前 20/20 通过；Linux Release 与 Sanitizer 结果以实际 CI runner 为准 |
+| MSVC Release CTest | V2 当前 20/20 通过 |
+| MSVC ASan RelWithDebInfo CTest | 20/20 通过（2026-08-07，提交 `a99dd15`） |
+| Linux Release / UBSan / TSan | 本机无 Linux 工具链，尚未执行；以未来真实 runner 日志为准 |
 
-2026-08-07 的现有 Release 构建复验为 20/20 CTest 通过。历史 Release `0.74 s` 和 ASan `3.80 s` 是 V1 阶段结果，不与当前 V2 测试耗时混用。
+2026-08-07 的 Release 与 MSVC ASan 构建均为 20/20 CTest 通过；ASan 总测试时间 10.46 秒。历史 Release `0.74 s` 和 ASan `3.80 s` 是 V1 阶段结果，不与当前 V2 测试耗时混用。完整口径见 [当前验证记录](docs/VALIDATION.md)。
 
 `.github/workflows/ci.yml` 配置了 Linux Release、ASan+UBSan、外围异步模块 TSan 和缩小负载的 V2 benchmark smoke。共享 CI 的 benchmark 只验证程序可运行，不作为正式延迟数据。工作流需要推送后由 GitHub runner 实际验证；本节的 20/20 仅代表本机 MSVC Release 结果。
 

@@ -166,7 +166,7 @@ V2 Demo 会生成：
 
 原 `matching_engine_benchmarks` 继续用于 V1 撮合核心性能口径。V2 benchmark 使用同一确定性挂单/撤单负载，分别输出预解析 `InstrumentId` 的 Core、字符串 Routing、冻结 Dispatcher、Monitor、AsyncLogger、AsyncJournal 和 Full V2。每层包含独立预热、5 个全新 fixture 的 batch 中位数，以及与 batch 分离的逐笔 Median/P99/P99.9/Max；非零 checksum 验证 batch 与采样运行得到一致结果。输出同时包含 commit、CPU、操作系统、编译器和 Build Type 元数据。
 
-一次交互运行只用于冒烟，不能作为正式性能结论。正式结果必须在固定机器、电源模式和后台负载下运行多个全新进程并保存完整原始输出。Batch Average 与逐笔采样使用不同计时边界，不能把两者数值直接混用。
+一次交互运行只用于冒烟，不能作为正式性能结论。正式结果必须在固定机器、电源模式和后台负载下运行多个全新进程并保存完整原始输出。当前五进程 Windows 基线、环境 JSON、逐轮 CSV 与完整 stdout 位于 `benchmarks/results/2026-08-07-v2-baseline/`；`scripts/run_benchmark_windows.ps1` 可重新生成一组不覆盖旧证据的新目录。Batch Average 与逐笔采样使用不同计时边界，不能把两者数值直接混用。
 
 ## 9. 测试范围
 
@@ -211,13 +211,13 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 
 `FeedDecoder` 按网络字节序解析固定 24 字节帧头以及 Add/Cancel/Trade 消息，流式处理半包、多包、非法长度、未知类型、非法方向和不完整尾包。`SequenceTracker` 按 `InstrumentId` 检测 gap、重复和倒退；`MarketDataGateway` 拒绝非法品种，重复与乱序消息不会更新状态。
 
-外部行情由独立 `MarketDataBook` 重建，绝不直接送入撮合 `OrderBook`。Add 建立订单，Cancel 删除订单，Trade 携带被动订单 ID 并扣减剩余数量和价格档。Sequence Gap 不推进已确认序号、不应用缺口消息，并将对应品种置为 `STALE`；显式恢复 sequence/checkpoint 后才重新接受连续消息。`MarketDataGateway` 的内存检查点同时捕获各品种行情簿、各通道最后序号、FeedState 和容量指标，恢复先完整校验再替换在线状态。该协议仍不包含真实交易所组播、重传通道和外部快照服务。
+外部行情由独立 `MarketDataBook` 重建，绝不直接送入撮合 `OrderBook`。Add 建立订单，Cancel 删除订单，Trade 携带被动订单 ID 并扣减剩余数量和价格档。Sequence Gap 不推进已确认序号、不应用缺口消息，并将对应品种置为 `STALE`；连续序号下若 Cancel/Trade 等业务内容无法应用，也会立即置为 `STALE`，避免在已不可信的簿上继续处理。显式恢复完整 checkpoint 后才重新接受连续消息。`MarketDataGateway` 的内存检查点同时捕获各品种行情簿、各通道最后序号、FeedState 和容量指标，恢复先完整校验再替换在线状态。该协议仍不包含真实交易所组播、重传通道和外部快照服务。
 
 ## 14. 容量观测与盘前风控
 
 `OrderBook::capacity_metrics()` 暴露当前和峰值活动订单/价位、订单与价位容量、索引负载以及事件缓冲容量，用于压测后判断预分配是否合理；指标读取不参与撮合决策。
 
-`PreTradeRisk` 位于 `TradingEngine` 之前，使用 `InstrumentId` 索引的增量状态。冷启动绑定时可重建一次已有挂单；热路径不再调用 `symbols()` 或 `capture_state()`，而由 Rested/Trade/Cancel 事件 O(1) 更新活动订单、买卖挂单量和 pending notional。Kill Switch 拒绝新订单但允许降低风险的撤单。持仓和参考价由外围账户/行情组件注入；本项目仍不包含完整账户、PnL 和保证金系统。
+`PreTradeRisk` 位于 `TradingEngine` 之前，使用 `InstrumentId` 索引的增量状态。冷启动绑定时可重建一次已有挂单；热路径不再调用 `symbols()` 或 `capture_state()`，而由 Rested/Trade/Cancel 事件 O(1) 更新活动订单、买卖挂单量和 pending notional。仓位上限使用 `position + open_buy + new_buy` 或 `position - open_sell - new_sell` 的保守最坏成交投影；Kill Switch 拒绝新订单但允许降低风险的撤单。主动成交后的真实持仓仍由外围账户组件注入，因此这是盘前风险骨架，不是完整实时持仓/PnL/保证金系统。
 
 ## 15. IOC 与 Post Only
 
