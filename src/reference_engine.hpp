@@ -111,13 +111,28 @@ private:
             return ProcessStatus::REJECTED;
         }
 
+        const bool would_trade = command.side == Side::BUY
+            ? (!asks_.empty() && command.price.get() >= asks_.begin()->first)
+            : (!bids_.empty() && command.price.get() <= bids_.begin()->first);
+        if (command.time_in_force == TimeInForce::POST_ONLY && would_trade) {
+            reject(output, CommandType::NEW_ORDER, command.order_id,
+                   RejectReason::POST_ONLY_WOULD_TRADE);
+            return ProcessStatus::REJECTED;
+        }
+
         ReferenceOrder aggressive{command.order_id, command.side, command.price,
                                   command.quantity, command.quantity,
                                   PrioritySequence(current_sequence_.get())};
         if (command.side == Side::BUY) match_buy(aggressive, output);
         else match_sell(aggressive, output);
 
-        if (aggressive.remaining.get() != 0) {
+        if (aggressive.remaining.get() != 0 &&
+            command.time_in_force == TimeInForce::IOC) {
+            output.emplace_back(std::in_place_type<OrderCancelledEvent>, current_sequence_,
+                                EventIndex(next_event_index_++), aggressive.id,
+                                aggressive.side, aggressive.price, aggressive.remaining,
+                                aggressive.priority);
+        } else if (aggressive.remaining.get() != 0) {
             rest(aggressive);
             output.emplace_back(std::in_place_type<OrderRestedEvent>, current_sequence_,
                                 EventIndex(next_event_index_++), aggressive.id,

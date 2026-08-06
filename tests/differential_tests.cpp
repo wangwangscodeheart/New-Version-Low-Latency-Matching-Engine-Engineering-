@@ -31,8 +31,11 @@ Command generate_command(std::mt19937& random, uint64_t sequence) {
         if (quantity_case < 3) quantity = 0;
         else if (quantity_case < 6) quantity = 105;
         else if (quantity_case < 12) ++quantity;
+        const int tif_case = action(random);
+        const TimeInForce tif = tif_case < 80 ? TimeInForce::GTC
+            : tif_case < 90 ? TimeInForce::IOC : TimeInForce::POST_ONLY;
         return NewOrderCommand(CommandSequence(sequence), OrderId(order_id), side,
-                               Price(price), Quantity(quantity));
+                               Price(price), Quantity(quantity), tif);
     }
     return CancelOrderCommand(CommandSequence(sequence), OrderId(id(random)));
 }
