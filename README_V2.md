@@ -92,7 +92,7 @@ V2 Replay 读取 Journal，复用正常的 TradingEngine → MarketManager → O
 
 ### Disk Snapshot
 
-单 OrderBook 的 Snapshot 支持版本化二进制落盘。文件只保存显式整数配置和订单字段，不保存指针、对象池地址或 STL 容器布局；尾部 checksum 检测损坏和截断。写入流程为 `snapshot.tmp → flush/fsync → 重新读取校验 → 原子替换 current`，因此写入失败不会先删除上一份有效快照。多品种层使用代际文件：先完整写入并验证每个 symbol 的同代 Book 文件，最后原子提交带 checksum 的 manifest。恢复先在独立 MarketManager 中恢复全部品种，任一文件失败都不暴露半恢复对象；随后只回放 `journal_sequence > snapshot_sequence` 的记录。
+单 OrderBook 的 Snapshot 支持版本化二进制落盘。文件只保存显式整数配置和订单字段，不保存指针、对象池地址或 STL 容器布局；尾部 checksum 检测损坏和截断。写入流程为 `snapshot.tmp → flush/fsync → 重新读取校验 → 原子替换 current`。Linux 在 rename 后同步父目录，Windows 使用 `FlushFileBuffers` 与 write-through replace。多品种层使用代际文件：先完整写入并验证每个 symbol 的同代 Book 文件，最后以同样的刷新与替换流程提交带 checksum 的 manifest。恢复先在独立 MarketManager 中恢复全部品种，随后只回放 `journal_sequence > snapshot_sequence` 的记录。它仍不承诺跨设备 rename、磁盘控制器行为、复制或生产级高可用语义。
 
 ### Market Data 与数据质量
 
@@ -211,13 +211,13 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 
 `FeedDecoder` 按网络字节序解析固定 24 字节帧头以及 Add/Cancel/Trade 消息，流式处理半包、多包、非法长度、未知类型、非法方向和不完整尾包。`SequenceTracker` 按 `InstrumentId` 检测 gap、重复和倒退；`MarketDataGateway` 拒绝非法品种，重复与乱序消息不会更新状态。
 
-外部行情由独立 `MarketDataBook` 重建，绝不直接送入撮合 `OrderBook`：前者描述交易所发布的观察状态，后者主动处理本系统订单并产生成交。`MarketDataReplay` 可从二进制流重新解码并恢复行情状态。`MarketDataGateway` 的内存检查点同时捕获各品种行情簿、各通道最后序号和容量指标；恢复先在临时对象中完整校验，再一次性替换在线状态，避免暴露“序号已恢复但行情簿未恢复”的半状态。该检查点目前不是磁盘持久化快照。该协议是用于展示 feed handler 语义的确定性简化模型，不包含真实交易所组播协议、重传通道和快照服务。
+外部行情由独立 `MarketDataBook` 重建，绝不直接送入撮合 `OrderBook`。Add 建立订单，Cancel 删除订单，Trade 携带被动订单 ID 并扣减剩余数量和价格档。Sequence Gap 不推进已确认序号、不应用缺口消息，并将对应品种置为 `STALE`；显式恢复 sequence/checkpoint 后才重新接受连续消息。`MarketDataGateway` 的内存检查点同时捕获各品种行情簿、各通道最后序号、FeedState 和容量指标，恢复先完整校验再替换在线状态。该协议仍不包含真实交易所组播、重传通道和外部快照服务。
 
 ## 14. 容量观测与盘前风控
 
 `OrderBook::capacity_metrics()` 暴露当前和峰值活动订单/价位、订单与价位容量、索引负载以及事件缓冲容量，用于压测后判断预分配是否合理；指标读取不参与撮合决策。
 
-`PreTradeRisk` 位于 `TradingEngine` 之前，支持最大单笔数量、参考价偏离、最大活动订单数、单品种名义价值、持仓、总敞口和 Kill Switch。`RiskCheckedTradingEngine` 仅在风控通过后调用正常交易入口，因此风控拒绝不会进入 `OrderBook`、不会消费撮合 CommandSequence，也能与撮合业务拒绝清楚区分。持仓和参考价由外围账户/行情组件注入；本项目仍不包含完整账户、PnL 和保证金系统。
+`PreTradeRisk` 位于 `TradingEngine` 之前，使用 `InstrumentId` 索引的增量状态。冷启动绑定时可重建一次已有挂单；热路径不再调用 `symbols()` 或 `capture_state()`，而由 Rested/Trade/Cancel 事件 O(1) 更新活动订单、买卖挂单量和 pending notional。Kill Switch 拒绝新订单但允许降低风险的撤单。持仓和参考价由外围账户/行情组件注入；本项目仍不包含完整账户、PnL 和保证金系统。
 
 ## 15. IOC 与 Post Only
 

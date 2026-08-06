@@ -25,7 +25,7 @@
 | 核心职责 | `OrderBook`、Price Ladder、价格时间优先撮合、撤单 | 保留 V1 核心并提供系统外围能力 |
 | 品种 | 单个 `OrderBook` | `MarketManager` 管理 AAPL、TSLA、NVDA 等独立订单簿 |
 | 输入输出 | Command 与 EngineEvent | 带 timestamp/type/symbol/InstrumentId/payload 的统一 SystemEvent |
-| 恢复 | Command Replay、进程内 Snapshot | 多品种 Journal Replay 与结果校验 |
+| 恢复 | Command Replay、进程内 Snapshot | 二进制磁盘 Snapshot、多品种一致性 Snapshot、Journal 后缀 Replay 与结果校验 |
 | 可观测性 | 状态、invariant、微基准 | Audit、Async Logger、Monitor、数据质量事件 |
 
 V2 的完整架构、运行方式和模块说明见 [README_V2.md](README_V2.md)。根 README 是当前仓库的统一入口，V1 文档和历史性能结果保留用于说明演进过程，不代表尚未提供 V2。
@@ -72,7 +72,7 @@ V2 的完整架构、运行方式和模块说明见 [README_V2.md](README_V2.md)
 - Replay 接口内部同时检查原始引擎和重放引擎的 `check_invariants()`；
 - `state_hash()` 作为辅助校验，不是唯一正确性依据；
 - 支持轻量的进程内 Snapshot，可恢复订单池、索引、价格档、FIFO、BBO 和最后序列；
-- 单 OrderBook Snapshot 可写入版本化二进制文件，包含显式字段、snapshot sequence 和 checksum，并通过临时文件校验、持久化刷新和原子替换保护上一份有效文件；
+- 单 OrderBook Snapshot 可写入版本化二进制文件，包含显式字段、snapshot sequence 和 checksum，并通过临时文件校验、文件刷新和原子替换保护上一份有效文件；当前实现不宣称严格断电一致性；
 - Snapshot 恢复前完整校验，失败返回明确原因且不暴露半恢复状态。
 
 V2 进一步使用“同代 Book 文件先落盘、manifest 最后原子提交”的方式保存多品种一致性切面，并可只回放 snapshot sequence 之后的 Journal。当前 Journal 仍是教学用途的 CSV 格式，尚不宣称生产级 WAL 或高可用崩溃恢复。
@@ -168,7 +168,7 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 | Snapshot Test 可执行文件 | 5 组恢复测试，包含继续执行、非法快照原子失败、磁盘往返、截断与 checksum 损坏检测 |
 | Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
 | V1 + V2 Release CTest | 20/20 通过（2026-08-07 本机复验） |
-| MSVC ASan RelWithDebInfo CTest | V1 阶段曾完成 4/4；V2 全量 ASan 尚需重新固定基线 |
+| MSVC Release CTest | V2 当前 20/20 通过；Linux Release 与 Sanitizer 结果以实际 CI runner 为准 |
 
 2026-08-07 的现有 Release 构建复验为 20/20 CTest 通过。历史 Release `0.74 s` 和 ASan `3.80 s` 是 V1 阶段结果，不与当前 V2 测试耗时混用。
 
@@ -198,7 +198,7 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 - 真实交易所网络协议、组播订阅、重传通道和行情发布；
 - 带校验和、版本头、fsync 策略和 fail-stop 语义的生产级 WAL；
 - 生产级二进制 WAL、高可用复制与完整断电恢复；
-- Reference Engine、Differential Testing 和大规模故障注入；
+- 生产级故障注入、网络分区和进程崩溃测试；Reference Engine 与确定性 Differential Testing 已实现；
 - 完全无内部临时事件缓冲的撮合实现；当前 V2 批次会在命令后清空，V1 兼容诊断捕获严格限制在构造时预留容量内；
 - 完全消除 `std::map` 节点分配。
 
@@ -247,6 +247,8 @@ benchmarks/
 3. [Benchmark 与性能证据](docs/BENCHMARK.md)：说明测量边界、Linux perf/VTune 采集方法和结果解释规范。
 3. [当前项目的后续改进路线](docs/03-当前项目的后续改进路线.md)：只列当前仍未完成的问题、选择理由和验收标准。
 4. [新项目完整介绍与使用说明](docs/04-新项目完整介绍与使用说明.md)：从金融概念、最终架构到代码调用、Replay 和 Snapshot 的完整说明。
+
+当前 V2 专题文档：[ARCHITECTURE](docs/ARCHITECTURE.md)、[RECOVERY](docs/RECOVERY.md)、[TESTING](docs/TESTING.md)、[BENCHMARK](docs/BENCHMARK.md)、[CURRENT_LIMITATIONS](docs/CURRENT_LIMITATIONS.md)。编号文档是 V1 历史材料，不作为当前能力清单。
 
 ## 许可证与致谢
 
