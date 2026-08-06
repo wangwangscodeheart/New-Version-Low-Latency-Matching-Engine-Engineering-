@@ -207,8 +207,11 @@ public:
         if (state.pending_notional + proposed_notional > limits_.max_symbol_notional) {
             return RiskDecision::reject(RiskRejectReason::NOTIONAL_LIMIT);
         }
-        const long double projected = static_cast<long double>(state.position) +
-            (order.side == Side::BUY ? 1.0L : -1.0L) * order.quantity.get();
+        const long double projected = order.side == Side::BUY
+            ? static_cast<long double>(state.position) + state.open_buy_quantity +
+                  order.quantity.get()
+            : static_cast<long double>(state.position) - state.open_sell_quantity -
+                  order.quantity.get();
         if (std::fabs(projected) > static_cast<long double>(limits_.max_absolute_position)) {
             return RiskDecision::reject(RiskRejectReason::POSITION_LIMIT);
         }
