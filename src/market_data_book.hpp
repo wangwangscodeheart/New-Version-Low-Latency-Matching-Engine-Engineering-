@@ -53,7 +53,20 @@ public:
         return true;
     }
     bool apply(const FeedTrade& trade) noexcept {
-        return trade.trade_id != 0 && trade.price.get() > 0 && trade.quantity.get() != 0;
+        if (trade.trade_id == 0 || trade.passive_order_id == 0 ||
+            trade.price.get() <= 0 || trade.quantity.get() == 0) return false;
+        const auto found = orders_.find(trade.passive_order_id);
+        if (found == orders_.end() || found->second.price != trade.price ||
+            trade.quantity.get() > found->second.remaining.get()) return false;
+        auto& side_levels = levels(found->second.side);
+        const auto level = side_levels.find(found->second.price.get());
+        if (level == side_levels.end() || level->second < trade.quantity.get()) return false;
+        level->second -= trade.quantity.get();
+        if (level->second == 0) side_levels.erase(level);
+        found->second.remaining = Quantity(
+            found->second.remaining.get() - trade.quantity.get());
+        if (found->second.remaining.get() == 0) orders_.erase(found);
+        return true;
     }
     bool apply(const FeedPayload& payload) {
         return std::visit([this](const auto& value) { return apply(value); }, payload);

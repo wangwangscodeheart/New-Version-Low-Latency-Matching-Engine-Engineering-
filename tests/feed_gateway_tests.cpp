@@ -31,6 +31,16 @@ std::vector<uint8_t> cancel(uint32_t instrument, uint64_t sequence, uint64_t ord
     put(out, sequence, 8); put(out, sequence * 100, 8); put(out, order, 8);
     return out;
 }
+std::vector<uint8_t> trade(uint32_t instrument, uint64_t sequence,
+                           uint64_t trade_id, uint64_t passive_order_id,
+                           int64_t price, uint64_t quantity) {
+    std::vector<uint8_t> out;
+    put(out, 3, 2); put(out, 32, 2); put(out, instrument, 4);
+    put(out, sequence, 8); put(out, sequence * 100, 8);
+    put(out, trade_id, 8); put(out, passive_order_id, 8);
+    put(out, static_cast<uint64_t>(price), 8); put(out, quantity, 8);
+    return out;
+}
 void append(std::vector<uint8_t>& destination, const std::vector<uint8_t>& source) {
     destination.insert(destination.end(), source.begin(), source.end());
 }
@@ -77,26 +87,57 @@ void test_sequence_and_checkpoint() {
     send(add(0, 11, 4, 1000003, 1, Side::BUY));
     send(add(9, 1, 5, 1000004, 1, Side::BUY));
     TEST_ASSERT(gateway.metrics().gaps == 1);
-    TEST_ASSERT(gateway.metrics().duplicates == 1);
-    TEST_ASSERT(gateway.metrics().out_of_order == 1);
+    TEST_ASSERT(gateway.metrics().stale_messages == 2);
     TEST_ASSERT(gateway.metrics().invalid_instruments == 1);
-    TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 2);
+    TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 1);
+    TEST_ASSERT(gateway.last_sequence(InstrumentId(0)) == 10);
+    TEST_ASSERT(gateway.state(InstrumentId(0)) == FeedState::STALE);
 
+    // Sequence and book state must be recovered together from an authoritative
+    // contiguous source; there is intentionally no sequence-only recovery API.
+    MarketDataGateway authoritative(2);
+    auto recover_send = [&](const std::vector<uint8_t>& bytes) {
+        FeedDecoder decoder;
+        decoder.consume(bytes, [&](const FeedMessage& m) {
+            TEST_ASSERT(authoritative.on_message(m));
+        });
+        decoder.finish();
+    };
+    recover_send(add(0, 10, 1, 1000000, 1, Side::BUY));
+    recover_send(add(0, 11, 4, 1000003, 1, Side::BUY));
+    recover_send(add(0, 12, 2, 1000001, 1, Side::BUY));
     MarketDataGateway recovered(2);
-    const MarketDataCheckpoint checkpoint = gateway.checkpoint();
-    recovered.restore_checkpoint(checkpoint);
+    recovered.restore_checkpoint(authoritative.checkpoint());
     TEST_ASSERT(recovered.last_sequence(InstrumentId(0)) == 12);
+    TEST_ASSERT(recovered.state(InstrumentId(0)) == FeedState::HEALTHY);
     TEST_ASSERT(recovered.book(InstrumentId(0))->capture_state() ==
-                gateway.book(InstrumentId(0))->capture_state());
-    TEST_ASSERT(recovered.metrics().gaps == gateway.metrics().gaps);
+                authoritative.book(InstrumentId(0))->capture_state());
 
-    // Continuing from the restored boundary must accept only the next sequence.
+    // The next contiguous message is accepted after atomic recovery.
     FeedDecoder continuation;
     const auto next = add(0, 13, 6, 1000005, 2, Side::SELL);
     continuation.consume(next, [&](const FeedMessage& message) {
         TEST_ASSERT(recovered.on_message(message));
     });
     TEST_ASSERT(recovered.last_sequence(InstrumentId(0)) == 13);
+}
+
+void test_trade_reduces_passive_order() {
+    MarketDataGateway gateway(1);
+    const auto apply = [&](const std::vector<uint8_t>& bytes) {
+        FeedDecoder decoder;
+        bool accepted = false;
+        decoder.consume(bytes, [&](const FeedMessage& message) {
+            accepted = gateway.on_message(message);
+        });
+        decoder.finish();
+        return accepted;
+    };
+    TEST_ASSERT(apply(add(0, 1, 42, 1000000, 10, Side::SELL)));
+    TEST_ASSERT(apply(trade(0, 2, 900, 42, 1000000, 4)));
+    TEST_ASSERT(gateway.book(InstrumentId(0))->ask_quantity(Price(1000000)) == 6);
+    TEST_ASSERT(apply(trade(0, 3, 901, 42, 1000000, 6)));
+    TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 0);
 }
 
 void test_malformed_and_incomplete() {
@@ -126,6 +167,7 @@ int main() {
     try {
         test_partial_multi_symbol_and_replay();
         test_sequence_and_checkpoint();
+        test_trade_reduces_passive_order();
         test_malformed_and_incomplete();
         std::cout << "Feed gateway tests passed\n";
         return 0;

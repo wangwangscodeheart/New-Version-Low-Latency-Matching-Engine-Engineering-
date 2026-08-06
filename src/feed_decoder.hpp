@@ -22,7 +22,12 @@ struct FeedHeader {
 };
 struct FeedAddOrder { uint64_t order_id; Price price; Quantity quantity; Side side; };
 struct FeedCancelOrder { uint64_t order_id; };
-struct FeedTrade { uint64_t trade_id; Price price; Quantity quantity; };
+struct FeedTrade {
+    uint64_t trade_id;
+    uint64_t passive_order_id;
+    Price price;
+    Quantity quantity;
+};
 using FeedPayload = std::variant<FeedAddOrder, FeedCancelOrder, FeedTrade>;
 struct FeedMessage { FeedHeader header; FeedPayload payload; };
 
@@ -59,7 +64,7 @@ class FeedDecoder {
         switch (type) {
             case FeedMessageType::ADD_ORDER: return 25;
             case FeedMessageType::CANCEL_ORDER: return 8;
-            case FeedMessageType::TRADE: return 24;
+            case FeedMessageType::TRADE: return 32;
         }
         throw FeedDecodeException(FeedDecodeError::UNKNOWN_TYPE,
                                   "unknown feed message type");
@@ -87,8 +92,8 @@ class FeedDecoder {
         if (type == FeedMessageType::CANCEL_ORDER) {
             return FeedMessage{header, FeedCancelOrder{u64(body)}};
         }
-        return FeedMessage{header, FeedTrade{u64(body),
-            Price(static_cast<int64_t>(u64(body + 8))), Quantity(u64(body + 16))}};
+        return FeedMessage{header, FeedTrade{u64(body), u64(body + 8),
+            Price(static_cast<int64_t>(u64(body + 16))), Quantity(u64(body + 24))}};
     }
 
 public:

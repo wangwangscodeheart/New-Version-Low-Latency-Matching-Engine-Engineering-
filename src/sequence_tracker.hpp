@@ -18,10 +18,9 @@ public:
         }
         if (sequence == found->second) return FeedSequenceStatus::DUPLICATE;
         if (sequence < found->second) return FeedSequenceStatus::OUT_OF_ORDER;
-        const FeedSequenceStatus status = sequence == found->second + 1
-            ? FeedSequenceStatus::IN_ORDER : FeedSequenceStatus::GAP;
+        if (sequence != found->second + 1) return FeedSequenceStatus::GAP;
         found->second = sequence;
-        return status;
+        return FeedSequenceStatus::IN_ORDER;
     }
     uint64_t last(InstrumentId instrument) const noexcept {
         const auto found = last_.find(instrument.get());

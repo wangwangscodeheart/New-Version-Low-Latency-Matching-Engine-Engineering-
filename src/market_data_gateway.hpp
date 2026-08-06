@@ -13,25 +13,35 @@ struct FeedGatewayMetrics {
     uint64_t out_of_order = 0;
     uint64_t invalid_instruments = 0;
     uint64_t invalid_messages = 0;
+    uint64_t stale_messages = 0;
 };
+
+enum class FeedState : uint8_t { HEALTHY, GAP_DETECTED, RECOVERING, STALE };
 
 struct MarketDataCheckpoint {
     std::vector<MarketDataBookState> books;
     std::vector<uint64_t> sequences;
+    std::vector<FeedState> states;
     FeedGatewayMetrics metrics;
 };
 
 class MarketDataGateway {
     std::vector<MarketDataBook> books_;
     SequenceTracker sequences_;
+    std::vector<FeedState> states_;
     FeedGatewayMetrics metrics_;
 public:
-    explicit MarketDataGateway(size_t instrument_count) : books_(instrument_count) {}
+    explicit MarketDataGateway(size_t instrument_count)
+        : books_(instrument_count), states_(instrument_count, FeedState::HEALTHY) {}
 
     bool on_message(const FeedMessage& message) {
         const InstrumentId id = message.header.instrument_id;
         if (!id.valid() || id.get() >= books_.size()) {
             ++metrics_.invalid_instruments;
+            return false;
+        }
+        if (states_[id.get()] != FeedState::HEALTHY) {
+            ++metrics_.stale_messages;
             return false;
         }
         const FeedSequenceStatus status = sequences_.observe(id, message.header.sequence);
@@ -43,7 +53,11 @@ public:
             ++metrics_.out_of_order;
             return false;
         }
-        if (status == FeedSequenceStatus::GAP) ++metrics_.gaps;
+        if (status == FeedSequenceStatus::GAP) {
+            ++metrics_.gaps;
+            states_[id.get()] = FeedState::STALE;
+            return false;
+        }
         if (!books_[id.get()].apply(message.payload)) {
             ++metrics_.invalid_messages;
             return false;
@@ -52,16 +66,11 @@ public:
         return true;
     }
 
-    void restore_sequence(InstrumentId id, uint64_t sequence) {
-        if (!id.valid() || id.get() >= books_.size()) {
-            throw std::out_of_range("invalid feed checkpoint instrument");
-        }
-        sequences_.restore(id, sequence);
-    }
     MarketDataCheckpoint checkpoint() const {
         MarketDataCheckpoint result;
         result.books.reserve(books_.size());
         result.sequences.reserve(books_.size());
+        result.states = states_;
         for (size_t i = 0; i < books_.size(); ++i) {
             result.books.push_back(books_[i].capture_state());
             result.sequences.push_back(sequences_.last(
@@ -72,7 +81,8 @@ public:
     }
     void restore_checkpoint(const MarketDataCheckpoint& checkpoint) {
         if (checkpoint.books.size() != books_.size() ||
-            checkpoint.sequences.size() != books_.size()) {
+            checkpoint.sequences.size() != books_.size() ||
+            checkpoint.states.size() != books_.size()) {
             throw std::runtime_error("market data checkpoint instrument mismatch");
         }
         std::vector<MarketDataBook> restored_books;
@@ -85,12 +95,17 @@ public:
         }
         books_ = std::move(restored_books);
         sequences_ = std::move(restored_sequences);
+        states_ = checkpoint.states;
         metrics_ = checkpoint.metrics;
     }
     const MarketDataBook* book(InstrumentId id) const noexcept {
         return id.valid() && id.get() < books_.size() ? &books_[id.get()] : nullptr;
     }
     uint64_t last_sequence(InstrumentId id) const noexcept { return sequences_.last(id); }
+    FeedState state(InstrumentId id) const noexcept {
+        return id.valid() && id.get() < states_.size()
+            ? states_[id.get()] : FeedState::STALE;
+    }
     const FeedGatewayMetrics& metrics() const noexcept { return metrics_; }
 };
 
