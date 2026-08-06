@@ -92,6 +92,13 @@ class SnapshotFile {
         }
 #else
         std::filesystem::rename(source, destination);
+        const std::filesystem::path parent = destination.parent_path().empty()
+            ? std::filesystem::current_path() : destination.parent_path();
+        const int directory = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY);
+        if (directory < 0) throw std::runtime_error("Cannot open snapshot directory");
+        const int result = ::fsync(directory);
+        ::close(directory);
+        if (result != 0) throw std::runtime_error("Snapshot directory flush failed");
 #endif
     }
 

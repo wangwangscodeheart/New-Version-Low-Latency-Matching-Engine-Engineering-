@@ -21,6 +21,9 @@
 #ifdef ERROR
 #undef ERROR
 #endif
+#else
+#include <fcntl.h>
+#include <unistd.h>
 #endif
 
 struct MarketSnapshotRecoveryResult {
@@ -31,6 +34,23 @@ struct MarketSnapshotRecoveryResult {
 };
 
 class MarketSnapshotStore {
+    static void durable_flush(const std::filesystem::path& path) {
+#ifdef _WIN32
+        HANDLE file = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
+                                  nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (file == INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot flush manifest");
+        const BOOL flushed = FlushFileBuffers(file);
+        CloseHandle(file);
+        if (!flushed) throw std::runtime_error("Manifest flush failed");
+#else
+        const int file = ::open(path.c_str(), O_RDONLY);
+        if (file < 0) throw std::runtime_error("Cannot flush manifest");
+        const int result = ::fsync(file);
+        ::close(file);
+        if (result != 0) throw std::runtime_error("Manifest flush failed");
+#endif
+    }
+
     static uint64_t checksum(const std::string& text) noexcept {
         uint64_t hash = 1469598103934665603ULL;
         for (unsigned char byte : text) {
@@ -50,17 +70,21 @@ class MarketSnapshotStore {
     static void replace_manifest(const std::filesystem::path& temporary,
                                  const std::filesystem::path& current) {
 #ifdef _WIN32
-        HANDLE file = CreateFileW(temporary.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
-                                  nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-        if (file == INVALID_HANDLE_VALUE) throw std::runtime_error("Cannot flush manifest");
-        const BOOL flushed = FlushFileBuffers(file);
-        CloseHandle(file);
-        if (!flushed || !MoveFileExW(temporary.c_str(), current.c_str(),
+        durable_flush(temporary);
+        if (!MoveFileExW(temporary.c_str(), current.c_str(),
                          MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
             throw std::runtime_error("Atomic manifest replacement failed");
         }
 #else
+        durable_flush(temporary);
         std::filesystem::rename(temporary, current);
+        const std::filesystem::path parent = current.parent_path().empty()
+            ? std::filesystem::current_path() : current.parent_path();
+        const int directory = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY);
+        if (directory < 0) throw std::runtime_error("Cannot open manifest directory");
+        const int result = ::fsync(directory);
+        ::close(directory);
+        if (result != 0) throw std::runtime_error("Manifest directory flush failed");
 #endif
     }
 
