@@ -1,0 +1,2 @@
+# Benchmark evidence is immutable byte-for-byte output. Never normalize EOLs.
+benchmarks/results/** -text -diff
