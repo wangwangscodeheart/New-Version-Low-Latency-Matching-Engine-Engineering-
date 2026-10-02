@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -49,6 +50,128 @@ struct Result {
     uint64_t max_ns = 0;
     uint64_t checksum = 0;
 };
+
+std::string format_latency(double ns) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(2);
+
+    if (ns >= 1'000'000.0) {
+        out << ns / 1'000'000.0 << " ms";
+    } else if (ns >= 1'000.0) {
+        out << ns / 1'000.0 << " us";
+    } else {
+        out << ns << " ns";
+    }
+
+    return out.str();
+}
+
+std::string format_throughput(double throughput) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(2);
+
+    if (throughput >= 1'000'000.0) {
+        out << throughput / 1'000'000.0 << " M ops/s";
+    } else if (throughput >= 1'000.0) {
+        out << throughput / 1'000.0 << " K ops/s";
+    } else {
+        out << throughput << " ops/s";
+    }
+
+    return out.str();
+}
+
+struct ScenarioInfo {
+    std::string title;
+    std::string description_en;
+    std::string description_zh;
+};
+
+ScenarioInfo scenario_info(const std::string& scenario) {
+    if (scenario == "core_pre_resolved_instrument") {
+        return {
+            "Core Matching / 核心撮合路径",
+            "Pre-resolved instrument, core matching path",
+            "已预解析交易品种，仅测试核心撮合路径"
+        };
+    }
+
+    if (scenario == "core_plus_routing") {
+        return {
+            "Routing / 多品种路由",
+            "Core matching with symbol routing",
+            "核心撮合 + 多品种路由"
+        };
+    }
+
+    if (scenario == "dispatcher") {
+        return {
+            "Event Dispatcher / 事件分发",
+            "Trading engine with synchronous event dispatch",
+            "交易引擎 + 同步事件分发"
+        };
+    }
+
+    if (scenario == "dispatcher_monitor") {
+        return {
+            "Monitor / 监控",
+            "Dispatcher with monitoring enabled",
+            "事件分发 + 监控"
+        };
+    }
+
+    if (scenario == "dispatcher_async_logger") {
+        return {
+            "Async Logger / 异步日志",
+            "Dispatcher with asynchronous logging",
+            "事件分发 + 异步日志"
+        };
+    }
+
+    if (scenario == "dispatcher_async_journal") {
+        return {
+            "Async Journal / 异步 Journal",
+            "Dispatcher with asynchronous journal",
+            "事件分发 + 异步 Journal"
+        };
+    }
+
+    if (scenario == "full_v2") {
+        return {
+            "Full V2 / 完整 V2 路径",
+            "Monitor + async logger + async journal",
+            "监控 + 异步日志 + 异步 Journal"
+        };
+    }
+
+    return {
+        "Unknown Scenario / 未知场景",
+        scenario,
+        "暂无场景说明"
+    };
+}
+
+void print_human_result(const Result& result, size_t index, size_t total) {
+    const ScenarioInfo info = scenario_info(result.scenario);
+
+    std::cout
+        << '[' << index << '/' << total << "] " << info.title << '\n'
+        << "------------------------------------------------------------\n"
+        << "  Scenario / 场景\n"
+        << "    " << result.scenario << '\n'
+        << "  Description / 说明\n"
+        << "    EN   : " << info.description_en << '\n'
+        << "    中文 : " << info.description_zh << "\n\n"
+        << "  Batch Median per Op / 批次中位单操作耗时 : "
+        << format_latency(result.batch_ns) << '\n'
+        << "  Throughput / 吞吐量                      : "
+        << format_throughput(result.throughput) << "\n\n"
+        << "  Sampled Latency / 单操作采样延迟\n"
+        << "    P50   : " << format_latency(result.median_ns) << '\n'
+        << "    P99   : " << format_latency(result.p99_ns) << '\n'
+        << "    P99.9 : " << format_latency(result.p999_ns) << '\n'
+        << "    Max   : " << format_latency(result.max_ns) << "\n\n";
+}
 
 std::string environment(const char* name) {
 #ifdef _MSC_VER
@@ -250,19 +373,41 @@ std::unique_ptr<Runner> wrap(std::shared_ptr<Fixture> fixture) {
 }
 }
 
-int main() {
-    std::cout << "METADATA_JSON,{\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
-              << "\",\"cpu\":\"" << environment("PROCESSOR_IDENTIFIER")
-              << "\",\"logical_processors\":\"" << environment("NUMBER_OF_PROCESSORS")
-              << "\",\"os\":\"" << MATCHING_ENGINE_OS
-              << "\",\"compiler\":\"" << MATCHING_ENGINE_COMPILER
-              << "\",\"compiler_flags\":\"" << MATCHING_ENGINE_COMPILER_FLAGS
-              << "\",\"build_type\":\"" << MATCHING_ENGINE_BUILD_TYPE
-              << "\",\"events_enabled\":true"
-              << ",\"warmup_operations\":" << COMMAND_COUNT
-              << ",\"measured_operations\":" << COMMAND_COUNT
-              << ",\"process_runs\":" << BATCH_RUNS
-              << ",\"sampling_clock\":\"steady_clock\"}\n";
+int main()
+{
+    const bool raw_output = environment("MATCHING_ENGINE_RAW_OUTPUT") == "1";
+
+    std::cout
+        << "\n"
+        << "============================================================\n"
+        << "        V2 PERFORMANCE BENCHMARK\n"
+        << "        V2 多品种撮合引擎性能基准测试\n"
+        << "============================================================\n\n"
+        << "[Environment / 测试环境]\n"
+        << "  Git Commit        : " << MATCHING_ENGINE_GIT_COMMIT << '\n'
+        << "  OS                : " << MATCHING_ENGINE_OS << '\n'
+        << "  Compiler          : " << MATCHING_ENGINE_COMPILER << '\n'
+        << "  Compiler Flags    : " << MATCHING_ENGINE_COMPILER_FLAGS << '\n'
+        << "  Build Type        : " << MATCHING_ENGINE_BUILD_TYPE << '\n'
+        << "  Warmup Operations : " << COMMAND_COUNT << '\n'
+        << "  Measured Ops      : " << COMMAND_COUNT << '\n'
+        << "  Process Runs      : " << BATCH_RUNS << '\n'
+        << "  Sampling Clock    : steady_clock\n\n";
+    if (raw_output)
+    {
+        std::cout << "METADATA_JSON,{\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
+                  << "\",\"cpu\":\"" << environment("PROCESSOR_IDENTIFIER")
+                  << "\",\"logical_processors\":\"" << environment("NUMBER_OF_PROCESSORS")
+                  << "\",\"os\":\"" << MATCHING_ENGINE_OS
+                  << "\",\"compiler\":\"" << MATCHING_ENGINE_COMPILER
+                  << "\",\"compiler_flags\":\"" << MATCHING_ENGINE_COMPILER_FLAGS
+                  << "\",\"build_type\":\"" << MATCHING_ENGINE_BUILD_TYPE
+                  << "\",\"events_enabled\":true"
+                  << ",\"warmup_operations\":" << COMMAND_COUNT
+                  << ",\"measured_operations\":" << COMMAND_COUNT
+                  << ",\"process_runs\":" << BATCH_RUNS
+                  << ",\"sampling_clock\":\"steady_clock\"}\n";
+    }
 
     std::vector<Result> results;
     results.push_back(measure("core_pre_resolved_instrument", [](const std::string&) {
@@ -291,15 +436,35 @@ int main() {
         return engine_factory("full_" + suffix, true, true, true);
     }));
 
-    std::cout << "RESULT_CSV,scenario,operations,batch_avg_ns,throughput_per_sec,"
-                 "sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum\n";
-    for (const Result& result : results) {
-        std::cout << "RESULT_CSV," << result.scenario << ',' << COMMAND_COUNT << ','
-                  << std::fixed << std::setprecision(2) << result.batch_ns << ','
-                  << std::setprecision(0) << result.throughput << ','
-                  << result.median_ns << ',' << result.p99_ns << ','
-                  << result.p999_ns << ',' << result.max_ns << ','
-                  << result.checksum << '\n';
+
+    std::cout
+        << "============================================================\n"
+        << " PERFORMANCE RESULTS / 性能测试结果\n"
+        << "============================================================\n\n";
+
+    for (size_t i = 0; i < results.size(); ++i)
+    {
+        print_human_result(results[i], i + 1, results.size());
+    }
+
+    if (raw_output)
+    {
+        std::cout
+            << "============================================================\n"
+            << " MACHINE-READABLE OUTPUT / 机器可读原始数据\n"
+            << "============================================================\n";
+
+        std::cout << "RESULT_CSV,scenario,operations,batch_avg_ns,throughput_per_sec,"
+                     "sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum\n";
+        for (const Result &result : results)
+        {
+            std::cout << "RESULT_CSV," << result.scenario << ',' << COMMAND_COUNT << ','
+                      << std::fixed << std::setprecision(2) << result.batch_ns << ','
+                      << std::setprecision(0) << result.throughput << ','
+                      << result.median_ns << ',' << result.p99_ns << ','
+                      << result.p999_ns << ',' << result.max_ns << ','
+                      << result.checksum << '\n';
+        }
     }
     return 0;
 }
