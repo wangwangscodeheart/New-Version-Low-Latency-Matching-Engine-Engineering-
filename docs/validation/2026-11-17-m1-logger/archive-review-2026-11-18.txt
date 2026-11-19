@@ -1,0 +1,6 @@
+Current normalized source blobs: 36/36 matched
+Isolated-index reconstruction: 36/36 blob identities matched
+Benchmark evidence: 3/3 checksums; 7/7 distinct scenarios
+release archived CTest: 24/24 passed (2026-11-17; not rerun today)
+asan archived CTest: 24/24 passed (2026-11-17; not rerun today)
+Real Git index unchanged; isolated temporary audit index removed

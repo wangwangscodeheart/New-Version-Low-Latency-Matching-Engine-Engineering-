@@ -1,2 +1,4 @@
 # Benchmark evidence is immutable byte-for-byte output. Never normalize EOLs.
 benchmarks/results/** -text -diff
+docs/validation/**/source_changes.patch -text -diff
+docs/validation/**/risk_changes.patch -text -diff

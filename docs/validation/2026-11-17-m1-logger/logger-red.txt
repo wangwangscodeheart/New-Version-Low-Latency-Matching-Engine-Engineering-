@@ -1,0 +1,5 @@
+# Captured diagnostic excerpt, 2026-11-14, observed exit code 1.
+# Borrowed ostream seam was added; old unconditional written counter was still unchanged.
+# stdout/stderr were interleaved in the captured process output.
+Async logger tests failed: failed stream: accepted=1 written=1
+Assertion failed: logger.accepted_count() == 1 && logger.written_count() == 0

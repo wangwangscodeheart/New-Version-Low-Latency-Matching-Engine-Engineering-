@@ -51,8 +51,7 @@ void test_queue_overflow_is_terminal_and_visible() {
     MarketManager markets(20'000);
     EventDispatcher dispatcher;
     AsyncJournalWriter writer(path.string(), 1);
-    writer.attach(dispatcher);
-    TradingEngine engine(markets, dispatcher, &writer);
+    TradingEngine engine(markets, dispatcher, writer);
     for (uint64_t sequence = 1; sequence <= 10'000 && writer.dropped_count() == 0;
          ++sequence) {
         engine.submit(Timestamp(sequence), Symbol("AAPL"),

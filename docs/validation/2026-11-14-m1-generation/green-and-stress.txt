@@ -1,0 +1,8 @@
+reuse generation: save_threw=1 manifest_unchanged=1 books_unchanged=1 recovered_old_state=1
+Generation reuse refused; next generation restores updated state
+Legacy collision preflight passed: last final and temporary files preserved
+Reservation-only collisions refused without book writes
+New-generation late failure: old snapshot intact; attempt 61 consumed; 62 committed
+Invalid shapes rejected without consuming generation; zero cut still supported
+Market snapshot tests passed
+Differential tests passed: 100 seeds x 10000 commands, seed_base=3523149824, generator=enum_boundary_v2

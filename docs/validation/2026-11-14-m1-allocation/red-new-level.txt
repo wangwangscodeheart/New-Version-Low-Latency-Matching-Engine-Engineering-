@@ -1,0 +1,2 @@
+new_level side=BUY record=1 indexed=1 free_levels=4
+Allocation failure tests failed: assertion failed: book.active_order_count() == 0 && book.available_level_slots() == 4

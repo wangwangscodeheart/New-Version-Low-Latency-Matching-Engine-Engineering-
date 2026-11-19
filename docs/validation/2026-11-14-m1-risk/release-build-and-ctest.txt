@@ -1,0 +1,169 @@
+Active code page: 65001
+-- The CXX compiler identification is MSVC 19.44.35228.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: D:/新言的vs2022/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- 
+-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+--   Matching Engine Build Configuration
+-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+--   Build type: Release
+--   C++ Standard: C++17
+--   Compiler: MSVC
+-- 
+--   Targets:
+--     - matching_engine_demo           (Main demo)
+--     - matching_engine_v2_demo        (V2 infrastructure demo)
+--     - matching_engine_market_data_generator (synthetic CSV generator)
+--     - matching_engine_unit_tests     (Unit tests)
+--     - matching_engine_property_tests (Property tests)
+--     - matching_engine_snapshot_tests (Snapshot tests)
+--     - matching_engine_benchmarks     (Performance)
+--     - matching_engine_v2_benchmarks  (V2 routed event path)
+-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-- 
+-- Configuring done (4.5s)
+-- Generating done (0.4s)
+-- Build files have been written to: D:/Low-Latency-Matching-Engine-Engineering/build/m1-risk-release
+[1/52] Building CXX object CMakeFiles\matching_engine_market_data_generator.dir\src\market_data_generator_main.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[2/52] Building CXX object CMakeFiles\matching_engine_demo.dir\src\main.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[3/52] Building CXX object CMakeFiles\matching_engine_property_tests.dir\tests\property_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[4/52] Building CXX object CMakeFiles\matching_engine_differential_tests.dir\tests\differential_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[5/52] Building CXX object CMakeFiles\matching_engine_unit_tests.dir\tests\unit_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[6/52] Building CXX object CMakeFiles\matching_engine_snapshot_tests.dir\tests\snapshot_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[7/52] Building CXX object CMakeFiles\matching_engine_market_manager_tests.dir\tests\market_manager_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[8/52] Building CXX object CMakeFiles\matching_engine_v2_demo.dir\src\v2_main.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[9/52] Building CXX object CMakeFiles\matching_engine_market_snapshot_tests.dir\tests\market_snapshot_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[10/52] Building CXX object CMakeFiles\matching_engine_event_system_tests.dir\tests\event_system_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[11/52] Building CXX object CMakeFiles\matching_engine_async_logger_tests.dir\tests\async_logger_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[12/52] Building CXX object CMakeFiles\matching_engine_journal_replay_tests.dir\tests\journal_replay_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[13/52] Building CXX object CMakeFiles\matching_engine_monitor_tests.dir\tests\monitor_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[14/52] Building CXX object CMakeFiles\matching_engine_strategy_tests.dir\tests\strategy_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[15/52] Building CXX object CMakeFiles\matching_engine_market_data_tests.dir\tests\market_data_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[16/52] Building CXX object CMakeFiles\matching_engine_async_journal_tests.dir\tests\async_journal_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[17/52] Building CXX object CMakeFiles\matching_engine_event_delivery_integration_tests.dir\tests\event_delivery_integration_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[18/52] Building CXX object CMakeFiles\matching_engine_allocation_failure_tests.dir\tests\allocation_failure_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[19/52] Building CXX object CMakeFiles\matching_engine_capacity_metrics_tests.dir\tests\capacity_metrics_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[20/52] Building CXX object CMakeFiles\matching_engine_feed_gateway_tests.dir\tests\feed_gateway_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[21/52] Linking CXX executable matching_engine_demo.exe
+[22/52] Linking CXX executable matching_engine_v2_demo.exe
+[23/52] Building CXX object CMakeFiles\matching_engine_command_journal_tests.dir\tests\command_journal_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[24/52] Building CXX object CMakeFiles\matching_engine_market_data_generator_tests.dir\tests\market_data_generator_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[25/52] Linking CXX executable matching_engine_market_data_generator.exe
+[26/52] Linking CXX executable matching_engine_unit_tests.exe
+[27/52] Linking CXX executable matching_engine_property_tests.exe
+[28/52] Linking CXX executable matching_engine_differential_tests.exe
+[29/52] Linking CXX executable matching_engine_snapshot_tests.exe
+[30/52] Linking CXX executable matching_engine_market_snapshot_tests.exe
+[31/52] Linking CXX executable matching_engine_market_manager_tests.exe
+[32/52] Linking CXX executable matching_engine_event_system_tests.exe
+[33/52] Linking CXX executable matching_engine_event_delivery_integration_tests.exe
+[34/52] Linking CXX executable matching_engine_journal_replay_tests.exe
+[35/52] Linking CXX executable matching_engine_async_logger_tests.exe
+[36/52] Linking CXX executable matching_engine_monitor_tests.exe
+[37/52] Linking CXX executable matching_engine_market_data_tests.exe
+[38/52] Linking CXX executable matching_engine_strategy_tests.exe
+[39/52] Linking CXX executable matching_engine_async_journal_tests.exe
+[40/52] Building CXX object CMakeFiles\matching_engine_benchmarks.dir\benchmarks\perf.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[41/52] Building CXX object CMakeFiles\matching_engine_risk_engine_tests.dir\tests\risk_engine_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[42/52] Linking CXX executable matching_engine_command_journal_tests.exe
+[43/52] Linking CXX executable matching_engine_allocation_failure_tests.exe
+[44/52] Linking CXX executable matching_engine_market_data_generator_tests.exe
+[45/52] Linking CXX executable matching_engine_feed_gateway_tests.exe
+[46/52] Linking CXX executable matching_engine_capacity_metrics_tests.exe
+[47/52] Linking CXX executable matching_engine_risk_engine_tests.exe
+[48/52] Linking CXX executable matching_engine_benchmarks.exe
+[49/52] Building CXX object CMakeFiles\matching_engine_order_type_tests.dir\tests\order_type_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[50/52] Building CXX object CMakeFiles\matching_engine_v2_benchmarks.dir\benchmarks\v2_perf.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+D:\Low-Latency-Matching-Engine-Engineering\benchmarks\v2_perf.cpp(170): warning C4244: “参数”: 从“const uint64_t”转换到“double”，可能丢失数据
+D:\Low-Latency-Matching-Engine-Engineering\benchmarks\v2_perf.cpp(171): warning C4244: “参数”: 从“const uint64_t”转换到“double”，可能丢失数据
+D:\Low-Latency-Matching-Engine-Engineering\benchmarks\v2_perf.cpp(172): warning C4244: “参数”: 从“const uint64_t”转换到“double”，可能丢失数据
+D:\Low-Latency-Matching-Engine-Engineering\benchmarks\v2_perf.cpp(173): warning C4244: “参数”: 从“const uint64_t”转换到“double”，可能丢失数据
+[51/52] Linking CXX executable matching_engine_order_type_tests.exe
+[52/52] Linking CXX executable matching_engine_v2_benchmarks.exe
+Test project D:/Low-Latency-Matching-Engine-Engineering/build/m1-risk-release
+      Start  1: matching_engine_unit
+ 1/23 Test  #1: matching_engine_unit ....................   Passed    0.35 sec
+      Start  2: matching_engine_properties
+ 2/23 Test  #2: matching_engine_properties ..............   Passed    0.15 sec
+      Start  3: matching_engine_differential
+ 3/23 Test  #3: matching_engine_differential ............   Passed    0.41 sec
+      Start  4: matching_engine_snapshot
+ 4/23 Test  #4: matching_engine_snapshot ................   Passed    0.14 sec
+      Start  5: matching_engine_market_snapshot
+ 5/23 Test  #5: matching_engine_market_snapshot .........   Passed    0.11 sec
+      Start  6: matching_engine_market_manager
+ 6/23 Test  #6: matching_engine_market_manager ..........   Passed    0.15 sec
+      Start  7: matching_engine_event_system
+ 7/23 Test  #7: matching_engine_event_system ............   Passed    0.08 sec
+      Start  8: matching_engine_event_delivery
+ 8/23 Test  #8: matching_engine_event_delivery ..........   Passed    0.17 sec
+      Start  9: matching_engine_journal_replay
+ 9/23 Test  #9: matching_engine_journal_replay ..........   Passed    0.15 sec
+      Start 10: matching_engine_async_logger
+10/23 Test #10: matching_engine_async_logger ............   Passed    0.07 sec
+      Start 11: matching_engine_monitor
+11/23 Test #11: matching_engine_monitor .................   Passed    0.07 sec
+      Start 12: matching_engine_market_data
+12/23 Test #12: matching_engine_market_data .............   Passed    0.07 sec
+      Start 13: matching_engine_strategy
+13/23 Test #13: matching_engine_strategy ................   Passed    0.13 sec
+      Start 14: matching_engine_async_journal
+14/23 Test #14: matching_engine_async_journal ...........   Passed    0.40 sec
+      Start 15: matching_engine_command_journal
+15/23 Test #15: matching_engine_command_journal .........   Passed    0.31 sec
+      Start 16: matching_engine_allocation_failure
+16/23 Test #16: matching_engine_allocation_failure ......   Passed    0.07 sec
+      Start 17: matching_engine_market_data_generator
+17/23 Test #17: matching_engine_market_data_generator ...   Passed    0.10 sec
+      Start 18: matching_engine_feed_gateway
+18/23 Test #18: matching_engine_feed_gateway ............   Passed    0.08 sec
+      Start 19: matching_engine_capacity_metrics
+19/23 Test #19: matching_engine_capacity_metrics ........   Passed    0.06 sec
+      Start 20: matching_engine_risk_engine
+20/23 Test #20: matching_engine_risk_engine .............   Passed    0.08 sec
+      Start 21: matching_engine_order_types
+21/23 Test #21: matching_engine_order_types .............   Passed    0.31 sec
+      Start 22: matching_engine_demo_integration
+22/23 Test #22: matching_engine_demo_integration ........   Passed    0.06 sec
+      Start 23: matching_engine_v2_demo_integration
+23/23 Test #23: matching_engine_v2_demo_integration .....   Passed    0.09 sec
+
+100% tests passed out of 23
+
+Total Test time (real) =   5.38 sec

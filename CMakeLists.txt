@@ -132,6 +132,10 @@ add_executable(matching_engine_event_system_tests
     tests/event_system_tests.cpp
 )
 
+add_executable(matching_engine_event_delivery_integration_tests
+    tests/event_delivery_integration_tests.cpp
+)
+
 add_executable(matching_engine_journal_replay_tests
     tests/journal_replay_tests.cpp
 )
@@ -161,6 +165,19 @@ add_executable(matching_engine_async_journal_tests
 )
 target_link_libraries(matching_engine_async_journal_tests PRIVATE Threads::Threads)
 
+add_executable(matching_engine_command_journal_tests
+    tests/command_journal_tests.cpp
+)
+target_link_libraries(matching_engine_command_journal_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_allocation_failure_tests
+    tests/allocation_failure_tests.cpp
+)
+
+add_executable(matching_engine_order_pool_tests
+    tests/order_pool_tests.cpp
+)
+
 add_executable(matching_engine_market_data_generator_tests
     tests/market_data_generator_tests.cpp
 )
@@ -168,6 +185,19 @@ target_link_libraries(matching_engine_market_data_generator_tests PRIVATE Thread
 
 add_executable(matching_engine_feed_gateway_tests
     tests/feed_gateway_tests.cpp
+)
+
+add_executable(matching_engine_feed_encoder_tests
+    tests/feed_encoder_tests.cpp
+)
+
+add_executable(matching_engine_public_feed_tests
+    tests/public_feed_publisher_tests.cpp
+)
+target_link_libraries(matching_engine_public_feed_tests PRIVATE Threads::Threads)
+
+add_executable(matching_engine_committed_handoff_tests
+    tests/committed_handoff_tests.cpp
 )
 
 add_executable(matching_engine_capacity_metrics_tests
@@ -224,14 +254,21 @@ if(BUILD_TESTING)
     add_test(NAME matching_engine_market_snapshot COMMAND matching_engine_market_snapshot_tests)
     add_test(NAME matching_engine_market_manager COMMAND matching_engine_market_manager_tests)
     add_test(NAME matching_engine_event_system COMMAND matching_engine_event_system_tests)
+    add_test(NAME matching_engine_event_delivery COMMAND matching_engine_event_delivery_integration_tests)
     add_test(NAME matching_engine_journal_replay COMMAND matching_engine_journal_replay_tests)
     add_test(NAME matching_engine_async_logger COMMAND matching_engine_async_logger_tests)
     add_test(NAME matching_engine_monitor COMMAND matching_engine_monitor_tests)
     add_test(NAME matching_engine_market_data COMMAND matching_engine_market_data_tests)
     add_test(NAME matching_engine_strategy COMMAND matching_engine_strategy_tests)
     add_test(NAME matching_engine_async_journal COMMAND matching_engine_async_journal_tests)
+    add_test(NAME matching_engine_command_journal COMMAND matching_engine_command_journal_tests)
+    add_test(NAME matching_engine_allocation_failure COMMAND matching_engine_allocation_failure_tests)
+    add_test(NAME matching_engine_order_pool COMMAND matching_engine_order_pool_tests)
     add_test(NAME matching_engine_market_data_generator COMMAND matching_engine_market_data_generator_tests)
     add_test(NAME matching_engine_feed_gateway COMMAND matching_engine_feed_gateway_tests)
+    add_test(NAME matching_engine_feed_encoder COMMAND matching_engine_feed_encoder_tests)
+    add_test(NAME matching_engine_public_feed COMMAND matching_engine_public_feed_tests)
+    add_test(NAME matching_engine_committed_handoff COMMAND matching_engine_committed_handoff_tests)
     add_test(NAME matching_engine_capacity_metrics COMMAND matching_engine_capacity_metrics_tests)
     add_test(NAME matching_engine_risk_engine COMMAND matching_engine_risk_engine_tests)
     add_test(NAME matching_engine_order_types COMMAND matching_engine_order_type_tests)
@@ -270,12 +307,19 @@ install(TARGETS
     matching_engine_snapshot_tests
     matching_engine_market_manager_tests
     matching_engine_event_system_tests
+    matching_engine_event_delivery_integration_tests
     matching_engine_journal_replay_tests
     matching_engine_async_logger_tests
     matching_engine_monitor_tests
     matching_engine_market_data_tests
     matching_engine_strategy_tests
     matching_engine_async_journal_tests
+    matching_engine_command_journal_tests
+    matching_engine_allocation_failure_tests
+    matching_engine_order_pool_tests
+    matching_engine_feed_encoder_tests
+    matching_engine_public_feed_tests
+    matching_engine_committed_handoff_tests
     matching_engine_market_data_generator_tests
     matching_engine_benchmarks
     matching_engine_v2_benchmarks

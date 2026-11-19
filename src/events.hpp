@@ -25,7 +25,10 @@ enum class RejectReason : uint8_t {
     OFF_TICK_PRICE = 7,
     QUANTITY_LIMIT = 8,
     INVALID_LOT_SIZE = 9,
-    POST_ONLY_WOULD_TRADE = 10
+    POST_ONLY_WOULD_TRADE = 10,
+    LEVEL_VOLUME_OVERFLOW = 11,
+    INVALID_SIDE = 12,
+    INVALID_TIME_IN_FORCE = 13
 };
 
 inline const char* to_string(RejectReason reason) noexcept {
@@ -41,6 +44,9 @@ inline const char* to_string(RejectReason reason) noexcept {
         case RejectReason::QUANTITY_LIMIT: return "QUANTITY_LIMIT";
         case RejectReason::INVALID_LOT_SIZE: return "INVALID_LOT_SIZE";
         case RejectReason::POST_ONLY_WOULD_TRADE: return "POST_ONLY_WOULD_TRADE";
+        case RejectReason::LEVEL_VOLUME_OVERFLOW: return "LEVEL_VOLUME_OVERFLOW";
+        case RejectReason::INVALID_SIDE: return "INVALID_SIDE";
+        case RejectReason::INVALID_TIME_IN_FORCE: return "INVALID_TIME_IN_FORCE";
     }
     return "UNKNOWN";
 }

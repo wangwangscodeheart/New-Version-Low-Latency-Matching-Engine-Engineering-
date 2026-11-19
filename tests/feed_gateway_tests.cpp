@@ -3,6 +3,7 @@
 #include "market_data_replay.hpp"
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <sstream>
 #include <vector>
@@ -43,6 +44,24 @@ std::vector<uint8_t> trade(uint32_t instrument, uint64_t sequence,
 }
 void append(std::vector<uint8_t>& destination, const std::vector<uint8_t>& source) {
     destination.insert(destination.end(), source.begin(), source.end());
+}
+FeedMessage direct_add(uint32_t instrument, uint64_t sequence, uint64_t order,
+                       uint64_t quantity, Side side = Side::BUY) {
+    return FeedMessage{FeedHeader{FeedMessageType::ADD_ORDER, 25,
+        InstrumentId(instrument), sequence, Timestamp(0)},
+        FeedAddOrder{order, Price(1000000), Quantity(quantity), side}};
+}
+bool same_checkpoint(const MarketDataCheckpoint& left,
+                     const MarketDataCheckpoint& right) {
+    return left.books == right.books && left.sequences == right.sequences &&
+        left.states == right.states &&
+        left.metrics.applied == right.metrics.applied &&
+        left.metrics.gaps == right.metrics.gaps &&
+        left.metrics.duplicates == right.metrics.duplicates &&
+        left.metrics.out_of_order == right.metrics.out_of_order &&
+        left.metrics.invalid_instruments == right.metrics.invalid_instruments &&
+        left.metrics.invalid_messages == right.metrics.invalid_messages &&
+        left.metrics.stale_messages == right.metrics.stale_messages;
 }
 
 void test_partial_multi_symbol_and_replay() {
@@ -161,6 +180,132 @@ void test_invalid_business_message_marks_feed_stale() {
     TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 1);
 }
 
+void test_invalid_side_and_aggregate_overflow_do_not_mutate_book() {
+    const uint64_t maximum = std::numeric_limits<uint64_t>::max();
+    MarketDataBook book;
+    TEST_ASSERT(!book.apply(FeedAddOrder{1, Price(1000000), Quantity(1),
+                                        static_cast<Side>(2)}));
+    TEST_ASSERT(book.order_count() == 0);
+    TEST_ASSERT(book.ask_quantity(Price(1000000)) == 0);
+    TEST_ASSERT(book.apply(FeedAddOrder{1, Price(1000000), Quantity(maximum - 1),
+                                       Side::BUY}));
+    TEST_ASSERT(book.apply(FeedAddOrder{2, Price(1000000), Quantity(maximum),
+                                       Side::SELL}));
+    const auto before = book.capture_state();
+    TEST_ASSERT(!book.apply(FeedAddOrder{3, Price(1000000), Quantity(2), Side::BUY}));
+    TEST_ASSERT(!book.apply(FeedAddOrder{4, Price(1000000), Quantity(1), Side::SELL}));
+    TEST_ASSERT(!book.apply(FeedAddOrder{5, Price(1000000), Quantity(1),
+                                        static_cast<Side>(255)}));
+    TEST_ASSERT(book.capture_state() == before);
+    TEST_ASSERT(book.bid_quantity(Price(1000000)) == maximum - 1);
+    TEST_ASSERT(book.ask_quantity(Price(1000000)) == maximum);
+    TEST_ASSERT(book.apply(FeedAddOrder{3, Price(1000000), Quantity(1), Side::BUY}));
+    TEST_ASSERT(book.bid_quantity(Price(1000000)) == maximum);
+
+    MarketDataGateway invalid_side(2);
+    TEST_ASSERT(!invalid_side.on_message(direct_add(0, 1, 1, 1, static_cast<Side>(2))));
+    TEST_ASSERT(invalid_side.book(InstrumentId(0))->order_count() == 0);
+    TEST_ASSERT(invalid_side.state(InstrumentId(0)) == FeedState::STALE);
+    TEST_ASSERT(invalid_side.state(InstrumentId(1)) == FeedState::HEALTHY);
+    TEST_ASSERT(invalid_side.metrics().invalid_messages == 1);
+
+    MarketDataGateway overflow(2);
+    TEST_ASSERT(overflow.on_message(direct_add(0, 1, 1, maximum)));
+    const auto gateway_before = overflow.book(InstrumentId(0))->capture_state();
+    TEST_ASSERT(!overflow.on_message(direct_add(0, 2, 2, 1)));
+    TEST_ASSERT(overflow.book(InstrumentId(0))->capture_state() == gateway_before);
+    TEST_ASSERT(overflow.book(InstrumentId(0))->bid_quantity(Price(1000000)) == maximum);
+    TEST_ASSERT(overflow.last_sequence(InstrumentId(0)) == 2);
+    TEST_ASSERT(overflow.state(InstrumentId(0)) == FeedState::STALE);
+    TEST_ASSERT(overflow.state(InstrumentId(1)) == FeedState::HEALTHY);
+    TEST_ASSERT(overflow.metrics().invalid_messages == 1);
+}
+
+void test_healthy_duplicates_and_older_messages_are_dropped() {
+    MarketDataGateway gateway(1);
+    TEST_ASSERT(gateway.on_message(direct_add(0, 10, 1, 1)));
+    TEST_ASSERT(!gateway.on_message(direct_add(0, 10, 2, 1)));
+    TEST_ASSERT(!gateway.on_message(direct_add(0, 9, 3, 1)));
+    TEST_ASSERT(gateway.state(InstrumentId(0)) == FeedState::HEALTHY);
+    TEST_ASSERT(gateway.book(InstrumentId(0))->order_count() == 1);
+    TEST_ASSERT(gateway.last_sequence(InstrumentId(0)) == 10);
+    TEST_ASSERT(gateway.metrics().duplicates == 1);
+    TEST_ASSERT(gateway.metrics().out_of_order == 1);
+    TEST_ASSERT(gateway.on_message(direct_add(0, 11, 4, 1)));
+}
+
+void test_explicit_invalidation_preserves_book_and_sequence() {
+    MarketDataGateway gateway(3);
+    static_assert(noexcept(gateway.invalidate(InstrumentId(0))), "invalidation must not throw");
+    static_assert(noexcept(gateway.invalidate_all()), "global invalidation must not throw");
+    static_assert(noexcept(gateway.instrument_count()), "instrument count must not throw");
+    TEST_ASSERT(gateway.instrument_count() == 3);
+    TEST_ASSERT(gateway.on_message(direct_add(0, 10, 1, 5)));
+    TEST_ASSERT(gateway.on_message(direct_add(1, 20, 2, 7, Side::SELL)));
+    const auto before = gateway.checkpoint();
+    gateway.invalidate(InstrumentId(1));
+    gateway.invalidate(InstrumentId(1));
+    gateway.invalidate(InstrumentId());
+    gateway.invalidate(InstrumentId(3));
+    TEST_ASSERT(gateway.state(InstrumentId(0)) == FeedState::HEALTHY);
+    TEST_ASSERT(gateway.state(InstrumentId(1)) == FeedState::STALE);
+    TEST_ASSERT(gateway.state(InstrumentId(2)) == FeedState::HEALTHY);
+    gateway.invalidate_all();
+    for (uint32_t i = 0; i < gateway.instrument_count(); ++i) {
+        TEST_ASSERT(gateway.state(InstrumentId(i)) == FeedState::STALE);
+    }
+    auto expected = before;
+    expected.states.assign(3, FeedState::STALE);
+    TEST_ASSERT(same_checkpoint(gateway.checkpoint(), expected));
+    TEST_ASSERT(!gateway.on_message(direct_add(0, 11, 3, 1)));
+    TEST_ASSERT(gateway.last_sequence(InstrumentId(0)) == 10);
+    TEST_ASSERT(gateway.metrics().stale_messages == 1);
+
+    MarketDataGateway empty(0);
+    empty.invalidate(InstrumentId(0));
+    empty.invalidate_all();
+    TEST_ASSERT(empty.instrument_count() == 0);
+}
+
+void test_invalid_checkpoint_is_rejected_atomically() {
+    MarketDataGateway gateway(2), authoritative(2);
+    TEST_ASSERT(gateway.on_message(direct_add(0, 10, 1, 5)));
+    TEST_ASSERT(gateway.on_message(direct_add(1, 20, 2, 7, Side::SELL)));
+    TEST_ASSERT(authoritative.on_message(direct_add(0, 30, 11, 8, Side::SELL)));
+    TEST_ASSERT(authoritative.on_message(direct_add(1, 40, 12, 9)));
+    const auto before = gateway.checkpoint();
+    const auto valid = authoritative.checkpoint();
+    const auto reject = [&](const MarketDataCheckpoint& checkpoint) {
+        bool rejected = false;
+        try { gateway.restore_checkpoint(checkpoint); }
+        catch (const std::runtime_error&) { rejected = true; }
+        TEST_ASSERT(rejected);
+        TEST_ASSERT(same_checkpoint(gateway.checkpoint(), before));
+    };
+    auto invalid = valid;
+    invalid.states[1] = static_cast<FeedState>(255);
+    reject(invalid);
+    invalid = valid;
+    invalid.books[1].orders[0].side = static_cast<Side>(2);
+    reject(invalid);
+    invalid = valid;
+    invalid.books[1].orders.push_back(invalid.books[1].orders[0]);
+    reject(invalid);
+    invalid = valid;
+    invalid.books[1].orders[0].remaining = Quantity(std::numeric_limits<uint64_t>::max());
+    invalid.books[1].orders.push_back(MarketDataSnapshotOrder{
+        13, Price(1000000), Quantity(1), Side::BUY});
+    reject(invalid);
+    invalid = valid;
+    invalid.books[1].orders[0].remaining = Quantity(0);
+    reject(invalid);
+    invalid = valid;
+    invalid.states.pop_back();
+    reject(invalid);
+    gateway.restore_checkpoint(valid);
+    TEST_ASSERT(same_checkpoint(gateway.checkpoint(), valid));
+}
+
 void test_malformed_and_incomplete() {
     std::vector<uint8_t> invalid = add(0, 1, 1, 1000000, 1, Side::BUY);
     invalid[2] = 0; invalid[3] = 8;
@@ -190,6 +335,10 @@ int main() {
         test_sequence_and_checkpoint();
         test_trade_reduces_passive_order();
         test_invalid_business_message_marks_feed_stale();
+        test_invalid_side_and_aggregate_overflow_do_not_mutate_book();
+        test_healthy_duplicates_and_older_messages_are_dropped();
+        test_explicit_invalidation_preserves_book_and_sequence();
+        test_invalid_checkpoint_is_rejected_atomically();
         test_malformed_and_incomplete();
         std::cout << "Feed gateway tests passed\n";
         return 0;

@@ -1,0 +1,16 @@
+Differential tests passed: 100 seeds x 10000 commands, seed_base=3523149824, generator=enum_boundary_v2
+duplicate return: free=1 capacity=2
+foreign return: free=0 capacity=1
+Empty/capacity/LIFO passed: capacities 0..8
+Invalid returns ignored: null/stack/interior/one-past
+Pool move passed: live pointers preserved, sources empty
+Slot reuse passed: 500 rounds, 3500 activations
+Book move passed: match/cancel/refill/snapshot
+Order pool tests passed
+new_level side=BUY record=1 indexed=0 free_levels=4
+new_level side=BUY record=0 indexed=0 free_levels=4
+new_level side=SELL record=1 indexed=0 free_levels=4
+new_level side=SELL record=0 indexed=0 free_levels=4
+partial_match side=BUY indexed=0 retained_trades=2 delivered=0
+partial_match side=SELL indexed=0 retained_trades=2 delivered=0
+Allocation failure tests passed

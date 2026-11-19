@@ -1,0 +1,6 @@
+Active code page: 65001
+[1/2] Building CXX object CMakeFiles\matching_engine_journal_replay_tests.dir\tests\journal_replay_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[2/2] Linking CXX executable matching_engine_journal_replay_tests.exe
+Journal, audit and replay tests failed: audit export: stream_failed=1 error_reported=0
+Assertion failed: output.fail() && threw

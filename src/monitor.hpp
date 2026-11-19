@@ -36,6 +36,11 @@ struct MonitorSnapshot {
     TradingMetrics global;
     std::unordered_map<std::string, TradingMetrics> by_symbol;
     uint64_t dropped_logs = 0;
+    uint64_t accepted_logs = 0;
+    uint64_t written_logs = 0;
+    uint64_t failed_logs = 0;
+    LoggerHealth logger_health = LoggerHealth::HEALTHY;
+    bool logger_attached = false;
 };
 
 class Monitor {
@@ -43,6 +48,7 @@ class Monitor {
     TradingMetrics global_;
     std::vector<TradingMetrics> by_instrument_;
     std::vector<std::string> instrument_symbols_;
+    std::unordered_map<std::string, size_t> instrument_by_symbol_;
     std::unordered_map<std::string, TradingMetrics> fallback_by_symbol_;
     EventDispatcher::Subscription subscription_;
 
@@ -52,14 +58,32 @@ class Monitor {
         metrics.max_latency_ns = std::max(metrics.max_latency_ns, latency);
     }
 
+    TradingMetrics& symbol_metrics(const SystemEvent& event) {
+        // Keep pre-resolved trading events on the direct-index path. Quote and
+        // data-quality events can omit InstrumentId but still belong to an
+        // already registered instrument rather than a second fallback counter.
+        if (event.instrument_id.valid() &&
+            event.instrument_id.get() < by_instrument_.size()) {
+            return by_instrument_[event.instrument_id.get()];
+        }
+        const auto registered = instrument_by_symbol_.find(event.symbol.value());
+        if (registered != instrument_by_symbol_.end()) {
+            return by_instrument_[registered->second];
+        }
+        return fallback_by_symbol_[event.symbol.value()];
+    }
+
 public:
     void attach(EventDispatcher& dispatcher, const MarketManager* markets = nullptr) {
         if (markets) {
             by_instrument_.resize(markets->symbol_count());
             instrument_symbols_.resize(markets->symbol_count());
+            instrument_by_symbol_.clear();
+            instrument_by_symbol_.reserve(markets->symbol_count());
             for (const Symbol& symbol : markets->symbols()) {
                 const InstrumentId id = markets->resolve(symbol);
                 instrument_symbols_[id.get()] = symbol.value();
+                instrument_by_symbol_.emplace(symbol.value(), id.get());
             }
         }
         subscription_ = dispatcher.subscribe_all(
@@ -68,10 +92,7 @@ public:
 
     void on_event(const SystemEvent& event) {
         std::lock_guard<std::mutex> lock(mutex_);
-        TradingMetrics& symbol = event.instrument_id.valid() &&
-                event.instrument_id.get() < by_instrument_.size()
-            ? by_instrument_[event.instrument_id.get()]
-            : fallback_by_symbol_[event.symbol.value()];
+        TradingMetrics& symbol = symbol_metrics(event);
         if (event.event_type == SystemEventType::ORDER) {
             const Command& command = std::get<OrderEvent>(event.payload).command;
             if (std::holds_alternative<NewOrderCommand>(command)) {
@@ -113,7 +134,14 @@ public:
         for (size_t i = 0; i < by_instrument_.size(); ++i) {
             result.by_symbol[instrument_symbols_[i]] = by_instrument_[i];
         }
-        if (logger) result.dropped_logs = logger->dropped_count();
+        if (logger) {
+            result.logger_attached = true;
+            result.dropped_logs = logger->dropped_count();
+            result.accepted_logs = logger->accepted_count();
+            result.written_logs = logger->written_count();
+            result.failed_logs = logger->failed_count();
+            result.logger_health = logger->health();
+        }
         return result;
     }
 
@@ -130,7 +158,12 @@ public:
                << " max_latency_ns=" << current.global.max_latency_ns
                << " data_warnings=" << current.global.data_warnings
                << " data_errors=" << current.global.data_errors
-               << " dropped_logs=" << current.dropped_logs << '\n';
+               << " dropped_logs=" << current.dropped_logs
+               << " accepted_logs=" << current.accepted_logs
+               << " written_logs=" << current.written_logs
+               << " failed_logs=" << current.failed_logs
+               << " logger_health=" << (current.logger_attached ? to_string(current.logger_health) : "NONE")
+               << '\n';
         for (const auto& entry : current.by_symbol) {
             const TradingMetrics& metrics = entry.second;
             output << entry.first << ": orders=" << metrics.orders

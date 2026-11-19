@@ -44,24 +44,31 @@ public:
             ++metrics_.stale_messages;
             return false;
         }
-        const FeedSequenceStatus status = sequences_.observe(id, message.header.sequence);
-        if (status == FeedSequenceStatus::DUPLICATE) {
-            ++metrics_.duplicates;
-            return false;
-        }
-        if (status == FeedSequenceStatus::OUT_OF_ORDER) {
-            ++metrics_.out_of_order;
-            return false;
-        }
-        if (status == FeedSequenceStatus::GAP) {
-            ++metrics_.gaps;
-            states_[id.get()] = FeedState::STALE;
-            return false;
-        }
-        if (!books_[id.get()].apply(message.payload)) {
-            ++metrics_.invalid_messages;
-            states_[id.get()] = FeedState::STALE;
-            return false;
+        try {
+            const FeedSequenceStatus status = sequences_.observe(id, message.header.sequence);
+            if (status == FeedSequenceStatus::DUPLICATE) {
+                ++metrics_.duplicates;
+                return false;
+            }
+            if (status == FeedSequenceStatus::OUT_OF_ORDER) {
+                ++metrics_.out_of_order;
+                return false;
+            }
+            if (status == FeedSequenceStatus::GAP) {
+                ++metrics_.gaps;
+                states_[id.get()] = FeedState::STALE;
+                return false;
+            }
+            if (!books_[id.get()].apply(message.payload)) {
+                ++metrics_.invalid_messages;
+                states_[id.get()] = FeedState::STALE;
+                return false;
+            }
+        } catch (...) {
+            // A failed observe/apply may have consumed sequence state. Never
+            // continue publishing this instrument as a contiguous healthy book.
+            invalidate(id);
+            throw;
         }
         ++metrics_.applied;
         return true;
@@ -86,6 +93,19 @@ public:
             checkpoint.states.size() != books_.size()) {
             throw std::runtime_error("market data checkpoint instrument mismatch");
         }
+        for (const FeedState state : checkpoint.states) {
+            switch (state) {
+                case FeedState::HEALTHY:
+                case FeedState::GAP_DETECTED:
+                case FeedState::RECOVERING:
+                case FeedState::STALE:
+                    break;
+                default:
+                    throw std::runtime_error("invalid market data checkpoint feed state");
+            }
+        }
+        // Stage all allocating work before replacing any live state.
+        std::vector<FeedState> restored_states = checkpoint.states;
         std::vector<MarketDataBook> restored_books;
         restored_books.reserve(books_.size());
         SequenceTracker restored_sequences;
@@ -94,11 +114,18 @@ public:
             restored_sequences.restore(InstrumentId(static_cast<uint32_t>(i)),
                                        checkpoint.sequences[i]);
         }
-        books_ = std::move(restored_books);
+        books_.swap(restored_books);
         sequences_ = std::move(restored_sequences);
-        states_ = checkpoint.states;
+        states_.swap(restored_states);
         metrics_ = checkpoint.metrics;
     }
+    void invalidate(InstrumentId id) noexcept {
+        if (id.valid() && id.get() < states_.size()) states_[id.get()] = FeedState::STALE;
+    }
+    void invalidate_all() noexcept {
+        for (FeedState& state : states_) state = FeedState::STALE;
+    }
+    size_t instrument_count() const noexcept { return books_.size(); }
     const MarketDataBook* book(InstrumentId id) const noexcept {
         return id.valid() && id.get() < books_.size() ? &books_[id.get()] : nullptr;
     }

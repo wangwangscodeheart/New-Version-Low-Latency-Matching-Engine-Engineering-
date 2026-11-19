@@ -1,0 +1,6 @@
+Active code page: 65001
+[1/2] Building CXX object CMakeFiles\matching_engine_market_snapshot_tests.dir\tests\market_snapshot_tests.cpp.obj
+cl: 命令行 warning D9025 :正在重写“/W3”(用“/W4”)
+[2/2] Linking CXX executable matching_engine_market_snapshot_tests.exe
+Market snapshot tests failed: reuse generation: save_threw=1 manifest_unchanged=1 books_unchanged=0 recovered_old_state=0
+Assertion failed: save_threw && manifest_unchanged && books_unchanged && recovered_old_state

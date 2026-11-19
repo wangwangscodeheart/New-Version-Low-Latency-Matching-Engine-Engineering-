@@ -1,0 +1,2 @@
+partial_match side=BUY indexed=1 retained_trades=2 delivered=0
+Allocation failure tests failed: assertion failed: book.active_order_count() == 0 && book.available_level_slots() == 4

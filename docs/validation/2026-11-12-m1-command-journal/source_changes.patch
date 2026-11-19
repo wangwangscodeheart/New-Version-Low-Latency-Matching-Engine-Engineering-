@@ -1,0 +1,3142 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 683148a..a31b0f9 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -46,13 +46,14 @@ jobs:
+           cmake --build build/tsan --target
+           matching_engine_async_logger_tests
+           matching_engine_async_journal_tests
++          matching_engine_command_journal_tests
+           matching_engine_monitor_tests
+       - name: Test asynchronous components
+         env:
+           TSAN_OPTIONS: halt_on_error=1
+         run: >-
+           ctest --test-dir build/tsan --output-on-failure
+-          -R "matching_engine_(async_logger|async_journal|monitor)"
++          -R "matching_engine_(async_logger|async_journal|command_journal|monitor)"
+ 
+   benchmark-smoke:
+     runs-on: ubuntu-latest
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 55b0eac..6e0a860 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -132,6 +132,10 @@ add_executable(matching_engine_event_system_tests
+     tests/event_system_tests.cpp
+ )
+ 
++add_executable(matching_engine_event_delivery_integration_tests
++    tests/event_delivery_integration_tests.cpp
++)
++
+ add_executable(matching_engine_journal_replay_tests
+     tests/journal_replay_tests.cpp
+ )
+@@ -161,6 +165,11 @@ add_executable(matching_engine_async_journal_tests
+ )
+ target_link_libraries(matching_engine_async_journal_tests PRIVATE Threads::Threads)
+ 
++add_executable(matching_engine_command_journal_tests
++    tests/command_journal_tests.cpp
++)
++target_link_libraries(matching_engine_command_journal_tests PRIVATE Threads::Threads)
++
+ add_executable(matching_engine_market_data_generator_tests
+     tests/market_data_generator_tests.cpp
+ )
+@@ -224,12 +233,14 @@ if(BUILD_TESTING)
+     add_test(NAME matching_engine_market_snapshot COMMAND matching_engine_market_snapshot_tests)
+     add_test(NAME matching_engine_market_manager COMMAND matching_engine_market_manager_tests)
+     add_test(NAME matching_engine_event_system COMMAND matching_engine_event_system_tests)
++    add_test(NAME matching_engine_event_delivery COMMAND matching_engine_event_delivery_integration_tests)
+     add_test(NAME matching_engine_journal_replay COMMAND matching_engine_journal_replay_tests)
+     add_test(NAME matching_engine_async_logger COMMAND matching_engine_async_logger_tests)
+     add_test(NAME matching_engine_monitor COMMAND matching_engine_monitor_tests)
+     add_test(NAME matching_engine_market_data COMMAND matching_engine_market_data_tests)
+     add_test(NAME matching_engine_strategy COMMAND matching_engine_strategy_tests)
+     add_test(NAME matching_engine_async_journal COMMAND matching_engine_async_journal_tests)
++    add_test(NAME matching_engine_command_journal COMMAND matching_engine_command_journal_tests)
+     add_test(NAME matching_engine_market_data_generator COMMAND matching_engine_market_data_generator_tests)
+     add_test(NAME matching_engine_feed_gateway COMMAND matching_engine_feed_gateway_tests)
+     add_test(NAME matching_engine_capacity_metrics COMMAND matching_engine_capacity_metrics_tests)
+@@ -270,12 +281,14 @@ install(TARGETS
+     matching_engine_snapshot_tests
+     matching_engine_market_manager_tests
+     matching_engine_event_system_tests
++    matching_engine_event_delivery_integration_tests
+     matching_engine_journal_replay_tests
+     matching_engine_async_logger_tests
+     matching_engine_monitor_tests
+     matching_engine_market_data_tests
+     matching_engine_strategy_tests
+     matching_engine_async_journal_tests
++    matching_engine_command_journal_tests
+     matching_engine_market_data_generator_tests
+     matching_engine_benchmarks
+     matching_engine_v2_benchmarks
+diff --git a/benchmarks/v2_perf.cpp b/benchmarks/v2_perf.cpp
+index 1f761a1..07d85ca 100644
+--- a/benchmarks/v2_perf.cpp
++++ b/benchmarks/v2_perf.cpp
+@@ -325,7 +325,7 @@ struct EngineFixture {
+     std::unique_ptr<AsyncJournalWriter> journal;
+     std::string logger_path;
+     std::string journal_path;
+-    TradingEngine engine{markets, dispatcher};
++    std::unique_ptr<TradingEngine> engine;
+ 
+     EngineFixture(bool with_monitor, bool with_logger, bool with_journal,
+                   const std::string& suffix) {
+@@ -339,17 +339,21 @@ struct EngineFixture {
+             journal_path = "benchmark_" + suffix + ".journal.csv";
+             journal = std::make_unique<AsyncJournalWriter>(
+                 journal_path, 262144);
+-            journal->attach(dispatcher);
+         }
++        engine = journal ? std::make_unique<TradingEngine>(markets, dispatcher, *journal)
++                         : std::make_unique<TradingEngine>(markets, dispatcher);
+         dispatcher.freeze();
+     }
+     MarketProcessResult submit(Timestamp timestamp, const Symbol& symbol, size_t,
+                                const Command& command) {
+-        return engine.submit(timestamp, symbol, command);
++        return engine->submit(timestamp, symbol, command);
+     }
+     void stop() {
+         if (logger) logger->stop();
+         if (journal) journal->stop();
++        if (journal && !journal->healthy()) {
++            throw std::runtime_error("Benchmark journal did not accept/drain complete commands");
++        }
+         std::error_code ignored;
+         if (!logger_path.empty()) std::filesystem::remove(logger_path, ignored);
+         if (!journal_path.empty()) std::filesystem::remove(journal_path, ignored);
+diff --git a/src/async_journal.hpp b/src/async_journal.hpp
+index eefee7c..f0b87bc 100644
+--- a/src/async_journal.hpp
++++ b/src/async_journal.hpp
+@@ -1,70 +1,334 @@
+ #ifndef ASYNC_JOURNAL_HPP
+ #define ASYNC_JOURNAL_HPP
+ 
+-#include "bounded_queue.hpp"
+-#include "journal.hpp"
+-#include "submission_gate.hpp"
++#include "command_journal.hpp"
++#include "journal_batch_queue.hpp"
+ #include <atomic>
+ #include <fstream>
++#include <limits>
++#include <new>
+ #include <stdexcept>
+ #include <string>
+ #include <thread>
++#include <utility>
++#include <vector>
+ 
+ enum class JournalHealth : uint8_t {
+     HEALTHY = 0,
+     QUEUE_OVERFLOW = 1,
+     WRITE_FAILURE = 2,
+-    STOPPED = 3
++    STOPPED = 3,
++    PROTOCOL_ERROR = 4,
++    ALLOCATION_FAILURE = 5
+ };
+ 
+ // Asynchronous append-only journal writer for one process session. It is not a
+ // claim of fsync-level crash durability: healthy()==true proves that every
+ // accepted in-process record was written and flushed during an orderly stop.
+-class AsyncJournalWriter : public SubmissionGate {
+-    BoundedQueue<JournalRecord> queue_;
++// A single producer owns the command/observer methods; stop requires that
++// producer to be quiescent. The worker alone owns the stream after construction.
++// The constructor's capacity is a RECORD SLOT budget, not a command count.
++class AsyncJournalWriter : public CommandJournal {
++    enum class Mode : uint8_t { NONE, CANONICAL, OBSERVER };
++
++    JournalBatchQueue queue_;
+     std::ofstream file_;
+     std::thread worker_;
+     EventDispatcher::Subscription subscription_;
+     std::atomic<uint64_t> accepted_{0};
+     std::atomic<uint64_t> written_{0};
+     std::atomic<uint64_t> dropped_{0};
++    std::atomic<uint64_t> accepted_commands_{0};
++    std::atomic<uint64_t> written_commands_{0};
+     std::atomic<JournalHealth> health_{JournalHealth::HEALTHY};
+     std::atomic<bool> stopped_{false};
+-    uint64_t next_sequence_ = 1; // on_event executes on the single writer path
++    Mode mode_ = Mode::NONE;
++    uint64_t next_sequence_ = 1;
++    bool sequence_exhausted_ = false;
++    bool have_timestamp_ = false;
++    Timestamp last_timestamp_{0};
++    std::vector<JournalRecord> staged_;
++    size_t staged_slots_ = 0;
++    size_t staged_limit_ = 0;
++    bool active_ = false;
+ 
+-    void run() noexcept {
+-        JournalRecord record;
+-        while (queue_.wait_pop(record)) {
+-            write_journal_record(file_, record);
+-            if (!file_) {
+-                health_.store(JournalHealth::WRITE_FAILURE, std::memory_order_release);
++    void discard_stage() noexcept {
++        // Free the allocation before making its reservation available again.
++        std::vector<JournalRecord>().swap(staged_);
++        const size_t slots = staged_slots_;
++        staged_slots_ = 0;
++        staged_limit_ = 0;
++        active_ = false;
++        if (slots != 0) queue_.release(slots);
++    }
++
++    bool refuse(JournalHealth failure) noexcept {
++        JournalHealth expected = JournalHealth::HEALTHY;
++        if (health_.compare_exchange_strong(expected, failure,
++                                            std::memory_order_acq_rel)) {
++            dropped_.fetch_add(1, std::memory_order_relaxed);
++        }
++        discard_stage();
++        return false;
++    }
++
++    void write_failure() noexcept {
++        // An actual stream failure must remain visible even if the producer
++        // already detected a different terminal failure.
++        health_.store(JournalHealth::WRITE_FAILURE, std::memory_order_release);
++    }
++
++    bool sequence_room(size_t records) const noexcept {
++        return !sequence_exhausted_ && records != 0 &&
++            records - 1 <= std::numeric_limits<uint64_t>::max() - next_sequence_;
++    }
++
++    static bool serializable(const Symbol& symbol, const Command& command) noexcept {
++        if (symbol.value().empty() ||
++            symbol.value().find_first_of(",\r\n") != std::string::npos ||
++            command.valueless_by_exception()) return false;
++        if (const auto* order = std::get_if<NewOrderCommand>(&command)) {
++            return (order->side == Side::BUY || order->side == Side::SELL) &&
++                (order->time_in_force == TimeInForce::GTC ||
++                 order->time_in_force == TimeInForce::IOC ||
++                 order->time_in_force == TimeInForce::POST_ONLY);
++        }
++        return true;
++    }
++
++    bool begin(Timestamp timestamp, const Symbol& symbol, const Command& command,
++               size_t max_records) {
++        if (!available()) return false;
++        if (active_ || max_records < 2 || !serializable(symbol, command) ||
++            (have_timestamp_ && timestamp < last_timestamp_) ||
++            !sequence_room(max_records)) return refuse(JournalHealth::PROTOCOL_ERROR);
++        if (!queue_.try_reserve(max_records)) return refuse(JournalHealth::QUEUE_OVERFLOW);
++        staged_slots_ = max_records;
++        staged_limit_ = max_records;
++        active_ = true;
++        try {
++            // Always start with a fresh allocation. Committing a small command
++            // must not leave an earlier giant allocation on the producer.
++            staged_.reserve(max_records);
++            if (staged_.capacity() > staged_slots_) {
++                const size_t extra = staged_.capacity() - staged_slots_;
++                if (!queue_.try_reserve(extra)) return refuse(JournalHealth::QUEUE_OVERFLOW);
++                staged_slots_ += extra;
++            }
++            auto input = JournalProjector::project(
++                SystemEvent::order(timestamp, symbol, command), next_sequence_);
++            if (!input) return refuse(JournalHealth::PROTOCOL_ERROR);
++            input->format_version = 2;
++            staged_.push_back(std::move(*input));
++            // The worker may have failed during allocation/projection.
++            if (!available()) { discard_stage(); return false; }
++            return true;
++        } catch (const std::bad_alloc&) {
++            return refuse(JournalHealth::ALLOCATION_FAILURE);
++        } catch (...) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++    }
++
++    bool observer_room(size_t records) {
++        if (!sequence_room(records)) return refuse(JournalHealth::PROTOCOL_ERROR);
++        if (records <= staged_limit_) return true;
++        if (records > queue_.capacity()) return refuse(JournalHealth::QUEUE_OVERFLOW);
++        // Unlike canonical mode, observer mode learns its bound after matching.
++        // Charge the new capacity before growing, and retain it through writing.
++        if (records > staged_slots_) {
++            const size_t extra = records - staged_slots_;
++            if (!queue_.try_reserve(extra)) return refuse(JournalHealth::QUEUE_OVERFLOW);
++            staged_slots_ += extra;
++        }
++        try {
++            staged_.reserve(records);
++            if (staged_.capacity() > staged_slots_) {
++                const size_t extra = staged_.capacity() - staged_slots_;
++                if (!queue_.try_reserve(extra)) return refuse(JournalHealth::QUEUE_OVERFLOW);
++                staged_slots_ += extra;
++            }
++            staged_limit_ = records;
++            return true;
++        } catch (const std::bad_alloc&) {
++            return refuse(JournalHealth::ALLOCATION_FAILURE);
++        } catch (...) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++    }
++
++    bool append(const TradeEvent& trade) {
++        if (!available()) { discard_stage(); return false; }
++        if (!active_ || staged_.empty()) return refuse(JournalHealth::PROTOCOL_ERROR);
++        const JournalRecord& input = staged_.front();
++        if (input.type != JournalRecordType::ORDER_INSERT ||
++            trade.type != EventType::TRADE ||
++            trade.command_sequence != input.command_sequence ||
++            trade.aggressive_order_id != input.order_id) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++        // Always leave one record for COMMAND_RESULT; canonical mode never
++        // grows its allocation after begin_command has returned.
++        if (staged_.size() > std::numeric_limits<size_t>::max() - 2) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++        const size_t required = staged_.size() + 2;
++        if (mode_ == Mode::OBSERVER) {
++            if (!observer_room(required)) return false;
++        } else if (required > staged_limit_) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++        try {
++            // observer_room may reallocate staged_, so reacquire the context.
++            const JournalRecord& context = staged_.front();
++            auto record = JournalProjector::project(SystemEvent::engine(
++                context.timestamp, context.symbol, EngineEvent{trade}),
++                next_sequence_ + static_cast<uint64_t>(staged_.size()));
++            if (!record) return refuse(JournalHealth::PROTOCOL_ERROR);
++            record->format_version = 2;
++            staged_.push_back(std::move(*record));
++            if (!available()) { discard_stage(); return false; }
++            return true;
++        } catch (const std::bad_alloc&) {
++            return refuse(JournalHealth::ALLOCATION_FAILURE);
++        } catch (...) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++    }
++
++    bool commit(CommandOutcome outcome) {
++        if (!available()) { discard_stage(); return false; }
++        if (!active_ || staged_.empty() || staged_.size() >= staged_limit_ ||
++            static_cast<unsigned>(outcome) >=
++                static_cast<unsigned>(CommandOutcome::SYSTEM_UNAVAILABLE) ||
++            (staged_.size() > 1 && outcome != CommandOutcome::APPLIED)) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++        try {
++            const JournalRecord& input = staged_.front();
++            const Timestamp timestamp = input.timestamp;
++            auto result = JournalProjector::project(SystemEvent::processing_latency(
++                input.timestamp, input.symbol, ProcessingLatencyEvent{
++                    0, outcome, input.command_sequence, input.order_id}),
++                next_sequence_ + static_cast<uint64_t>(staged_.size()));
++            if (!result) return refuse(JournalHealth::PROTOCOL_ERROR);
++            result->format_version = 2;
++            staged_.push_back(std::move(*result));
++            if (!available()) { discard_stage(); return false; }
++            const size_t count = staged_.size();
++            // Exactly one queue operation transfers the entire group and its
++            // full worst-case reservation; nothing is accepted on failure.
++            if (!queue_.try_push(std::move(staged_), staged_slots_)) {
++                return refuse(JournalHealth::PROTOCOL_ERROR);
++            }
++            staged_slots_ = 0;
++            staged_limit_ = 0;
++            active_ = false;
++            std::vector<JournalRecord>().swap(staged_);
++            if (count - 1 == std::numeric_limits<uint64_t>::max() - next_sequence_) {
++                sequence_exhausted_ = true;
+             } else {
+-                written_.fetch_add(1, std::memory_order_relaxed);
++                next_sequence_ += static_cast<uint64_t>(count);
+             }
++            last_timestamp_ = timestamp;
++            have_timestamp_ = true;
++            accepted_.fetch_add(static_cast<uint64_t>(count), std::memory_order_relaxed);
++            accepted_commands_.fetch_add(1, std::memory_order_relaxed);
++            return true;
++        } catch (const std::bad_alloc&) {
++            return refuse(JournalHealth::ALLOCATION_FAILURE);
++        } catch (...) {
++            return refuse(JournalHealth::PROTOCOL_ERROR);
++        }
++    }
++
++    void run() noexcept {
++        JournalBatchQueue::Batch batch;
++        bool stream_failed = false;
++        try {
++            while (queue_.wait_pop(batch)) {
++                bool complete = !stream_failed;
++                if (!stream_failed) {
++                    try {
++                        for (const JournalRecord& record : batch.records) {
++                            write_journal_record(file_, record);
++                            if (!file_) { complete = false; break; }
++                            written_.fetch_add(1, std::memory_order_relaxed);
++                        }
++                    } catch (...) {
++                        complete = false;
++                    }
++                    if (!complete) {
++                        stream_failed = true;
++                        write_failure();
++                    }
++                }
++                if (complete) written_commands_.fetch_add(1, std::memory_order_relaxed);
++                // Even failed batches must release their allocation and budget.
++                queue_.finish(batch);
++            }
++        } catch (...) {
++            write_failure();
++            if (batch.slots != 0) queue_.finish(batch);
++        }
++        try {
++            file_.flush();
++            if (!file_) write_failure();
++        } catch (...) {
++            write_failure();
++        }
++        try {
++            file_.close();
++            if (file_.fail()) write_failure();
++        } catch (...) {
++            write_failure();
+         }
+-        file_.flush();
+-        if (!file_) health_.store(JournalHealth::WRITE_FAILURE, std::memory_order_release);
+-        file_.close();
+     }
+ 
+     void on_event(const SystemEvent& event) {
+-        if (health_.load(std::memory_order_acquire) != JournalHealth::HEALTHY) return;
+-        auto record = JournalProjector::project(event, next_sequence_);
+-        if (!record) return;
+-        if (!queue_.try_push(std::move(*record))) {
+-            dropped_.fetch_add(1, std::memory_order_relaxed);
+-            health_.store(JournalHealth::QUEUE_OVERFLOW, std::memory_order_release);
+-            return;
++        if (event.event_type != SystemEventType::ORDER &&
++            event.event_type != SystemEventType::TRADE &&
++            event.event_type != SystemEventType::PROCESSING_LATENCY) return;
++        if (!available() || mode_ != Mode::OBSERVER) {
++            throw std::runtime_error("Async journal observer is unavailable");
++        }
++        bool accepted = false;
++        try {
++            if (event.event_type == SystemEventType::ORDER) {
++                accepted = begin(event.timestamp, event.symbol,
++                    std::get<OrderEvent>(event.payload).command, 2);
++            } else if (!active_ || staged_.empty() ||
++                       event.timestamp != staged_.front().timestamp ||
++                       event.symbol != staged_.front().symbol) {
++                accepted = refuse(JournalHealth::PROTOCOL_ERROR);
++            } else if (event.event_type == SystemEventType::TRADE) {
++                accepted = append(std::get<TradeEvent>(std::get<EngineEvent>(event.payload)));
++            } else {
++                const auto& result = std::get<ProcessingLatencyEvent>(event.payload);
++                if (result.command_sequence != staged_.front().command_sequence ||
++                    result.order_id != staged_.front().order_id) {
++                    accepted = refuse(JournalHealth::PROTOCOL_ERROR);
++                } else {
++                    accepted = commit(result.outcome);
++                }
++            }
++        } catch (const std::bad_alloc&) {
++            refuse(JournalHealth::ALLOCATION_FAILURE);
++        } catch (...) {
++            refuse(JournalHealth::PROTOCOL_ERROR);
+         }
+-        ++next_sequence_;
+-        accepted_.fetch_add(1, std::memory_order_relaxed);
++        // Observers have no boolean acknowledgment channel. Propagate refusal
++        // so TradingEngine retains undelivered events and fails closed.
++        if (!accepted) throw std::runtime_error("Async journal observer refused a command group");
+     }
+ 
+ public:
+     AsyncJournalWriter(const std::string& filename, size_t queue_capacity)
+         : queue_(queue_capacity), file_(filename, std::ios::out | std::ios::trunc) {
+         if (!file_) throw std::runtime_error("Cannot open async journal: " + filename);
+-        write_journal_header(file_);
++        write_command_journal_header(file_);
++        file_.flush();
++        if (!file_) throw std::runtime_error("Cannot write async journal header: " + filename);
+         worker_ = std::thread([this] { run(); });
+     }
+ 
+@@ -73,14 +337,50 @@ public:
+     ~AsyncJournalWriter() { stop(); }
+ 
+     void attach(EventDispatcher& dispatcher) {
+-        subscription_ = dispatcher.subscribe_all(
+-            [this](const SystemEvent& event) { on_event(event); });
++        if (!available() || mode_ != Mode::NONE || active_) {
++            refuse(JournalHealth::PROTOCOL_ERROR);
++            throw std::logic_error("Async journal canonical and observer modes are exclusive");
++        }
++        try {
++            subscription_ = dispatcher.subscribe_all(
++                [this](const SystemEvent& event) { on_event(event); });
++            mode_ = Mode::OBSERVER;
++        } catch (const std::bad_alloc&) {
++            refuse(JournalHealth::ALLOCATION_FAILURE);
++            throw;
++        } catch (...) {
++            refuse(JournalHealth::PROTOCOL_ERROR);
++            throw;
++        }
++    }
++
++    bool begin_command(Timestamp timestamp, const Symbol& symbol,
++                       const Command& command, size_t max_records) override {
++        if (!available()) return false;
++        if (mode_ == Mode::OBSERVER) return refuse(JournalHealth::PROTOCOL_ERROR);
++        mode_ = Mode::CANONICAL;
++        return begin(timestamp, symbol, command, max_records);
++    }
++
++    bool append_trade(const TradeEvent& trade) override {
++        if (mode_ != Mode::CANONICAL) return refuse(JournalHealth::PROTOCOL_ERROR);
++        return append(trade);
++    }
++
++    bool commit_command(CommandOutcome outcome) override {
++        if (mode_ != Mode::CANONICAL) return refuse(JournalHealth::PROTOCOL_ERROR);
++        return commit(outcome);
++    }
++
++    void abort_command() noexcept override {
++        if (active_) refuse(JournalHealth::PROTOCOL_ERROR);
+     }
+ 
+     void stop() noexcept {
+         bool expected = false;
+         if (!stopped_.compare_exchange_strong(expected, true,
+                                                std::memory_order_acq_rel)) return;
++        abort_command();
+         subscription_.reset();
+         queue_.close();
+         if (worker_.joinable()) worker_.join();
+@@ -93,10 +393,12 @@ public:
+         const JournalHealth current = health();
+         return (current == JournalHealth::HEALTHY || current == JournalHealth::STOPPED) &&
+                dropped_count() == 0 && !write_failed() &&
+-               accepted_count() == written_count();
++               accepted_count() == written_count() &&
++               accepted_command_count() == written_command_count();
+     }
+     bool available() const noexcept override {
+-        return health() == JournalHealth::HEALTHY;
++        return health() == JournalHealth::HEALTHY &&
++               !stopped_.load(std::memory_order_acquire);
+     }
+     JournalHealth health() const noexcept {
+         return health_.load(std::memory_order_acquire);
+@@ -113,6 +415,14 @@ public:
+     uint64_t dropped_count() const noexcept {
+         return dropped_.load(std::memory_order_relaxed);
+     }
++    uint64_t accepted_command_count() const noexcept {
++        return accepted_commands_.load(std::memory_order_relaxed);
++    }
++    uint64_t written_command_count() const noexcept {
++        return written_commands_.load(std::memory_order_relaxed);
++    }
++    size_t buffered_record_slots() const { return queue_.used_slots(); }
++    size_t record_slot_capacity() const noexcept { return queue_.capacity(); }
+ };
+ 
+ #endif
+diff --git a/src/event_sink.hpp b/src/event_sink.hpp
+index 7c06018..b8950f3 100644
+--- a/src/event_sink.hpp
++++ b/src/event_sink.hpp
+@@ -7,9 +7,15 @@
+ #include <optional>
+ #include <vector>
+ 
+-// Sink contract: push returns false when the receiver cannot accept an event.
+-// OrderBook reports that condition explicitly through ProcessResult instead of
+-// silently dropping output.
++// Sink contract: true means this event was accepted exactly once by this sink;
++// false means it was NOT accepted and may be offered again on an explicit retry.
++// A sink must not return false after performing acceptance side effects.
++// An exception makes acceptance unknown: OrderBook fails closed and does not
++// automatically retry. This is an in-process delivery contract, not durable or
++// exactly-once end-to-end delivery. Callbacks must not move the active book.
++// Retry continues the SAME logical output stream from its unaccepted suffix;
++// switching to a new independent consumer would omit its already accepted
++// prefix. Reusing/draining a buffer for the same consumer is permitted.
+ class NullEventSink {
+ public:
+     bool push(const EngineEvent&) noexcept { return true; }
+diff --git a/src/events.hpp b/src/events.hpp
+index 75fb4b6..f383459 100644
+--- a/src/events.hpp
++++ b/src/events.hpp
+@@ -25,7 +25,8 @@ enum class RejectReason : uint8_t {
+     OFF_TICK_PRICE = 7,
+     QUANTITY_LIMIT = 8,
+     INVALID_LOT_SIZE = 9,
+-    POST_ONLY_WOULD_TRADE = 10
++    POST_ONLY_WOULD_TRADE = 10,
++    LEVEL_VOLUME_OVERFLOW = 11
+ };
+ 
+ inline const char* to_string(RejectReason reason) noexcept {
+@@ -41,6 +42,7 @@ inline const char* to_string(RejectReason reason) noexcept {
+         case RejectReason::QUANTITY_LIMIT: return "QUANTITY_LIMIT";
+         case RejectReason::INVALID_LOT_SIZE: return "INVALID_LOT_SIZE";
+         case RejectReason::POST_ONLY_WOULD_TRADE: return "POST_ONLY_WOULD_TRADE";
++        case RejectReason::LEVEL_VOLUME_OVERFLOW: return "LEVEL_VOLUME_OVERFLOW";
+     }
+     return "UNKNOWN";
+ }
+diff --git a/src/journal.hpp b/src/journal.hpp
+index 958c2cf..d717dc9 100644
+--- a/src/journal.hpp
++++ b/src/journal.hpp
+@@ -5,6 +5,7 @@
+ #include <algorithm>
+ #include <cstdint>
+ #include <fstream>
++#include <limits>
+ #include <sstream>
+ #include <stdexcept>
+ #include <string>
+@@ -32,6 +33,7 @@ struct JournalRecord {
+     OrderId aggressive_order_id{0};
+     CommandOutcome outcome = CommandOutcome::APPLIED;
+     TimeInForce time_in_force = TimeInForce::GTC;
++    uint8_t format_version = 1;
+ };
+ 
+ inline const char* journal_record_type_string(JournalRecordType type) noexcept {
+@@ -48,6 +50,11 @@ inline void write_journal_header(std::ostream& output) {
+     output << "sequence,timestamp,type,symbol,command_sequence,order_id,side,price,quantity,passive_id,aggressive_id,outcome,time_in_force\n";
+ }
+ 
++inline void write_command_journal_header(std::ostream& output) {
++    output << "DME_JOURNAL,2,COMMAND_BATCHES\n";
++    write_journal_header(output);
++}
++
+ inline void write_journal_record(std::ostream& output, const JournalRecord& record) {
+     output << record.sequence << ',' << record.timestamp.get() << ','
+            << journal_record_type_string(record.type) << ',' << record.symbol.value()
+@@ -105,6 +112,10 @@ class Journal {
+     static uint64_t parse_u64(const std::string& text, size_t line) {
+         size_t consumed = 0;
+         try {
++            if (text.empty() || !std::all_of(text.begin(), text.end(),
++                    [](char value) { return value >= '0' && value <= '9'; })) {
++                throw std::invalid_argument("unsigned decimal required");
++            }
+             const uint64_t value = std::stoull(text, &consumed);
+             if (consumed != text.size()) throw std::invalid_argument("trailing");
+             return value;
+@@ -126,7 +137,194 @@ class Journal {
+         }
+     }
+ 
++    static std::vector<std::string> split_fields(const std::string& line) {
++        std::vector<std::string> parts;
++        size_t begin = 0;
++        for (;;) {
++            const size_t comma = line.find(',', begin);
++            parts.push_back(line.substr(begin, comma == std::string::npos ?
++                std::string::npos : comma - begin));
++            if (comma == std::string::npos) return parts;
++            begin = comma + 1;
++        }
++    }
++
++    static JournalRecord parse_record(const std::string& line, size_t line_number,
++                                      bool command_format) {
++        const auto parts = split_fields(line);
++        if ((command_format && parts.size() != 13) ||
++            (!command_format && parts.size() != 11 && parts.size() != 12 &&
++             parts.size() != 13)) {
++            throw std::runtime_error("Invalid journal field count at line " +
++                                     std::to_string(line_number));
++        }
++        JournalRecordType type;
++        if (parts[2] == "ORDER_INSERT") type = JournalRecordType::ORDER_INSERT;
++        else if (parts[2] == "CANCEL") type = JournalRecordType::CANCEL;
++        else if (parts[2] == "TRADE") type = JournalRecordType::TRADE;
++        else if (parts[2] == "COMMAND_RESULT") type = JournalRecordType::COMMAND_RESULT;
++        else throw std::runtime_error("Invalid journal type at line " +
++                                      std::to_string(line_number));
++        const Side side = parts[6] == "BUY" ? Side::BUY :
++            parts[6] == "SELL" ? Side::SELL :
++            throw std::runtime_error("Invalid journal side at line " +
++                                     std::to_string(line_number));
++        if (parts[3].empty()) {
++            throw std::runtime_error("Invalid journal symbol at line " +
++                                     std::to_string(line_number));
++        }
++        CommandOutcome outcome = CommandOutcome::APPLIED;
++        if (parts.size() >= 12) {
++            const uint64_t parsed = parse_u64(parts[11], line_number);
++            if (parsed > static_cast<uint64_t>(CommandOutcome::SYSTEM_UNAVAILABLE)) {
++                throw std::runtime_error("Invalid command outcome at line " +
++                                         std::to_string(line_number));
++            }
++            outcome = static_cast<CommandOutcome>(parsed);
++        }
++        TimeInForce time_in_force = TimeInForce::GTC;
++        if (parts.size() == 13) {
++            time_in_force = parts[12] == "GTC" ? TimeInForce::GTC :
++                parts[12] == "IOC" ? TimeInForce::IOC :
++                parts[12] == "POST_ONLY" ? TimeInForce::POST_ONLY :
++                throw std::runtime_error("Invalid time in force at line " +
++                                         std::to_string(line_number));
++        }
++        JournalRecord record{
++            parse_u64(parts[0], line_number), Timestamp(parse_u64(parts[1], line_number)),
++            type, Symbol(parts[3]), CommandSequence(parse_u64(parts[4], line_number)),
++            OrderId(parse_u64(parts[5], line_number)), side,
++            Price(parse_i64(parts[7], line_number)),
++            Quantity(parse_u64(parts[8], line_number)),
++            OrderId(parse_u64(parts[9], line_number)),
++            OrderId(parse_u64(parts[10], line_number)), outcome};
++        record.time_in_force = time_in_force;
++        record.format_version = command_format ? 2 : 1;
++        return record;
++    }
++
++    // Only a prefix of a valid row can be a torn final write. A fully present
++    // malformed field (even at EOF) is corruption, not a recovery boundary.
++    static bool truncated_command_row(const std::string& line, size_t line_number) {
++        const auto parts = split_fields(line);
++        if (parts.size() > 13) return false;
++        const auto token_valid = [line_number](size_t field,
++                                               const std::string& token,
++                                               bool partial) {
++            const auto matches = [&token, partial](const char* expected) {
++                const std::string value(expected);
++                return partial ? value.compare(0, token.size(), token) == 0 :
++                                 value == token;
++            };
++            if (field == 2) return matches("ORDER_INSERT") || matches("CANCEL") ||
++                matches("TRADE") || matches("COMMAND_RESULT");
++            if (field == 3) return partial || !token.empty();
++            if (field == 6) return matches("BUY") || matches("SELL");
++            if (field == 12) return matches("GTC") || matches("IOC") ||
++                matches("POST_ONLY");
++            if (partial && token.empty()) return true;
++            if (field == 7) {
++                if (partial && (token == "-" || token == "+")) return true;
++                (void)parse_i64(token, line_number);
++                return true;
++            }
++            const uint64_t value = parse_u64(token, line_number);
++            return field != 11 ||
++                value <= static_cast<uint64_t>(CommandOutcome::SYSTEM_UNAVAILABLE);
++        };
++        try {
++            for (size_t i = 0; i < parts.size(); ++i) {
++                if (!token_valid(i, parts[i], i + 1 == parts.size())) return false;
++            }
++        } catch (const std::runtime_error&) {
++            return false;
++        }
++        return true;
++    }
++
++    // Shared by streaming loading and vector replay preflight. This is an
++    // in-process complete-command boundary, not a CRC/fsync durability claim.
++    class CommittedRecordValidator {
++        std::optional<JournalRecord> input_;
++        uint64_t previous_sequence_ = 0;
++        uint64_t previous_timestamp_ = 0;
++        bool have_previous_ = false;
++        bool have_trade_ = false;
++
++    public:
++        bool accept(const JournalRecord& record) {
++            if (record.format_version != 2) {
++                throw std::runtime_error("Command journal contains a non-v2 record");
++            }
++            if ((record.side != Side::BUY && record.side != Side::SELL) ||
++                (record.time_in_force != TimeInForce::GTC &&
++                 record.time_in_force != TimeInForce::IOC &&
++                 record.time_in_force != TimeInForce::POST_ONLY) ||
++                static_cast<unsigned>(record.outcome) >
++                    static_cast<unsigned>(CommandOutcome::SYSTEM_UNAVAILABLE)) {
++                throw std::runtime_error("Invalid command journal enum value");
++            }
++            if (record.sequence == 0 || (have_previous_ &&
++                (previous_sequence_ == std::numeric_limits<uint64_t>::max() ||
++                 record.sequence != previous_sequence_ + 1))) {
++                throw std::runtime_error("Command journal sequence is not contiguous");
++            }
++            if (have_previous_ && record.timestamp.get() < previous_timestamp_) {
++                throw std::runtime_error("Journal timestamp moved backwards");
++            }
++            bool complete = false;
++            if (!input_) {
++                if (record.type != JournalRecordType::ORDER_INSERT &&
++                    record.type != JournalRecordType::CANCEL) {
++                    throw std::runtime_error("Command journal group must start with an input");
++                }
++                input_ = record;
++                have_trade_ = false;
++            } else {
++                if (record.timestamp != input_->timestamp || record.symbol != input_->symbol ||
++                    record.command_sequence != input_->command_sequence) {
++                    throw std::runtime_error("Command journal group identity mismatch");
++                }
++                if (record.type == JournalRecordType::TRADE) {
++                    if (input_->type != JournalRecordType::ORDER_INSERT ||
++                        record.aggressive_order_id != input_->order_id) {
++                        throw std::runtime_error("Command journal trade does not match input");
++                    }
++                    have_trade_ = true;
++                } else if (record.type == JournalRecordType::COMMAND_RESULT) {
++                    if (record.order_id != input_->order_id ||
++                        record.outcome == CommandOutcome::SYSTEM_UNAVAILABLE ||
++                        static_cast<unsigned>(record.outcome) >
++                            static_cast<unsigned>(CommandOutcome::SYSTEM_UNAVAILABLE) ||
++                        (have_trade_ && record.outcome != CommandOutcome::APPLIED)) {
++                        throw std::runtime_error("Invalid committed command result");
++                    }
++                    input_.reset();
++                    complete = true;
++                } else {
++                    throw std::runtime_error("Command journal input has no result");
++                }
++            }
++            previous_sequence_ = record.sequence;
++            previous_timestamp_ = record.timestamp.get();
++            have_previous_ = true;
++            return complete;
++        }
++
++        bool pending() const noexcept { return input_.has_value(); }
++    };
++
+ public:
++    // Complete suffixes may start at any nonzero record sequence. File loading
++    // separately requires sequence 1, because it reads a whole journal.
++    static void validate_committed_records(const std::vector<JournalRecord>& records) {
++        CommittedRecordValidator validator;
++        for (const auto& record : records) validator.accept(record);
++        if (validator.pending()) {
++            throw std::runtime_error("Incomplete final command journal group");
++        }
++    }
++
+     // Journal must outlive the dispatcher because the callback captures this.
+     void attach(EventDispatcher& dispatcher) {
+         subscription_ = dispatcher.subscribe_all(
+@@ -149,6 +347,8 @@ public:
+         for (const JournalRecord& record : records_) {
+             write_journal_record(file, record);
+         }
++        file.flush();
++        if (!file) throw std::runtime_error("Cannot write journal: " + filename);
+     }
+ 
+     static std::vector<JournalRecord> load(const std::string& filename,
+@@ -158,61 +358,74 @@ public:
+         std::vector<JournalRecord> result;
+         std::string line;
+         size_t line_number = 0;
++        bool command_format = false;
++        size_t committed_size = 0;
++        CommittedRecordValidator validator;
+         while (std::getline(file, line)) {
+             ++line_number;
++            const bool terminated = !file.eof();
++            if (!line.empty() && line.back() == '\r') line.pop_back();
++            if (line_number == 1 && line == "DME_JOURNAL,2,COMMAND_BATCHES") {
++                command_format = true;
++                std::ostringstream expected_header;
++                write_journal_header(expected_header);
++                std::string expected = expected_header.str();
++                expected.pop_back();
++                if (!terminated || !std::getline(file, line)) {
++                    throw std::runtime_error("Missing command journal column header");
++                }
++                ++line_number;
++                if (!line.empty() && line.back() == '\r') line.pop_back();
++                if (line != expected || file.eof()) {
++                    throw std::runtime_error("Invalid command journal column header");
++                }
++                continue;
++            }
++            if (line_number == 1 && line.rfind("DME_JOURNAL,", 0) == 0) {
++                throw std::runtime_error("Unsupported command journal format marker");
++            }
+             if (line_number == 1 && line.rfind("sequence,", 0) == 0) continue;
+-            if (line.empty()) continue;
++            if (!command_format && line.empty()) continue;
++            JournalRecord record;
+             try {
+-            std::stringstream stream(line);
+-            std::vector<std::string> parts;
+-            std::string part;
+-            while (std::getline(stream, part, ',')) parts.push_back(part);
+-            if (parts.size() != 11 && parts.size() != 12 && parts.size() != 13) {
+-                throw std::runtime_error("Invalid journal field count at line " +
+-                                         std::to_string(line_number));
+-            }
+-            JournalRecordType type;
+-            if (parts[2] == "ORDER_INSERT") type = JournalRecordType::ORDER_INSERT;
+-            else if (parts[2] == "CANCEL") type = JournalRecordType::CANCEL;
+-            else if (parts[2] == "TRADE") type = JournalRecordType::TRADE;
+-            else if (parts[2] == "COMMAND_RESULT") type = JournalRecordType::COMMAND_RESULT;
+-            else throw std::runtime_error("Invalid journal type at line " +
+-                                          std::to_string(line_number));
+-            const Side side = parts[6] == "BUY" ? Side::BUY :
+-                parts[6] == "SELL" ? Side::SELL :
+-                throw std::runtime_error("Invalid journal side at line " +
+-                                         std::to_string(line_number));
+-            CommandOutcome outcome = CommandOutcome::APPLIED;
+-            if (parts.size() >= 12) {
+-                const uint64_t parsed_outcome = parse_u64(parts[11], line_number);
+-                if (parsed_outcome > static_cast<uint64_t>(CommandOutcome::SYSTEM_UNAVAILABLE)) {
+-                    throw std::runtime_error("Invalid command outcome at line " +
+-                                             std::to_string(line_number));
+-                }
+-                outcome = static_cast<CommandOutcome>(parsed_outcome);
+-            }
+-            TimeInForce time_in_force = TimeInForce::GTC;
+-            if (parts.size() == 13) {
+-                time_in_force = parts[12] == "GTC" ? TimeInForce::GTC :
+-                    parts[12] == "IOC" ? TimeInForce::IOC :
+-                    parts[12] == "POST_ONLY" ? TimeInForce::POST_ONLY :
+-                    throw std::runtime_error("Invalid time in force at line " +
+-                                             std::to_string(line_number));
+-            }
+-            JournalRecord record{
+-                parse_u64(parts[0], line_number), Timestamp(parse_u64(parts[1], line_number)),
+-                type, Symbol(parts[3]), CommandSequence(parse_u64(parts[4], line_number)),
+-                OrderId(parse_u64(parts[5], line_number)), side,
+-                Price(parse_i64(parts[7], line_number)),
+-                Quantity(parse_u64(parts[8], line_number)),
+-                OrderId(parse_u64(parts[9], line_number)),
+-                OrderId(parse_u64(parts[10], line_number)), outcome};
+-            record.time_in_force = time_in_force;
+-            result.push_back(std::move(record));
++                record = parse_record(line, line_number, command_format);
+             } catch (const std::runtime_error&) {
+-                if (ignore_incomplete_tail && file.eof()) break;
++                if (ignore_incomplete_tail && !terminated &&
++                    (!command_format || truncated_command_row(line, line_number))) {
++                    if (command_format) result.resize(committed_size);
++                    break;
++                }
+                 throw;
+             }
++            if (command_format) {
++                if (result.empty() && record.sequence != 1) {
++                    throw std::runtime_error("Command journal must start at sequence 1");
++                }
++                // Validate even a parseable unterminated row so semantic
++                // corruption cannot be disguised as a recoverable torn write.
++                const bool complete = validator.accept(record);
++                if (!terminated) {
++                    if (!ignore_incomplete_tail) {
++                        throw std::runtime_error("Unterminated command journal row");
++                    }
++                    result.resize(committed_size);
++                    break;
++                }
++                result.push_back(std::move(record));
++                if (complete) committed_size = result.size();
++            } else {
++                result.push_back(std::move(record));
++            }
++        }
++        if (file.bad()) throw std::runtime_error("Cannot read journal: " + filename);
++        if (command_format) {
++            if (result.size() != committed_size) {
++                if (!ignore_incomplete_tail) {
++                    throw std::runtime_error("Incomplete final command journal group");
++                }
++                result.resize(committed_size);
++            }
++            return result;
+         }
+         uint64_t previous = 0;
+         uint64_t previous_timestamp = 0;
+diff --git a/src/market_snapshot.hpp b/src/market_snapshot.hpp
+index 0e58633..c0c31f5 100644
+--- a/src/market_snapshot.hpp
++++ b/src/market_snapshot.hpp
+@@ -97,11 +97,23 @@ public:
+         if (manifest.filename().string().find_first_of(",\r\n") != std::string::npos) {
+             throw std::runtime_error("Unsafe snapshot manifest filename");
+         }
++        // No generation file may be written before every book passes the
++        // output barrier. Snapshot format intentionally excludes pending output.
++        const auto symbols = markets.symbols();
++        for (const Symbol& symbol : symbols) {
++            const OrderBook* book = markets.find_book(symbol);
++            if (!book || !book->ready_for_commands()) {
++                throw std::logic_error("Cannot snapshot a book with unfinished output");
++            }
++            if (symbol.value().find_first_of(",\r\n") != std::string::npos) {
++                throw std::runtime_error("Symbol cannot be encoded in manifest");
++            }
++        }
+         std::ostringstream body;
+         body << "DME_MARKET_SNAPSHOT,1," << snapshot_sequence << ','
+              << markets.symbol_count() << '\n';
+         size_t index = 0;
+-        for (const Symbol& symbol : markets.symbols()) {
++        for (const Symbol& symbol : symbols) {
+             const OrderBook* book = markets.find_book(symbol);
+             if (!book) throw std::runtime_error("Symbol disappeared during snapshot");
+             if (symbol.value().find_first_of(",\r\n") != std::string::npos) {
+diff --git a/src/monitor.hpp b/src/monitor.hpp
+index e8cc240..6a6397b 100644
+--- a/src/monitor.hpp
++++ b/src/monitor.hpp
+@@ -43,6 +43,7 @@ class Monitor {
+     TradingMetrics global_;
+     std::vector<TradingMetrics> by_instrument_;
+     std::vector<std::string> instrument_symbols_;
++    std::unordered_map<std::string, size_t> instrument_by_symbol_;
+     std::unordered_map<std::string, TradingMetrics> fallback_by_symbol_;
+     EventDispatcher::Subscription subscription_;
+ 
+@@ -52,14 +53,32 @@ class Monitor {
+         metrics.max_latency_ns = std::max(metrics.max_latency_ns, latency);
+     }
+ 
++    TradingMetrics& symbol_metrics(const SystemEvent& event) {
++        // Keep pre-resolved trading events on the direct-index path. Quote and
++        // data-quality events can omit InstrumentId but still belong to an
++        // already registered instrument rather than a second fallback counter.
++        if (event.instrument_id.valid() &&
++            event.instrument_id.get() < by_instrument_.size()) {
++            return by_instrument_[event.instrument_id.get()];
++        }
++        const auto registered = instrument_by_symbol_.find(event.symbol.value());
++        if (registered != instrument_by_symbol_.end()) {
++            return by_instrument_[registered->second];
++        }
++        return fallback_by_symbol_[event.symbol.value()];
++    }
++
+ public:
+     void attach(EventDispatcher& dispatcher, const MarketManager* markets = nullptr) {
+         if (markets) {
+             by_instrument_.resize(markets->symbol_count());
+             instrument_symbols_.resize(markets->symbol_count());
++            instrument_by_symbol_.clear();
++            instrument_by_symbol_.reserve(markets->symbol_count());
+             for (const Symbol& symbol : markets->symbols()) {
+                 const InstrumentId id = markets->resolve(symbol);
+                 instrument_symbols_[id.get()] = symbol.value();
++                instrument_by_symbol_.emplace(symbol.value(), id.get());
+             }
+         }
+         subscription_ = dispatcher.subscribe_all(
+@@ -68,10 +87,7 @@ public:
+ 
+     void on_event(const SystemEvent& event) {
+         std::lock_guard<std::mutex> lock(mutex_);
+-        TradingMetrics& symbol = event.instrument_id.valid() &&
+-                event.instrument_id.get() < by_instrument_.size()
+-            ? by_instrument_[event.instrument_id.get()]
+-            : fallback_by_symbol_[event.symbol.value()];
++        TradingMetrics& symbol = symbol_metrics(event);
+         if (event.event_type == SystemEventType::ORDER) {
+             const Command& command = std::get<OrderEvent>(event.payload).command;
+             if (std::holds_alternative<NewOrderCommand>(command)) {
+diff --git a/src/orderbook.hpp b/src/orderbook.hpp
+index 5a3b706..e2029d5 100644
+--- a/src/orderbook.hpp
++++ b/src/orderbook.hpp
+@@ -24,6 +24,8 @@
+ #include <limits>
+ #include <type_traits>
+ #include <utility>
++#include <exception>
++#include <stdexcept>
+ 
+ // ============================================================================
+ // ORDER BOOK - deterministic price-time matching core
+@@ -55,8 +57,12 @@ private:
+     // Event Log: Stores objects by value (contiguous memory)
+     std::vector<EngineEvent> event_log_;
+     size_t event_capture_limit_ = 0;
++    size_t command_event_limit_ = 0;
++    size_t next_delivery_cursor_ = 0;
+     bool command_event_capture_complete_ = true;
+     bool command_batch_mode_ = false;
++    bool processing_ = false;
++    EventOutputState event_output_state_ = EventOutputState::READY;
+     
+     CommandSequence last_applied_command_sequence_{0};
+     CommandSequence current_command_sequence_{0};
+@@ -70,13 +76,39 @@ private:
+     size_t peak_active_orders_ = 0;
+     size_t peak_active_levels_ = 0;
+ 
++    static size_t checked_capacity(size_t capacity) {
++        if (capacity > std::numeric_limits<uint32_t>::max()) {
++            throw std::length_error("OrderBook capacity exceeds the EventIndex range");
++        }
++        return capacity;
++    }
++
++    // Moving during a command/callback would invalidate the owner's live stack.
++    // Check before the first member is moved; idle READY/PENDING/FAILED books
++    // can transfer their state, including an unfinished output batch.
++    static OrderBook& checked_move_source(OrderBook& other) noexcept {
++        if (other.processing_) std::terminate();
++        return other;
++    }
++
++    class ProcessingScope {
++        bool& processing_;
++    public:
++        explicit ProcessingScope(bool& processing) noexcept : processing_(processing) {
++            processing_ = true;
++        }
++        ~ProcessingScope() { processing_ = false; }
++        ProcessingScope(const ProcessingScope&) = delete;
++        ProcessingScope& operator=(const ProcessingScope&) = delete;
++    };
++
+ public:
+     // Pre-allocate memory to avoid runtime allocation
+     explicit OrderBook(size_t capacity = 1000000, bool record_events = true,
+                          PriceLadderConfig price_config = {},
+                          size_t event_reserve_multiplier = 2,
+                          InstrumentConfig instrument_config = {})
+-          : order_pool_(capacity), level_pool_(capacity), bids_(level_pool_), asks_(level_pool_),
++          : order_pool_(checked_capacity(capacity)), level_pool_(capacity), bids_(level_pool_), asks_(level_pool_),
+             order_index_(capacity), price_ladder_(price_config),
+             record_events_(record_events),
+             instrument_config_(instrument_config) {
+@@ -91,7 +123,11 @@ public:
+                   (event_reserve_multiplier != 0 &&
+                    capacity <= max_size / event_reserve_multiplier)
+                       ? capacity * event_reserve_multiplier : capacity;
+-              event_log_.reserve(reserve_events);
++              // The aggressive order reserves a pool slot before matching, so
++              // at most capacity-1 passive fills plus one rest/IOC cancel can
++              // be emitted. A zero-capacity book still needs one rejection.
++              command_event_limit_ = std::max(capacity, size_t{1});
++              event_log_.reserve(std::max(reserve_events, command_event_limit_));
+               event_capture_limit_ = reserve_events;
+           }
+     }
+@@ -100,7 +136,7 @@ public:
+     OrderBook& operator=(const OrderBook&) = delete;
+ 
+     OrderBook(OrderBook&& other) noexcept
+-        : order_pool_(std::move(other.order_pool_)),
++        : order_pool_(std::move(checked_move_source(other).order_pool_)),
+           level_pool_(std::move(other.level_pool_)),
+           bids_(std::move(other.bids_)),
+           asks_(std::move(other.asks_)),
+@@ -108,8 +144,11 @@ public:
+           price_ladder_(std::move(other.price_ladder_)),
+           event_log_(std::move(other.event_log_)),
+           event_capture_limit_(other.event_capture_limit_),
++          command_event_limit_(other.command_event_limit_),
++          next_delivery_cursor_(other.next_delivery_cursor_),
+           command_event_capture_complete_(other.command_event_capture_complete_),
+           command_batch_mode_(other.command_batch_mode_),
++          event_output_state_(other.event_output_state_),
+           last_applied_command_sequence_(other.last_applied_command_sequence_),
+           current_command_sequence_(other.current_command_sequence_),
+           next_event_index_(other.next_event_index_),
+@@ -125,11 +164,102 @@ public:
+         asks_.rebind_pool(level_pool_);
+         other.cached_bid_level_ = nullptr;
+         other.cached_ask_level_ = nullptr;
++        other.event_log_.clear();
++        other.next_delivery_cursor_ = 0;
++        other.command_batch_mode_ = false;
++        other.event_output_state_ = EventOutputState::FAILED;
+     }
+ 
+     OrderBook& operator=(OrderBook&&) = delete;
+ 
++    EventOutputState event_output_state() const noexcept { return event_output_state_; }
++    bool ready_for_commands() const noexcept {
++        return !processing_ && event_output_state_ == EventOutputState::READY;
++    }
++    // In FAILED this suffix includes the event whose acceptance is unknown.
++    size_t pending_event_count() const noexcept {
++        return event_output_state_ == EventOutputState::READY
++            ? 0 : event_log_.size() - next_delivery_cursor_;
++    }
++
+     ProcessResult process(const Command& command) {
++        if (!ready_for_commands()) return output_blocked();
++        ProcessingScope processing(processing_);
++        next_delivery_cursor_ = event_log_.size();
++        try {
++            return process_impl(command);
++        } catch (...) {
++            // Keep diagnostics, but do not imply rollback of any core changes.
++            event_output_state_ = EventOutputState::FAILED;
++            throw;
++        }
++    }
++
++    // V2/system path: retain the complete command batch until every event has
++    // been accepted. false leaves a resumable suffix and prevents new commands.
++    // Exceptions fail closed because core state/acceptance may be ambiguous.
++    template<typename EventSink>
++    ProcessResult process(const Command& command, EventSink& sink) {
++        if (!ready_for_commands()) return output_blocked();
++        ProcessingScope processing(processing_);
++        event_log_.clear();
++        next_delivery_cursor_ = 0;
++        command_batch_mode_ = true;
++        try {
++            ProcessResult result = process_impl(command);
++            command_batch_mode_ = false;
++            result.event_output_complete = result.event_output_complete &&
++                deliver_pending_events(sink);
++            result.event_begin = 0;
++            return result;
++        } catch (...) {
++            command_batch_mode_ = false;
++            event_output_state_ = EventOutputState::FAILED;
++            throw;
++        }
++    }
++
++    template<typename EventSink>
++    bool retry_pending_events(EventSink& sink) {
++        if (processing_ || event_output_state_ == EventOutputState::FAILED) return false;
++        if (event_output_state_ == EventOutputState::READY) return true;
++        ProcessingScope processing(processing_);
++        try {
++            return deliver_pending_events(sink);
++        } catch (...) {
++            event_output_state_ = EventOutputState::FAILED;
++            throw;
++        }
++    }
++
++    // Compatibility wrappers. All matching logic is routed through process().
++    void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
++        (void)process(NewOrderCommand(next_compatibility_sequence(), id, side, price, qty));
++    }
++
++    void process_cancel(OrderId id) {
++        (void)process(CancelOrderCommand(next_compatibility_sequence(), id));
++    }
++
++private:
++    static ProcessResult output_blocked() noexcept {
++        return ProcessResult{ProcessStatus::OUTPUT_BLOCKED, 0, 0, false};
++    }
++
++    template<typename EventSink>
++    bool deliver_pending_events(EventSink& sink) {
++        event_output_state_ = EventOutputState::PENDING;
++        while (next_delivery_cursor_ < event_log_.size()) {
++            if (!sink.push(event_log_[next_delivery_cursor_])) return false;
++            ++next_delivery_cursor_;
++        }
++        event_log_.clear();
++        next_delivery_cursor_ = 0;
++        event_output_state_ = EventOutputState::READY;
++        return true;
++    }
++
++    ProcessResult process_impl(const Command& command) {
+         const size_t event_begin = event_log_.size();
+         command_event_capture_complete_ = true;
+         const CommandSequence sequence = get_command_sequence(command);
+@@ -159,48 +289,6 @@ public:
+                              command_event_capture_complete_};
+     }
+ 
+-    // V2/system path: retain events only for the duration of one command,
+-    // deliver them in EventIndex order, then release the batch. This prevents
+-    // a long-running routed engine from accumulating full event history inside
+-    // every OrderBook. The legacy overload above remains temporarily for V1
+-    // diagnostics and replay migration.
+-    template<typename EventSink>
+-    ProcessResult process(const Command& command, EventSink& sink) {
+-        event_log_.clear();
+-        command_batch_mode_ = true;
+-        ProcessResult result{ProcessStatus::REJECTED, 0, 0};
+-        try {
+-            result = process(command);
+-        } catch (...) {
+-            command_batch_mode_ = false;
+-            event_log_.clear();
+-            throw;
+-        }
+-        command_batch_mode_ = false;
+-        bool complete = true;
+-        for (size_t i = result.event_begin;
+-             i < result.event_begin + result.event_count; ++i) {
+-            if (!sink.push(event_log_[i])) {
+-                complete = false;
+-                break;
+-            }
+-        }
+-        result.event_output_complete = result.event_output_complete && complete;
+-        result.event_begin = 0;
+-        event_log_.clear();
+-        return result;
+-    }
+-
+-    // Compatibility wrappers. All matching logic is routed through process().
+-    void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
+-        (void)process(NewOrderCommand(next_compatibility_sequence(), id, side, price, qty));
+-    }
+-
+-    void process_cancel(OrderId id) {
+-        (void)process(CancelOrderCommand(next_compatibility_sequence(), id));
+-    }
+-
+-private:
+     void update_capacity_peaks() noexcept {
+         peak_active_orders_ = std::max(peak_active_orders_, order_index_.size());
+         peak_active_levels_ = std::max(peak_active_levels_, bids_.size() + asks_.size());
+@@ -209,13 +297,15 @@ private:
+     template<typename Event, typename... Args>
+     void emit_event(Args&&... args) {
+         if (!record_events_) return;
+-        // V1 compatibility capture is deliberately bounded. The command-batch
+-        // path may grow for a single multi-level sweep, but is drained before
+-        // the next command and therefore cannot accumulate history.
++        // Both paths are bounded. V1 keeps its original diagnostic-history
++        // budget; V2 must never allocate or discard output during a command.
+         if (!command_batch_mode_ && event_log_.size() >= event_capture_limit_) {
+             command_event_capture_complete_ = false;
+             return;
+         }
++        if (command_batch_mode_ && event_log_.size() >= command_event_limit_) {
++            throw std::length_error("Command event batch exceeded its reserved bound");
++        }
+         event_log_.emplace_back(std::in_place_type<Event>,
+                                 std::forward<Args>(args)...);
+     }
+@@ -279,6 +369,28 @@ private:
+             return ProcessStatus::REJECTED;
+         }
+ 
++        // In an uncrossed book, an existing same-side limit level means this
++        // order cannot trade. A crossing order can only rest at a new level;
++        // IOC never rests. Check the aggregate before allocating or matching,
++        // so overflow rejects the whole command without changing the book.
++        if (time_in_force != TimeInForce::IOC && !would_trade) {
++            const LimitLevel* level = side == Side::BUY
++                ? cached_bid_level_ : cached_ask_level_;
++            if (!level || level->price != price) {
++                // With !would_trade the shared ladder cannot point at an
++                // opposite-side level here. Off-grid legal prices use map.
++                level = price_ladder_.contains_price(price.get())
++                    ? price_ladder_.find(price.get())
++                    : (side == Side::BUY ? bids_.find(price.get()) : asks_.find(price.get()));
++            }
++            if (level && qty.get() >
++                    std::numeric_limits<uint64_t>::max() - level->total_volume.get()) {
++                emit_rejection(CommandType::NEW_ORDER, id,
++                               RejectReason::LEVEL_VOLUME_OVERFLOW);
++                return ProcessStatus::REJECTED;
++            }
++        }
++
+         // Reserve the order object before acknowledging the command.
+         Order* order = order_pool_.allocate();
+         if (!order) {
+@@ -419,6 +531,9 @@ public:
+       }
+ 
+       OrderBookSnapshot create_snapshot() const {
++          if (!ready_for_commands()) {
++              throw std::logic_error("Cannot snapshot an active or output-blocked OrderBook");
++          }
+           OrderBookSnapshot snapshot;
+           snapshot.last_applied_command_sequence = last_applied_command_sequence_;
+           snapshot.instrument_config = instrument_config_;
+diff --git a/src/process_status.hpp b/src/process_status.hpp
+index f6d3c81..746bddb 100644
+--- a/src/process_status.hpp
++++ b/src/process_status.hpp
+@@ -7,9 +7,15 @@
+ enum class ProcessStatus : uint8_t {
+     APPLIED = 0,
+     REJECTED = 1,
+-    SEQUENCE_REJECTED = 2
++    SEQUENCE_REJECTED = 2,
++    OUTPUT_BLOCKED = 3
+ };
+ 
++// Output acceptance is separate from application of a command to the book.
++// PENDING can resume at the first unaccepted event; FAILED cannot be retried
++// automatically because an exception may have made acceptance ambiguous.
++enum class EventOutputState : uint8_t { READY = 0, PENDING = 1, FAILED = 2 };
++
+ struct ProcessResult {
+     ProcessStatus status;
+     size_t event_begin;
+diff --git a/src/reference_engine.hpp b/src/reference_engine.hpp
+index 8d3a17c..0eb93a2 100644
+--- a/src/reference_engine.hpp
++++ b/src/reference_engine.hpp
+@@ -8,6 +8,7 @@
+ #include "process_status.hpp"
+ #include <algorithm>
+ #include <deque>
++#include <limits>
+ #include <map>
+ #include <unordered_map>
+ #include <vector>
+@@ -106,11 +107,6 @@ private:
+             reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::INVALID_LOT_SIZE);
+             return ProcessStatus::REJECTED;
+         }
+-        if (locations_.size() >= capacity_) {
+-            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::POOL_EXHAUSTED);
+-            return ProcessStatus::REJECTED;
+-        }
+-
+         const bool would_trade = command.side == Side::BUY
+             ? (!asks_.empty() && command.price.get() >= asks_.begin()->first)
+             : (!bids_.empty() && command.price.get() <= bids_.begin()->first);
+@@ -120,6 +116,23 @@ private:
+             return ProcessStatus::REJECTED;
+         }
+ 
++        if (command.time_in_force != TimeInForce::IOC && !would_trade) {
++            const bool overflow = command.side == Side::BUY
++                ? level_volume_would_overflow(bids_, command.price, command.quantity)
++                : level_volume_would_overflow(asks_, command.price, command.quantity);
++            if (overflow) {
++                reject(output, CommandType::NEW_ORDER, command.order_id,
++                       RejectReason::LEVEL_VOLUME_OVERFLOW);
++                return ProcessStatus::REJECTED;
++            }
++        }
++        // Business rules (including Post-Only) take precedence over capacity,
++        // matching the public rejection contract of the optimized book.
++        if (locations_.size() >= capacity_) {
++            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::POOL_EXHAUSTED);
++            return ProcessStatus::REJECTED;
++        }
++
+         ReferenceOrder aggressive{command.order_id, command.side, command.price,
+                                   command.quantity, command.quantity,
+                                   PrioritySequence(current_sequence_.get())};
+@@ -142,6 +155,21 @@ private:
+         return ProcessStatus::APPLIED;
+     }
+ 
++    template<typename Book>
++    static bool level_volume_would_overflow(const Book& book, Price price, Quantity quantity) {
++        const auto level = book.find(price.get());
++        uint64_t remaining_capacity = std::numeric_limits<uint64_t>::max();
++        if (level != book.end()) {
++            // Independently derive the budget from orders, not an aggregate
++            // shared with OrderBook; subtraction itself cannot wrap around.
++            for (const auto& order : level->second) {
++                if (order.remaining.get() > remaining_capacity) return true;
++                remaining_capacity -= order.remaining.get();
++            }
++        }
++        return quantity.get() > remaining_capacity;
++    }
++
+     template<typename OppositeBook, typename Crosses>
+     void match(ReferenceOrder& aggressive, OppositeBook& opposite, Crosses crosses,
+                std::vector<EngineEvent>& output) {
+diff --git a/src/replay.hpp b/src/replay.hpp
+index f51b62b..18be7a9 100644
+--- a/src/replay.hpp
++++ b/src/replay.hpp
+@@ -119,7 +119,8 @@ private:
+             RejectReason::INVALID_QUANTITY, RejectReason::POOL_EXHAUSTED,
+             RejectReason::INDEX_EXHAUSTED, RejectReason::ORDER_NOT_FOUND,
+             RejectReason::PRICE_OUT_OF_RANGE, RejectReason::OFF_TICK_PRICE,
+-            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE
++            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE,
++            RejectReason::POST_ONLY_WOULD_TRADE, RejectReason::LEVEL_VOLUME_OVERFLOW
+         };
+         for (RejectReason reason : reasons) {
+             if (value == to_string(reason)) return reason;
+diff --git a/src/replay_v2.hpp b/src/replay_v2.hpp
+index f424e6a..8b3bf53 100644
+--- a/src/replay_v2.hpp
++++ b/src/replay_v2.hpp
+@@ -49,6 +49,11 @@ public:
+                                       TradingEngine& engine,
+                                       EventDispatcher& dispatcher,
+                                       const MarketManager* expected_manager = nullptr) {
++        if (std::any_of(records.begin(), records.end(), [](const JournalRecord& record) {
++                return record.format_version != 1;
++            })) {
++            Journal::validate_committed_records(records);
++        }
+         auto actual_trades = std::make_shared<std::vector<JournalRecord>>();
+         auto actual_outcomes = std::make_shared<std::vector<JournalRecord>>();
+         auto trade_subscription = dispatcher.subscribe(SystemEventType::TRADE,
+diff --git a/src/trading_engine.hpp b/src/trading_engine.hpp
+index a8557ff..c0bc6a4 100644
+--- a/src/trading_engine.hpp
++++ b/src/trading_engine.hpp
+@@ -2,10 +2,13 @@
+ #define TRADING_ENGINE_HPP
+ 
+ #include "event_dispatcher.hpp"
++#include "command_journal.hpp"
+ #include "market_manager.hpp"
+ #include "submission_gate.hpp"
+ #include <chrono>
+ #include <cstddef>
++#include <limits>
++#include <stdexcept>
+ #include <variant>
+ 
+ // Application-layer coordinator. It keeps OrderBook single-writer semantics,
+@@ -15,6 +18,25 @@ class TradingEngine {
+     MarketManager& markets_;
+     EventDispatcher& dispatcher_;
+     const SubmissionGate* submission_gate_ = nullptr;
++    CommandJournal* command_journal_ = nullptr;
++    bool submitting_ = false;
++    bool failed_ = false;
++
++    class SubmissionScope {
++        bool& submitting_;
++    public:
++        explicit SubmissionScope(bool& submitting) noexcept : submitting_(submitting) {
++            submitting_ = true;
++        }
++        ~SubmissionScope() { submitting_ = false; }
++        SubmissionScope(const SubmissionScope&) = delete;
++        SubmissionScope& operator=(const SubmissionScope&) = delete;
++    };
++
++    static MarketProcessResult unavailable() noexcept {
++        return MarketProcessResult{RoutingStatus::SYSTEM_UNAVAILABLE,
++            ProcessResult{ProcessStatus::OUTPUT_BLOCKED, 0, 0, false}};
++    }
+ 
+ public:
+     TradingEngine(MarketManager& markets, EventDispatcher& dispatcher,
+@@ -22,6 +44,13 @@ public:
+         : markets_(markets), dispatcher_(dispatcher),
+           submission_gate_(submission_gate) {}
+ 
++    // Explicit recovery-critical integration. The journal must outlive this
++    // coordinator and must not also subscribe in observer/attach mode.
++    TradingEngine(MarketManager& markets, EventDispatcher& dispatcher,
++                  CommandJournal& journal) noexcept
++        : markets_(markets), dispatcher_(dispatcher), submission_gate_(&journal),
++          command_journal_(&journal) {}
++
+     MarketProcessResult submit(Timestamp timestamp, const Symbol& symbol,
+                                const Command& command) {
+         return submit_impl(timestamp, symbol, markets_.resolve(symbol), command);
+@@ -31,6 +60,8 @@ public:
+                                const Command& command) {
+         const Symbol* symbol = markets_.symbol(instrument_id);
+         if (!symbol) {
++            if (failed_ || submitting_ ||
++                    (submission_gate_ && !submission_gate_->available())) return unavailable();
+             return MarketProcessResult{RoutingStatus::UNKNOWN_SYMBOL,
+                 ProcessResult{ProcessStatus::SEQUENCE_REJECTED, 0, 0}};
+         }
+@@ -38,17 +69,51 @@ public:
+     }
+ 
+ private:
++    static size_t journal_record_bound(const OrderBook* book, const Command& command) noexcept {
++        const auto* order = std::get_if<NewOrderCommand>(&command);
++        if (!book || !order || order->time_in_force == TimeInForce::POST_ONLY) return 2;
++        const auto opposite = order->side == Side::BUY ? book->best_ask() : book->best_bid();
++        const bool crosses = opposite && (order->side == Side::BUY
++            ? order->price >= *opposite : order->price <= *opposite);
++        // Input + at most one trade per passive order + final result.
++        // This conservative bound can reject before business validation; it
++        // never scans the match path or mutates state to discover capacity.
++        if (!crosses) return 2;
++        const size_t count = book->active_order_count();
++        return count > std::numeric_limits<size_t>::max() - 2
++            ? std::numeric_limits<size_t>::max() : count + 2;
++    }
++
+     MarketProcessResult submit_impl(Timestamp timestamp, const Symbol& symbol,
+                                     InstrumentId instrument_id,
+                                     const Command& command) {
+-        if (submission_gate_ && !submission_gate_->available()) {
+-            dispatcher_.publish(SystemEvent::processing_latency(
+-                timestamp, symbol,
+-                ProcessingLatencyEvent{0, CommandOutcome::SYSTEM_UNAVAILABLE,
+-                    get_command_sequence(command), get_order_id(command)}, instrument_id));
+-            return MarketProcessResult{RoutingStatus::SYSTEM_UNAVAILABLE,
+-                ProcessResult{ProcessStatus::SEQUENCE_REJECTED, 0, 0}};
++        const OrderBook* book = markets_.find_book(instrument_id);
++        if (failed_ || submitting_ ||
++                (submission_gate_ && !submission_gate_->available()) ||
++                (book && !book->ready_for_commands())) {
++            // Admission failure emits nothing, including no outcome callback:
++            // retrying a callback here could itself recurse or duplicate output.
++            return unavailable();
++        }
++        SubmissionScope submission(submitting_);
++        try {
++            if (command_journal_ && !command_journal_->begin_command(
++                    timestamp, symbol, command, journal_record_bound(book, command))) {
++                return unavailable();
++            }
++            return submit_active(timestamp, symbol, instrument_id, command);
++        } catch (...) {
++            // A Dispatcher callback may have reached only some subscribers.
++            // Do not retry it, publish a synthetic success, or admit more input.
++            failed_ = true;
++            if (command_journal_) command_journal_->abort_command();
++            throw;
+         }
++    }
++
++    MarketProcessResult submit_active(Timestamp timestamp, const Symbol& symbol,
++                                      InstrumentId instrument_id,
++                                      const Command& command) {
+         dispatcher_.publish(SystemEvent::order(timestamp, symbol, command, instrument_id));
+ 
+         class DispatcherSink {
+@@ -56,17 +121,24 @@ private:
+             Timestamp timestamp_;
+             const Symbol& symbol_;
+             InstrumentId instrument_id_;
++            CommandJournal* journal_;
+         public:
+             DispatcherSink(EventDispatcher& dispatcher, Timestamp timestamp,
+-                           const Symbol& symbol, InstrumentId instrument_id) noexcept
++                           const Symbol& symbol, InstrumentId instrument_id,
++                           CommandJournal* journal) noexcept
+                 : dispatcher_(dispatcher), timestamp_(timestamp), symbol_(symbol),
+-                  instrument_id_(instrument_id) {}
++                  instrument_id_(instrument_id), journal_(journal) {}
+             bool push(const EngineEvent& event) {
++                if (journal_) {
++                    if (const auto* trade = std::get_if<TradeEvent>(&event)) {
++                        if (!journal_->append_trade(*trade)) return false;
++                    }
++                }
+                 dispatcher_.publish(SystemEvent::engine(
+                     timestamp_, symbol_, event, instrument_id_));
+                 return true;
+             }
+-        } sink(dispatcher_, timestamp, symbol, instrument_id);
++        } sink(dispatcher_, timestamp, symbol, instrument_id, command_journal_);
+ 
+         const auto start = std::chrono::steady_clock::now();
+         const MarketProcessResult result = instrument_id.valid()
+@@ -76,7 +148,27 @@ private:
+         const auto finish = std::chrono::steady_clock::now();
+         const uint64_t latency_ns = static_cast<uint64_t>(
+             std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count());
++        if (result.process_result.status == ProcessStatus::OUTPUT_BLOCKED) {
++            // Defensive: control-plane mutation during ORDER callbacks is not
++            // supported. Once input was published, fail closed rather than
++            // label this as a sequence rejection and continue.
++            failed_ = true;
++            if (command_journal_) command_journal_->abort_command();
++            return unavailable();
++        }
++        if (!result.process_result.event_output_complete) {
++            failed_ = true;
++            if (command_journal_) command_journal_->abort_command();
++            return result; // Applied state is not mislabeled as unadmitted.
++        }
+         if (!result.routed()) {
++            if (command_journal_ && !command_journal_->commit_command(CommandOutcome::UNKNOWN_SYMBOL)) {
++                failed_ = true;
++                command_journal_->abort_command();
++                auto incomplete = result;
++                incomplete.process_result.event_output_complete = false;
++                return incomplete;
++            }
+             dispatcher_.publish(SystemEvent::processing_latency(
+                 timestamp, symbol,
+                 ProcessingLatencyEvent{latency_ns, CommandOutcome::UNKNOWN_SYMBOL,
+@@ -89,6 +181,13 @@ private:
+             : result.process_result.status == ProcessStatus::REJECTED
+             ? CommandOutcome::BUSINESS_REJECTED
+             : CommandOutcome::SEQUENCE_REJECTED;
++        if (command_journal_ && !command_journal_->commit_command(outcome)) {
++            failed_ = true;
++            command_journal_->abort_command();
++            auto incomplete = result;
++            incomplete.process_result.event_output_complete = false;
++            return incomplete;
++        }
+         dispatcher_.publish(SystemEvent::processing_latency(
+             timestamp, symbol,
+             ProcessingLatencyEvent{latency_ns, outcome,
+@@ -100,10 +199,18 @@ public:
+ 
+     void publish_market_data(Timestamp timestamp, const Symbol& symbol,
+                              const MarketDataEvent& market_data) {
+-        dispatcher_.publish(
+-            SystemEvent::market_data(timestamp, symbol, market_data));
++        if (failed_) throw std::logic_error("TradingEngine output is failed");
++        try {
++            dispatcher_.publish(
++                SystemEvent::market_data(timestamp, symbol, market_data));
++        } catch (...) {
++            failed_ = true;
++            throw;
++        }
+     }
+ 
++    bool failed() const noexcept { return failed_; }
++
+     MarketManager& market_manager() noexcept { return markets_; }
+     const MarketManager& market_manager() const noexcept { return markets_; }
+     EventDispatcher& event_dispatcher() noexcept { return dispatcher_; }
+diff --git a/src/v2_main.cpp b/src/v2_main.cpp
+index 00e6d12..b00d2a7 100644
+--- a/src/v2_main.cpp
++++ b/src/v2_main.cpp
+@@ -18,11 +18,10 @@ int main() {
+         AsyncLogger async_logger("trading_v2_async.log", 4096);
+         AsyncJournalWriter async_journal("trading_v2.journal.csv", 4096);
+ 
+-        async_journal.attach(dispatcher);
+         audit.attach(dispatcher);
+         monitor.attach(dispatcher, &markets);
+         async_logger.attach(dispatcher);
+-        TradingEngine engine(markets, dispatcher);
++        TradingEngine engine(markets, dispatcher, async_journal);
+ 
+         MarketDataGeneratorConfig generator_config;
+         generator_config.ticks_per_symbol = 20;
+diff --git a/tests/async_journal_tests.cpp b/tests/async_journal_tests.cpp
+index 2648f59..1aa1ca3 100644
+--- a/tests/async_journal_tests.cpp
++++ b/tests/async_journal_tests.cpp
+@@ -51,8 +51,7 @@ void test_queue_overflow_is_terminal_and_visible() {
+     MarketManager markets(20'000);
+     EventDispatcher dispatcher;
+     AsyncJournalWriter writer(path.string(), 1);
+-    writer.attach(dispatcher);
+-    TradingEngine engine(markets, dispatcher, &writer);
++    TradingEngine engine(markets, dispatcher, writer);
+     for (uint64_t sequence = 1; sequence <= 10'000 && writer.dropped_count() == 0;
+          ++sequence) {
+         engine.submit(Timestamp(sequence), Symbol("AAPL"),
+diff --git a/tests/event_system_tests.cpp b/tests/event_system_tests.cpp
+index 4f5c55f..f69c3d2 100644
+--- a/tests/event_system_tests.cpp
++++ b/tests/event_system_tests.cpp
+@@ -1,6 +1,8 @@
+ #include "trading_engine.hpp"
++#include "reference_engine.hpp"
+ #include <iostream>
+ #include <stdexcept>
++#include <utility>
+ #include <vector>
+ 
+ #define TEST_ASSERT(condition)                                                \
+@@ -177,11 +179,361 @@ void test_fixed_sink_reports_overflow() {
+     TEST_ASSERT(result.event_count == 2);
+     TEST_ASSERT(!result.event_output_complete);
+     TEST_ASSERT(sink.size() == 1);
+-    TEST_ASSERT(book.engine_events().empty());
++    TEST_ASSERT(book.engine_events().size() == 2);
++    TEST_ASSERT(book.pending_event_count() == 1);
++    TEST_ASSERT(book.event_output_state() == EventOutputState::PENDING);
++    TEST_ASSERT(!book.ready_for_commands());
+     TEST_ASSERT(book.active_order_count() == 0);
+     TEST_ASSERT(book.check_invariants());
++    const auto retained = book.engine_events();
++    TEST_ASSERT(sink[0] == retained[0]);
++    VectorEventSink suffix;
++    TEST_ASSERT(book.retry_pending_events(suffix));
++    TEST_ASSERT(suffix.events().size() == 1);
++    TEST_ASSERT(suffix.events()[0] == retained[1]);
++    TEST_ASSERT(book.engine_events().empty());
++    TEST_ASSERT(book.pending_event_count() == 0);
++    TEST_ASSERT(book.event_output_state() == EventOutputState::READY);
++    TEST_ASSERT(book.ready_for_commands());
++}
++
++namespace {
++
++struct BudgetSink {
++    size_t limit;
++    size_t calls = 0;
++    std::vector<EngineEvent> accepted;
++
++    explicit BudgetSink(size_t capacity) : limit(capacity) {}
++
++    bool push(const EngineEvent& event) {
++        ++calls;
++        if (accepted.size() == limit) return false;
++        accepted.push_back(event);
++        return true;
++    }
++};
++
++struct CountingSink {
++    size_t calls = 0;
++    bool push(const EngineEvent&) {
++        ++calls;
++        return true;
++    }
++};
++
++struct ThrowingSink {
++    bool accept_first;
++    size_t calls = 0;
++    std::vector<EngineEvent> accepted;
++
++    explicit ThrowingSink(bool accept) : accept_first(accept) {}
++
++    bool push(const EngineEvent& event) {
++        ++calls;
++        if (accept_first) accepted.push_back(event);
++        throw std::runtime_error("injected sink failure");
++    }
++};
++
++void assert_snapshot_blocked(const OrderBook& book) {
++    bool blocked = false;
++    try {
++        (void)book.create_snapshot();
++    } catch (const std::logic_error&) {
++        blocked = true;
++    }
++    TEST_ASSERT(blocked);
++}
++
++void assert_command_blocked(const ProcessResult& result) {
++    TEST_ASSERT(result.status == ProcessStatus::OUTPUT_BLOCKED);
++    TEST_ASSERT(result.event_count == 0);
++    TEST_ASSERT(!result.event_output_complete);
++}
++
++void seed_three_asks(OrderBook& book, ReferenceEngine& reference) {
++    NullEventSink sink;
++    std::vector<EngineEvent> expected;
++    for (uint64_t i = 0; i < 3; ++i) {
++        const Command command = NewOrderCommand(CommandSequence(i + 1), OrderId(i + 1),
++            Side::SELL, from_double(100 + static_cast<double>(i)), Quantity(1));
++        TEST_ASSERT(book.process(command, sink).applied());
++        TEST_ASSERT(reference.process(command, expected) == ProcessStatus::APPLIED);
++        TEST_ASSERT(book.ready_for_commands());
++    }
++    TEST_ASSERT(book.capture_state() == reference.capture_state());
++}
++
++Command sweep_command(TimeInForce tif = TimeInForce::GTC) {
++    return NewOrderCommand(CommandSequence(4), OrderId(4), Side::BUY,
++        from_double(102), Quantity(4), tif);
++}
++
++void test_pending_suffix_retries_are_ordered_and_block_both_inputs() {
++    OrderBook book(4, true, {}, 1);
++    ReferenceEngine reference(4);
++    seed_three_asks(book, reference);
++    std::vector<EngineEvent> expected;
++    TEST_ASSERT(reference.process(sweep_command(), expected) == ProcessStatus::APPLIED);
++    BudgetSink prefix{1};
++    const auto applied = book.process(sweep_command(), prefix);
++    TEST_ASSERT(applied.applied() && applied.event_count == 4);
++    TEST_ASSERT(!applied.event_output_complete);
++    TEST_ASSERT(prefix.accepted.size() == 1);
++    TEST_ASSERT(book.pending_event_count() == 3);
++    TEST_ASSERT(book.engine_events() == expected);
++    TEST_ASSERT(book.capture_state() == reference.capture_state());
++    assert_snapshot_blocked(book);
++
++    const Command next = NewOrderCommand(CommandSequence(5), OrderId(5), Side::SELL,
++        from_double(105), Quantity(1));
++    const auto state_before = book.capture_state();
++    const size_t capacity_before = book.event_log_capacity();
++    CountingSink unused;
++    assert_command_blocked(book.process(next));
++    assert_command_blocked(book.process(next, unused));
++    TEST_ASSERT(unused.calls == 0);
++    TEST_ASSERT(book.capture_state() == state_before);
++    TEST_ASSERT(book.engine_events() == expected);
++    TEST_ASSERT(book.last_applied_command_sequence() == CommandSequence(4));
++
++    // A repeated refusal accepts nothing and must not consume the cursor.
++    TEST_ASSERT(!book.retry_pending_events(prefix));
++    TEST_ASSERT(prefix.accepted.size() == 1);
++    TEST_ASSERT(book.pending_event_count() == 3);
++    prefix.limit = 2;
++    TEST_ASSERT(!book.retry_pending_events(prefix));
++    TEST_ASSERT(prefix.accepted.size() == 2);
++    TEST_ASSERT(book.pending_event_count() == 2);
++    TEST_ASSERT(book.engine_events() == expected);
++
++    VectorEventSink suffix;
++    TEST_ASSERT(book.retry_pending_events(suffix));
++    std::vector<EngineEvent> delivered = prefix.accepted;
++    delivered.insert(delivered.end(), suffix.events().begin(), suffix.events().end());
++    TEST_ASSERT(delivered == expected); // Includes every sequence/index/payload field.
++    TEST_ASSERT(book.event_output_state() == EventOutputState::READY);
++    TEST_ASSERT(book.ready_for_commands());
++    TEST_ASSERT(book.pending_event_count() == 0);
++    TEST_ASSERT(book.engine_events().empty());
++    TEST_ASSERT(book.event_log_capacity() == capacity_before);
++    TEST_ASSERT(book.create_snapshot().last_applied_command_sequence == CommandSequence(4));
++
++    // The same previously blocked sequence and ID remain admissible.
++    suffix.clear();
++    TEST_ASSERT(book.process(next, suffix).applied());
++    TEST_ASSERT(reference.process(next, expected) == ProcessStatus::APPLIED);
++    TEST_ASSERT(suffix.events() == expected);
++    TEST_ASSERT(book.capture_state() == reference.capture_state());
++    TEST_ASSERT(book.check_invariants());
+ }
+ 
++void test_zero_capacity_sink_retains_the_entire_batch() {
++    OrderBook book(4, true, {}, 1);
++    ReferenceEngine reference(4);
++    seed_three_asks(book, reference);
++    std::vector<EngineEvent> expected;
++    reference.process(sweep_command(), expected);
++    FixedEventBuffer<0> none;
++    const auto result = book.process(sweep_command(), none);
++    TEST_ASSERT(result.applied() && !result.event_output_complete);
++    TEST_ASSERT(none.size() == 0);
++    TEST_ASSERT(book.pending_event_count() == 4);
++    TEST_ASSERT(book.engine_events() == expected);
++    TEST_ASSERT(!book.retry_pending_events(none));
++    TEST_ASSERT(!book.retry_pending_events(none));
++    TEST_ASSERT(book.pending_event_count() == 4);
++    VectorEventSink recovered;
++    TEST_ASSERT(book.retry_pending_events(recovered));
++    TEST_ASSERT(recovered.events() == expected);
++    TEST_ASSERT(book.ready_for_commands() && book.check_invariants());
++
++    // Even a zero-order-capacity book needs room for one rejection event.
++    OrderBook empty(0, true, {}, 0);
++    TEST_ASSERT(empty.event_log_capacity() >= 1);
++    const auto rejected = empty.process(NewOrderCommand(CommandSequence(1), OrderId(1),
++        Side::BUY, from_double(100), Quantity(1)), none);
++    TEST_ASSERT(rejected.status == ProcessStatus::REJECTED);
++    TEST_ASSERT(rejected.event_count == 1 && !rejected.event_output_complete);
++    TEST_ASSERT(empty.pending_event_count() == 1);
++    VectorEventSink rejection;
++    TEST_ASSERT(empty.retry_pending_events(rejection));
++    TEST_ASSERT(rejection.events().size() == 1);
++    TEST_ASSERT(std::get<OrderRejectedEvent>(rejection.events()[0]).reason ==
++        RejectReason::POOL_EXHAUSTED);
++    TEST_ASSERT(empty.ready_for_commands());
++}
++
++void test_move_preserves_pending_batch_and_delivery_cursor() {
++    OrderBook original(4);
++    ReferenceEngine reference(4);
++    seed_three_asks(original, reference);
++    std::vector<EngineEvent> expected;
++    reference.process(sweep_command(), expected);
++    BudgetSink prefix{1};
++    TEST_ASSERT(!original.process(sweep_command(), prefix).event_output_complete);
++    const auto state_before = original.capture_state();
++    const size_t buffer_capacity = original.event_log_capacity();
++    OrderBook moved(std::move(original));
++    TEST_ASSERT(moved.event_output_state() == EventOutputState::PENDING);
++    TEST_ASSERT(!moved.ready_for_commands());
++    TEST_ASSERT(moved.pending_event_count() == 3);
++    TEST_ASSERT(moved.engine_events() == expected);
++    TEST_ASSERT(moved.capture_state() == state_before);
++    TEST_ASSERT(moved.event_log_capacity() == buffer_capacity);
++    assert_snapshot_blocked(moved);
++    VectorEventSink suffix;
++    TEST_ASSERT(moved.retry_pending_events(suffix));
++    auto delivered = prefix.accepted;
++    delivered.insert(delivered.end(), suffix.events().begin(), suffix.events().end());
++    TEST_ASSERT(delivered == expected);
++    TEST_ASSERT(moved.ready_for_commands() && moved.check_invariants());
++}
++
++void test_sink_exceptions_fail_closed_without_ambiguous_retries() {
++    for (bool accept_first : {false, true}) {
++        OrderBook book(4);
++        ThrowingSink throwing{accept_first};
++        bool propagated = false;
++        try {
++            (void)book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
++                from_double(100), Quantity(1)), throwing);
++        } catch (const std::runtime_error&) {
++            propagated = true;
++        }
++        TEST_ASSERT(propagated);
++        TEST_ASSERT(throwing.calls == 1);
++        TEST_ASSERT(throwing.accepted.size() == (accept_first ? size_t(1) : size_t(0)));
++        TEST_ASSERT(book.event_output_state() == EventOutputState::FAILED);
++        TEST_ASSERT(!book.ready_for_commands());
++        TEST_ASSERT(book.active_order_count() == 1);
++        TEST_ASSERT(book.last_applied_command_sequence() == CommandSequence(1));
++        TEST_ASSERT(book.check_invariants());
++        assert_snapshot_blocked(book);
++        const auto before = book.capture_state();
++        CountingSink unused;
++        TEST_ASSERT(!book.retry_pending_events(unused));
++        TEST_ASSERT(!book.retry_pending_events(unused));
++        const Command next = CancelOrderCommand(CommandSequence(2), OrderId(1));
++        assert_command_blocked(book.process(next));
++        assert_command_blocked(book.process(next, unused));
++        TEST_ASSERT(unused.calls == 0);
++        TEST_ASSERT(book.capture_state() == before);
++    }
++}
++
++void test_exception_while_retrying_pending_batch_is_terminal() {
++    OrderBook book(4);
++    FixedEventBuffer<0> none;
++    TEST_ASSERT(!book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
++        from_double(100), Quantity(1)), none).event_output_complete);
++    ThrowingSink throwing{true};
++    bool propagated = false;
++    try {
++        (void)book.retry_pending_events(throwing);
++    } catch (const std::runtime_error&) {
++        propagated = true;
++    }
++    TEST_ASSERT(propagated && throwing.accepted.size() == 1);
++    TEST_ASSERT(book.event_output_state() == EventOutputState::FAILED);
++    CountingSink unused;
++    TEST_ASSERT(!book.retry_pending_events(unused));
++    TEST_ASSERT(unused.calls == 0);
++    TEST_ASSERT(!book.ready_for_commands());
++    assert_snapshot_blocked(book);
++}
++
++struct ReentrantSink {
++    OrderBook& book;
++    std::vector<EngineEvent> accepted;
++
++    explicit ReentrantSink(OrderBook& target) : book(target) {}
++
++    bool push(const EngineEvent& event) {
++        const auto before = book.capture_state();
++        const Command next = CancelOrderCommand(CommandSequence(2), OrderId(1));
++        CountingSink nested;
++        assert_command_blocked(book.process(next));
++        assert_command_blocked(book.process(next, nested));
++        TEST_ASSERT(!book.retry_pending_events(nested));
++        TEST_ASSERT(nested.calls == 0);
++        TEST_ASSERT(!book.ready_for_commands());
++        TEST_ASSERT(book.capture_state() == before);
++        assert_snapshot_blocked(book);
++        accepted.push_back(event);
++        return true;
++    }
++};
++
++void test_sink_reentrancy_cannot_mutate_or_redeliver_a_batch() {
++    for (bool start_pending : {false, true}) {
++        OrderBook book(4);
++        const Command order = NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
++            from_double(100), Quantity(1));
++        ReentrantSink sink{book};
++        if (start_pending) {
++            FixedEventBuffer<0> none;
++            TEST_ASSERT(!book.process(order, none).event_output_complete);
++            TEST_ASSERT(book.retry_pending_events(sink));
++        } else {
++            TEST_ASSERT(book.process(order, sink).event_output_complete);
++        }
++        TEST_ASSERT(sink.accepted.size() == 1);
++        TEST_ASSERT(book.ready_for_commands());
++        TEST_ASSERT(book.last_applied_command_sequence() == CommandSequence(1));
++        TEST_ASSERT(book.active_order_count() == 1 && book.check_invariants());
++        NullEventSink next_sink;
++        TEST_ASSERT(book.process(CancelOrderCommand(CommandSequence(2), OrderId(1)),
++            next_sink).applied());
++    }
++}
++
++void test_max_sweep_and_residual_fit_preallocated_batch() {
++    for (TimeInForce tif : {TimeInForce::GTC, TimeInForce::IOC}) {
++        // Three resting orders + one reserved aggressive slot bound the
++        // command to three TradeEvents plus one Rested/Cancelled event.
++        OrderBook book(4, true, {}, 0);
++        const size_t capacity_before = book.event_log_capacity();
++        TEST_ASSERT(capacity_before >= 4);
++        ReferenceEngine reference(4);
++        seed_three_asks(book, reference);
++        std::vector<EngineEvent> expected;
++        reference.process(sweep_command(tif), expected);
++        VectorEventSink sink;
++        const auto result = book.process(sweep_command(tif), sink);
++        TEST_ASSERT(result.applied() && result.event_output_complete);
++        TEST_ASSERT(result.event_count == 4);
++        TEST_ASSERT(sink.events() == expected);
++        TEST_ASSERT(book.event_log_capacity() == capacity_before);
++        TEST_ASSERT(book.engine_events().empty());
++        TEST_ASSERT(book.ready_for_commands());
++        TEST_ASSERT(book.capture_state() == reference.capture_state());
++        TEST_ASSERT(book.check_invariants());
++    }
++}
++
++void test_events_disabled_do_not_call_or_block_on_sink() {
++    OrderBook book(4, false);
++    ThrowingSink never_called{true};
++    const auto result = book.process(NewOrderCommand(CommandSequence(1), OrderId(1),
++        Side::BUY, from_double(100), Quantity(1)), never_called);
++    TEST_ASSERT(result.applied() && result.event_output_complete);
++    TEST_ASSERT(result.event_count == 0);
++    TEST_ASSERT(never_called.calls == 0);
++    TEST_ASSERT(book.event_output_state() == EventOutputState::READY);
++    TEST_ASSERT(book.pending_event_count() == 0 && book.ready_for_commands());
++    TEST_ASSERT(book.engine_events().empty());
++    TEST_ASSERT(book.create_snapshot().active_orders.size() == 1);
++    TEST_ASSERT(book.retry_pending_events(never_called));
++    TEST_ASSERT(never_called.calls == 0);
++    FixedEventBuffer<0> none;
++    TEST_ASSERT(book.process(CancelOrderCommand(CommandSequence(2), OrderId(1)), none).applied());
++    TEST_ASSERT(book.active_order_count() == 0 && book.check_invariants());
++}
++
++} // namespace
++
+ void test_legacy_capture_is_bounded_and_reports_overflow() {
+     OrderBook book(2, true, PriceLadderConfig{}, 1);
+     const ProcessResult first = book.process(NewOrderCommand(
+@@ -231,6 +583,14 @@ int main() {
+         test_unsubscribe_during_dispatch_affects_next_event();
+         test_v2_sink_drains_order_book_history();
+         test_fixed_sink_reports_overflow();
++        test_pending_suffix_retries_are_ordered_and_block_both_inputs();
++        test_zero_capacity_sink_retains_the_entire_batch();
++        test_move_preserves_pending_batch_and_delivery_cursor();
++        test_sink_exceptions_fail_closed_without_ambiguous_retries();
++        test_exception_while_retrying_pending_batch_is_terminal();
++        test_sink_reentrancy_cannot_mutate_or_redeliver_a_batch();
++        test_max_sweep_and_residual_fit_preallocated_batch();
++        test_events_disabled_do_not_call_or_block_on_sink();
+         test_legacy_capture_is_bounded_and_reports_overflow();
+         test_frozen_dispatcher_rejects_new_subscriptions();
+         std::cout << "Event system tests passed\n";
+diff --git a/tests/monitor_tests.cpp b/tests/monitor_tests.cpp
+index 5c788d8..9cc8d8e 100644
+--- a/tests/monitor_tests.cpp
++++ b/tests/monitor_tests.cpp
+@@ -75,10 +75,78 @@ void test_cli_output_and_logger_metric() {
+     TEST_ASSERT(text.find("dropped_logs=0") != std::string::npos);
+ }
+ 
++void test_idless_events_share_registered_symbol_metrics() {
++    MarketManager markets(16);
++    EventDispatcher dispatcher;
++    Monitor monitor;
++    monitor.attach(dispatcher, &markets);
++    dispatcher.freeze();
++    TradingEngine engine(markets, dispatcher);
++    engine.submit(Timestamp(1), Symbol("AAPL"),
++        NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
++                        from_double(100), Quantity(1)));
++    dispatcher.publish(SystemEvent::data_quality(Timestamp(2), Symbol("AAPL"),
++        DataQualityEvent{DataQualitySeverity::WARNING,
++                        DataQualityCode::STALE_SYMBOL, "stale"}));
++    dispatcher.publish(SystemEvent::data_quality(Timestamp(3), Symbol("AAPL"),
++        DataQualityEvent{DataQualitySeverity::ERROR,
++                        DataQualityCode::INVALID_VALUE, "invalid"}));
++    // A registered symbol without InstrumentId must use the same counters even
++    // for an event other than DATA_QUALITY.
++    dispatcher.publish(SystemEvent::order(Timestamp(4), Symbol("AAPL"),
++        NewOrderCommand(CommandSequence(2), OrderId(2), Side::BUY,
++                        from_double(99), Quantity(1))));
++
++    const MonitorSnapshot first = monitor.snapshot();
++    const TradingMetrics& aapl = first.by_symbol.at("AAPL");
++    TEST_ASSERT(first.global.orders == 2 && aapl.orders == 2);
++    TEST_ASSERT(first.global.data_warnings == 1 && aapl.data_warnings == 1);
++    TEST_ASSERT(first.global.data_errors == 1 && aapl.data_errors == 1);
++    TEST_ASSERT(aapl.latency_samples == 1);
++    TEST_ASSERT(first.by_symbol.at("TSLA").data_warnings == 0);
++
++    // Reading a snapshot must not accumulate or modify counters.
++    const MonitorSnapshot second = monitor.snapshot();
++    TEST_ASSERT(second.by_symbol.at("AAPL").orders == aapl.orders);
++    TEST_ASSERT(second.by_symbol.at("AAPL").data_warnings == aapl.data_warnings);
++    TEST_ASSERT(second.by_symbol.at("AAPL").data_errors == aapl.data_errors);
++}
++
++void test_unknown_symbol_and_monitor_without_registry() {
++    MarketManager markets(16);
++    EventDispatcher dispatcher;
++    Monitor registered;
++    Monitor unregistered;
++    registered.attach(dispatcher, &markets);
++    unregistered.attach(dispatcher);
++    dispatcher.freeze();
++    TradingEngine engine(markets, dispatcher);
++    engine.submit(Timestamp(1), Symbol("NVDA"),
++        NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
++                        from_double(100), Quantity(1)));
++    dispatcher.publish(SystemEvent::data_quality(Timestamp(2), Symbol("NVDA"),
++        DataQualityEvent{DataQualitySeverity::WARNING,
++                        DataQualityCode::STALE_SYMBOL, "stale"}));
++    dispatcher.publish(SystemEvent::data_quality(Timestamp(3), Symbol("MSFT"),
++        DataQualityEvent{DataQualitySeverity::ERROR,
++                        DataQualityCode::INVALID_VALUE, "invalid"}));
++
++    for (const Monitor* monitor : {&registered, &unregistered}) {
++        const MonitorSnapshot snapshot = monitor->snapshot();
++        TEST_ASSERT(snapshot.global.orders == 1);
++        TEST_ASSERT(snapshot.by_symbol.at("NVDA").orders == 1);
++        TEST_ASSERT(snapshot.by_symbol.at("NVDA").data_warnings == 1);
++        TEST_ASSERT(snapshot.by_symbol.at("MSFT").data_errors == 1);
++        TEST_ASSERT(snapshot.global.data_errors == 1);
++    }
++}
++
+ int main() {
+     try {
+         test_global_and_symbol_metrics();
+         test_cli_output_and_logger_metric();
++        test_idless_events_share_registered_symbol_metrics();
++        test_unknown_symbol_and_monitor_without_registry();
+         std::cout << "Monitor tests passed\n";
+         return 0;
+     } catch (const std::exception& error) {
+diff --git a/tests/order_type_tests.cpp b/tests/order_type_tests.cpp
+index 6014983..c4744f1 100644
+--- a/tests/order_type_tests.cpp
++++ b/tests/order_type_tests.cpp
+@@ -1,14 +1,247 @@
+ #include "journal.hpp"
+ #include "orderbook.hpp"
++#include "reference_engine.hpp"
++#include "replay.hpp"
+ #include "replay_v2.hpp"
+ #include <filesystem>
+ #include <iostream>
++#include <limits>
+ #include <stdexcept>
+ 
+ #define TEST_ASSERT(x) do { if (!(x)) throw std::runtime_error("assertion failed: " #x); } while(false)
+ 
++namespace {
++
++constexpr uint64_t MAX_VOLUME = std::numeric_limits<uint64_t>::max();
++
++// Compare the independent reference after every boundary command, not just the
++// final hash. Keep the event sink unbounded so these tests isolate book rules.
++struct PairedBook {
++    OrderBook optimized;
++    ReferenceEngine reference;
++    VectorEventSink actual;
++    std::vector<EngineEvent> expected;
++    uint64_t sequence = 0;
++
++    explicit PairedBook(size_t capacity = 8, InstrumentConfig rules = {})
++        : optimized(capacity, true, {}, 2, rules), reference(capacity, rules) {}
++
++    ProcessResult process(const Command& command) {
++        actual.clear();
++        const auto result = optimized.process(command, actual);
++        const auto reference_status = reference.process(command, expected);
++        TEST_ASSERT(result.status == reference_status);
++        TEST_ASSERT(result.event_output_complete);
++        TEST_ASSERT(actual.events() == expected);
++        TEST_ASSERT(optimized.capture_state() == reference.capture_state());
++        TEST_ASSERT(optimized.check_invariants());
++        return result;
++    }
++
++    ProcessResult insert(uint64_t id, Side side, int64_t price, uint64_t volume,
++                         TimeInForce tif = TimeInForce::GTC) {
++        return process(NewOrderCommand(CommandSequence(++sequence), OrderId(id),
++            side, Price(price), Quantity(volume), tif));
++    }
++
++    ProcessResult cancel(uint64_t id) {
++        return process(CancelOrderCommand(CommandSequence(++sequence), OrderId(id)));
++    }
++
++    void rejected(const ProcessResult& result, RejectReason reason) const {
++        TEST_ASSERT(result.status == ProcessStatus::REJECTED);
++        TEST_ASSERT(actual.events().size() == 1);
++        TEST_ASSERT(std::get<OrderRejectedEvent>(actual.events().front()).reason == reason);
++    }
++};
++
++Side opposite(Side side) {
++    return side == Side::BUY ? Side::SELL : Side::BUY;
++}
++
++const BookLevelState& same_side_level(const OrderBookState& state, Side side) {
++    return side == Side::BUY ? state.bid_levels.at(0) : state.ask_levels.at(0);
++}
++
++void test_level_volume_limit_and_atomic_rejection() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        // Exercise the dense ladder and the ordered-map fallback.
++        for (int64_t price : {int64_t(1'000'000), int64_t(100)}) {
++            for (TimeInForce tif : {TimeInForce::GTC, TimeInForce::POST_ONLY}) {
++                PairedBook books(3);
++                TEST_ASSERT(books.insert(1, side, price, MAX_VOLUME - 1).applied());
++                TEST_ASSERT(books.insert(2, side, price, 1).applied());
++                auto before = books.optimized.capture_state();
++                TEST_ASSERT(same_side_level(before, side).total_volume == Quantity(MAX_VOLUME));
++                const auto capacity_before = books.optimized.capacity_metrics();
++                const size_t slots_before = books.optimized.available_level_slots();
++
++                const auto result = books.insert(3, side, price, 1, tif);
++                books.rejected(result, RejectReason::LEVEL_VOLUME_OVERFLOW);
++                // A business rejection consumes the sequence, but no book state.
++                before.last_applied_command_sequence = CommandSequence(books.sequence);
++                TEST_ASSERT(books.optimized.capture_state() == before);
++                const auto capacity_after = books.optimized.capacity_metrics();
++                TEST_ASSERT(capacity_after.active_orders == capacity_before.active_orders);
++                TEST_ASSERT(capacity_after.active_levels == capacity_before.active_levels);
++                TEST_ASSERT(capacity_after.index_load == capacity_before.index_load);
++                TEST_ASSERT(capacity_after.peak_active_orders == capacity_before.peak_active_orders);
++                TEST_ASSERT(books.optimized.available_level_slots() == slots_before);
++
++                // Reuse the rejected ID and the last order slot at a new level.
++                TEST_ASSERT(books.insert(3, side, price + 100, 1).applied());
++                TEST_ASSERT(books.optimized.active_order_count() == 3);
++            }
++        }
++    }
++}
++
++void test_cancel_releases_level_volume_budget() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books;
++        TEST_ASSERT(books.insert(1, side, 1'000'000, MAX_VOLUME - 2).applied());
++        TEST_ASSERT(books.insert(2, side, 1'000'000, 2).applied());
++        books.rejected(books.insert(3, side, 1'000'000, 1),
++            RejectReason::LEVEL_VOLUME_OVERFLOW);
++        TEST_ASSERT(books.cancel(2).applied());
++        TEST_ASSERT(books.insert(3, side, 1'000'000, 2).applied());
++        const auto state = books.optimized.capture_state();
++        const auto& level = same_side_level(state, side);
++        TEST_ASSERT(level.total_volume == Quantity(MAX_VOLUME));
++        TEST_ASSERT(level.orders.size() == 2);
++        TEST_ASSERT(level.orders[0].order_id == OrderId(1));
++        TEST_ASSERT(level.orders[1].order_id == OrderId(3));
++    }
++}
++
++void test_level_volume_limit_with_finer_instrument_tick_and_full_pool() {
++    InstrumentConfig rules;
++    rules.tick_size = 1;
++    for (Side side : {Side::BUY, Side::SELL}) {
++        for (int64_t price : {int64_t(1'000'000), int64_t(100), int64_t(1'000'001)}) {
++            // The last price is inside the ladder range but off its 100-unit
++            // grid. It is valid with tick1 and must use the map fallback.
++            PairedBook books(2, rules);
++            TEST_ASSERT(books.insert(1, side, price, MAX_VOLUME).applied());
++            // Move the same-side cache away from the target before checking
++            // its volume: cover dense and map lookup, not just cache hits.
++            TEST_ASSERT(books.insert(2, side, price + 100, 1).applied());
++            auto before = books.optimized.capture_state();
++            books.rejected(books.insert(3, side, price, 1),
++                RejectReason::LEVEL_VOLUME_OVERFLOW);
++            before.last_applied_command_sequence = CommandSequence(books.sequence);
++            TEST_ASSERT(books.optimized.capture_state() == before);
++        }
++    }
++}
++
++void test_partial_trade_releases_level_volume_budget() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books;
++        TEST_ASSERT(books.insert(1, side, 1'000'000, MAX_VOLUME).applied());
++        TEST_ASSERT(books.insert(2, opposite(side), 1'000'000, 2, TimeInForce::IOC).applied());
++        TEST_ASSERT(books.actual.events().size() == 1);
++        TEST_ASSERT(std::get<TradeEvent>(books.actual.events()[0]).quantity == Quantity(2));
++        TEST_ASSERT(books.insert(3, side, 1'000'000, 2).applied());
++        const auto state = books.optimized.capture_state();
++        const auto& level = same_side_level(state, side);
++        TEST_ASSERT(level.total_volume == Quantity(MAX_VOLUME));
++        TEST_ASSERT(level.orders[0].order_id == OrderId(1));
++        TEST_ASSERT(level.orders[1].order_id == OrderId(3));
++    }
++}
++
++void test_ioc_does_not_consume_level_volume_budget() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books;
++        TEST_ASSERT(books.insert(1, side, 1'000'000, MAX_VOLUME).applied());
++        auto before = books.optimized.capture_state();
++        TEST_ASSERT(books.insert(2, side, 1'000'000, MAX_VOLUME, TimeInForce::IOC).applied());
++        TEST_ASSERT(books.actual.events().size() == 1);
++        TEST_ASSERT(std::get<OrderCancelledEvent>(books.actual.events()[0]).cancelled_quantity ==
++            Quantity(MAX_VOLUME));
++        before.last_applied_command_sequence = CommandSequence(books.sequence);
++        TEST_ASSERT(books.optimized.capture_state() == before);
++    }
++}
++
++void test_opposite_side_volume_is_not_a_resting_limit() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books;
++        TEST_ASSERT(books.insert(1, opposite(side), 1'000'000, MAX_VOLUME).applied());
++        TEST_ASSERT(books.insert(2, side, 1'000'000, MAX_VOLUME).applied());
++        TEST_ASSERT(books.actual.events().size() == 1);
++        TEST_ASSERT(std::get<TradeEvent>(books.actual.events()[0]).quantity == Quantity(MAX_VOLUME));
++        TEST_ASSERT(books.optimized.active_order_count() == 0);
++    }
++}
++
++void test_cross_level_trade_and_residual_near_volume_limit() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books;
++        const int64_t best_price = side == Side::BUY ? 1'000'000 : 1'010'000;
++        const int64_t limit_price = side == Side::BUY ? 1'010'000 : 1'000'000;
++        TEST_ASSERT(books.insert(1, opposite(side), best_price, MAX_VOLUME - 2).applied());
++        TEST_ASSERT(books.insert(2, opposite(side), limit_price, 1).applied());
++        TEST_ASSERT(books.insert(3, side, limit_price, MAX_VOLUME).applied());
++        TEST_ASSERT(books.actual.events().size() == 3);
++        TEST_ASSERT(std::get<TradeEvent>(books.actual.events()[0]).quantity == Quantity(MAX_VOLUME - 2));
++        TEST_ASSERT(std::get<TradeEvent>(books.actual.events()[1]).quantity == Quantity(1));
++        const auto& rested = std::get<OrderRestedEvent>(books.actual.events()[2]);
++        TEST_ASSERT(rested.remaining_quantity == Quantity(1));
++        const auto state = books.optimized.capture_state();
++        TEST_ASSERT(same_side_level(state, side).total_volume == Quantity(1));
++    }
++}
++
++void test_post_only_rejection_precedes_pool_capacity() {
++    for (Side side : {Side::BUY, Side::SELL}) {
++        PairedBook books(1);
++        TEST_ASSERT(books.insert(1, opposite(side), 1'000'000, 1).applied());
++        auto before = books.optimized.capture_state();
++        books.rejected(books.insert(2, side, 1'000'000, 1, TimeInForce::POST_ONLY),
++            RejectReason::POST_ONLY_WOULD_TRADE);
++        before.last_applied_command_sequence = CommandSequence(books.sequence);
++        TEST_ASSERT(books.optimized.capture_state() == before);
++
++        const int64_t passive_price = side == Side::BUY ? 990'000 : 1'010'000;
++        books.rejected(books.insert(2, side, passive_price, 1, TimeInForce::POST_ONLY),
++            RejectReason::POOL_EXHAUSTED);
++        books.rejected(books.insert(2, side, 0, 1, TimeInForce::POST_ONLY),
++            RejectReason::INVALID_PRICE);
++        books.rejected(books.insert(1, side, 0, 1, TimeInForce::POST_ONLY),
++            RejectReason::DUPLICATE_ORDER_ID);
++    }
++}
++
++void test_new_rejection_reasons_diagnostic_roundtrip() {
++    const std::vector<EngineEvent> events{
++        OrderRejectedEvent(CommandSequence(1), EventIndex(0), CommandType::NEW_ORDER,
++            OrderId(1), RejectReason::LEVEL_VOLUME_OVERFLOW),
++        OrderRejectedEvent(CommandSequence(2), EventIndex(0), CommandType::NEW_ORDER,
++            OrderId(2), RejectReason::POST_ONLY_WOULD_TRADE)};
++    const auto path = std::filesystem::temp_directory_path() /
++        "matching_engine_m1_reject_reasons.csv";
++    ReplayEngine::save_log(events, path.string());
++    const auto restored = ReplayEngine::load_log(path.string());
++    std::error_code ignored;
++    std::filesystem::remove(path, ignored);
++    TEST_ASSERT(restored == events);
++}
++
++} // namespace
++
+ int main() {
+     try {
++        test_level_volume_limit_and_atomic_rejection();
++        test_cancel_releases_level_volume_budget();
++        test_level_volume_limit_with_finer_instrument_tick_and_full_pool();
++        test_partial_trade_releases_level_volume_budget();
++        test_ioc_does_not_consume_level_volume_budget();
++        test_opposite_side_volume_is_not_a_resting_limit();
++        test_cross_level_trade_and_residual_near_volume_limit();
++        test_post_only_rejection_precedes_pool_capacity();
++        test_new_rejection_reasons_diagnostic_roundtrip();
+         OrderBook book(16, true);
+         book.process(NewOrderCommand(CommandSequence(1), OrderId(1), Side::SELL,
+                                      Price(1000000), Quantity(3)));
+diff --git a/src/command_journal.hpp b/src/command_journal.hpp
+new file mode 100644
+index 0000000..194da5a
+--- /dev/null
++++ b/src/command_journal.hpp
+@@ -0,0 +1,22 @@
++#ifndef COMMAND_JOURNAL_HPP
++#define COMMAND_JOURNAL_HPP
++
++#include "submission_gate.hpp"
++#include "system_events.hpp"
++#include <cstddef>
++
++// Single-writer, non-owning integration point for recovery-critical journals.
++// begin reserves a complete command's record budget BEFORE external publication
++// or book mutation. commit accepts the whole group, not individual records.
++// Acceptance is in-process only; it is not a durability acknowledgment.
++class CommandJournal : public SubmissionGate {
++public:
++    virtual bool begin_command(Timestamp timestamp, const Symbol& symbol,
++                               const Command& command, size_t max_records) = 0;
++    virtual bool append_trade(const TradeEvent& trade) = 0;
++    virtual bool commit_command(CommandOutcome outcome) = 0;
++    // Release only an uncommitted group. Must not roll back an accepted group.
++    virtual void abort_command() noexcept = 0;
++};
++
++#endif
+diff --git a/src/journal_batch_queue.hpp b/src/journal_batch_queue.hpp
+new file mode 100644
+index 0000000..1d3237b
+--- /dev/null
++++ b/src/journal_batch_queue.hpp
+@@ -0,0 +1,84 @@
++#ifndef JOURNAL_BATCH_QUEUE_HPP
++#define JOURNAL_BATCH_QUEUE_HPP
++
++#include "journal.hpp"
++#include <condition_variable>
++#include <deque>
++#include <mutex>
++#include <stdexcept>
++#include <utility>
++
++// Record-slot budget includes staging, queued and currently written buffers.
++// It is not a heap-byte quota. Mutex/deque operations are not lock-free.
++class JournalBatchQueue {
++public:
++    struct Batch {
++        std::vector<JournalRecord> records;
++        size_t slots = 0;
++    };
++private:
++    const size_t capacity_;
++    size_t used_ = 0;
++    bool closed_ = false;
++    std::deque<Batch> batches_;
++    mutable std::mutex mutex_;
++    std::condition_variable not_empty_;
++public:
++    explicit JournalBatchQueue(size_t capacity) : capacity_(capacity) {
++        if (capacity == 0) throw std::invalid_argument("Journal record budget must be positive");
++    }
++    bool try_reserve(size_t slots) {
++        std::lock_guard<std::mutex> lock(mutex_);
++        if (closed_ || slots == 0 || slots > capacity_ - used_) return false;
++        used_ += slots;
++        return true;
++    }
++    void release(size_t slots) noexcept {
++        std::lock_guard<std::mutex> lock(mutex_);
++        if (slots > used_) std::terminate();
++        used_ -= slots;
++    }
++    // Reservation ownership transfers with the vector, including its capacity.
++    bool try_push(std::vector<JournalRecord>&& records, size_t slots) {
++        {
++            std::lock_guard<std::mutex> lock(mutex_);
++            if (closed_) return false;
++            if (records.empty() || records.capacity() > slots || slots > used_) {
++                throw std::logic_error("Invalid journal batch reservation");
++            }
++            batches_.push_back(Batch{std::move(records), slots});
++        }
++        not_empty_.notify_one();
++        return true;
++    }
++    bool wait_pop(Batch& batch) {
++        std::unique_lock<std::mutex> lock(mutex_);
++        if (batch.slots != 0) throw std::logic_error("Finish the previous journal batch before pop");
++        not_empty_.wait(lock, [this] { return closed_ || !batches_.empty(); });
++        if (batches_.empty()) return false;
++        batch = std::move(batches_.front());
++        batches_.pop_front();
++        // Budget stays held while this allocation is on the writer thread.
++        return true;
++    }
++    void finish(Batch& batch) noexcept {
++        const size_t slots = batch.slots;
++        std::vector<JournalRecord>().swap(batch.records);
++        batch.slots = 0;
++        release(slots);
++    }
++    void close() {
++        {
++            std::lock_guard<std::mutex> lock(mutex_);
++            closed_ = true;
++        }
++        not_empty_.notify_all();
++    }
++    size_t used_slots() const {
++        std::lock_guard<std::mutex> lock(mutex_);
++        return used_;
++    }
++    size_t capacity() const noexcept { return capacity_; }
++};
++
++#endif
+diff --git a/tests/command_journal_tests.cpp b/tests/command_journal_tests.cpp
+new file mode 100644
+index 0000000..db39ecf
+--- /dev/null
++++ b/tests/command_journal_tests.cpp
+@@ -0,0 +1,352 @@
++#include "async_journal.hpp"
++#include "command_journal.hpp"
++#include "replay_v2.hpp"
++#include <filesystem>
++#include <fstream>
++#include <iostream>
++#include <sstream>
++#include <stdexcept>
++
++#define TEST_ASSERT(x) do { if (!(x)) throw std::runtime_error("assertion failed: " #x); } while(false)
++
++namespace {
++
++Command order(uint64_t sequence, uint64_t id, Side side = Side::BUY,
++              uint64_t quantity = 1, int64_t price = 1'000'000) {
++    return NewOrderCommand(CommandSequence(sequence), OrderId(id), side, Price(price), Quantity(quantity));
++}
++
++class FaultJournal final : public CommandJournal {
++public:
++    enum class Fault { NONE, BEGIN, TRADE, COMMIT };
++    Fault fault = Fault::NONE;
++    bool active = false;
++    bool healthy = true;
++    size_t begins = 0, trades = 0, commits = 0, aborts = 0, bound = 0;
++    bool available() const noexcept override { return healthy; }
++    bool begin_command(Timestamp, const Symbol&, const Command&, size_t max_records) override {
++        ++begins;
++        bound = max_records;
++        if (fault == Fault::BEGIN) { healthy = false; return false; }
++        active = true;
++        return true;
++    }
++    bool append_trade(const TradeEvent&) override {
++        ++trades;
++        if (fault == Fault::TRADE) { healthy = false; return false; }
++        return true;
++    }
++    bool commit_command(CommandOutcome) override {
++        if (fault == Fault::COMMIT) { healthy = false; return false; }
++        ++commits;
++        active = false;
++        return true;
++    }
++    void abort_command() noexcept override {
++        if (active) { ++aborts; active = false; healthy = false; }
++    }
++};
++
++void test_reservation_failure_is_before_any_publication_or_book_change() {
++    MarketManager markets(8);
++    EventDispatcher dispatcher;
++    FaultJournal journal;
++    journal.fault = FaultJournal::Fault::BEGIN;
++    TradingEngine engine(markets, dispatcher, journal);
++    size_t events = 0;
++    auto subscription = dispatcher.subscribe_all([&](const SystemEvent&) { ++events; });
++    const auto before = markets.find_book(Symbol("AAPL"))->capture_state();
++    const auto result = engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1));
++    TEST_ASSERT(result.routing_status == RoutingStatus::SYSTEM_UNAVAILABLE);
++    TEST_ASSERT(result.process_result.status == ProcessStatus::OUTPUT_BLOCKED);
++    TEST_ASSERT(events == 0 && journal.begins == 1 && journal.commits == 0);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->capture_state() == before);
++}
++
++void test_commit_failure_does_not_claim_the_command_was_unapplied() {
++    MarketManager markets(8);
++    EventDispatcher dispatcher;
++    FaultJournal journal;
++    journal.fault = FaultJournal::Fault::COMMIT;
++    TradingEngine engine(markets, dispatcher, journal);
++    size_t outcomes = 0;
++    auto subscription = dispatcher.subscribe(SystemEventType::PROCESSING_LATENCY,
++        [&](const SystemEvent&) { ++outcomes; });
++    const auto result = engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1));
++    TEST_ASSERT(result.process_result.applied() && !result.process_result.event_output_complete);
++    TEST_ASSERT(engine.failed() && journal.aborts == 1 && journal.commits == 0);
++    TEST_ASSERT(outcomes == 0);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 1);
++    TEST_ASSERT(engine.submit(Timestamp(2), Symbol("TSLA"), order(1, 2)).routing_status ==
++        RoutingStatus::SYSTEM_UNAVAILABLE);
++}
++
++void test_trade_append_failure_retains_the_core_event_and_stops() {
++    MarketManager markets(8);
++    EventDispatcher dispatcher;
++    FaultJournal journal;
++    TradingEngine engine(markets, dispatcher, journal);
++    TEST_ASSERT(engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1, Side::SELL)).process_result.applied());
++    journal.fault = FaultJournal::Fault::TRADE;
++    size_t published_trades = 0;
++    auto subscription = dispatcher.subscribe(SystemEventType::TRADE,
++        [&](const SystemEvent&) { ++published_trades; });
++    const auto result = engine.submit(Timestamp(2), Symbol("AAPL"), order(2, 2));
++    TEST_ASSERT(result.process_result.applied() && !result.process_result.event_output_complete);
++    const auto* book = markets.find_book(Symbol("AAPL"));
++    TEST_ASSERT(book->active_order_count() == 0 && book->pending_event_count() == 1);
++    TEST_ASSERT(journal.bound == 3 && journal.commits == 1 && journal.aborts == 1);
++    TEST_ASSERT(engine.failed() && published_trades == 0);
++}
++
++void test_observer_failure_aborts_only_uncommitted_groups() {
++    for (SystemEventType point : {SystemEventType::ORDER, SystemEventType::PROCESSING_LATENCY}) {
++        MarketManager markets(8);
++        EventDispatcher dispatcher;
++        FaultJournal journal;
++        TradingEngine engine(markets, dispatcher, journal);
++        auto subscription = dispatcher.subscribe(point, [](const SystemEvent&) {
++            throw std::runtime_error("injected observer failure");
++        });
++        bool threw = false;
++        try { engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1)); }
++        catch (const std::runtime_error&) { threw = true; }
++        TEST_ASSERT(threw && engine.failed());
++        TEST_ASSERT(journal.commits == (point == SystemEventType::ORDER ? 0u : 1u));
++        TEST_ASSERT(journal.aborts == (point == SystemEventType::ORDER ? 1u : 0u));
++        TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() ==
++            (point == SystemEventType::ORDER ? 0u : 1u));
++    }
++}
++
++struct TempFile {
++    std::filesystem::path path;
++    explicit TempFile(const char* name) : path(std::filesystem::temp_directory_path() / name) {}
++    ~TempFile() { std::error_code ignored; std::filesystem::remove(path, ignored); }
++};
++
++void test_real_writer_rejects_too_small_budget_without_mutation() {
++    TempFile file("m1_command_budget.journal.csv");
++    MarketManager markets(8);
++    EventDispatcher dispatcher;
++    AsyncJournalWriter journal(file.path.string(), 1);
++    TradingEngine engine(markets, dispatcher, journal);
++    const auto before = markets.find_book(Symbol("AAPL"))->capture_state();
++    TEST_ASSERT(engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1)).routing_status ==
++        RoutingStatus::SYSTEM_UNAVAILABLE);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->capture_state() == before);
++    journal.stop();
++    TEST_ASSERT(journal.accepted_count() == 0 && journal.written_count() == 0);
++    TEST_ASSERT(journal.health() == JournalHealth::QUEUE_OVERFLOW);
++    TEST_ASSERT(Journal::load(file.path.string()).empty());
++}
++
++void test_canonical_roundtrip_and_replay_preflight() {
++    TempFile file("m1_command_roundtrip.journal.csv");
++    MarketManager markets(8);
++    EventDispatcher dispatcher;
++    AsyncJournalWriter journal(file.path.string(), 128);
++    TradingEngine engine(markets, dispatcher, journal);
++    engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1, Side::SELL, 2));
++    engine.submit(Timestamp(2), Symbol("TSLA"), order(1, 2));
++    engine.submit(Timestamp(3), Symbol("AAPL"), order(2, 3));
++    engine.submit(Timestamp(4), Symbol("AAPL"), CancelOrderCommand(CommandSequence(3), OrderId(1)));
++    engine.submit(Timestamp(5), Symbol("NVDA"), order(1, 4, Side::BUY, 1, 0));
++    engine.submit(Timestamp(6), Symbol("MSFT"), order(1, 5));
++    engine.submit(Timestamp(7), Symbol("AAPL"), CancelOrderCommand(CommandSequence(3), OrderId(1)));
++    journal.stop();
++    TEST_ASSERT(journal.healthy() && journal.accepted_count() == 15 && journal.written_count() == 15);
++    auto records = Journal::load(file.path.string());
++    TEST_ASSERT(records.size() == 15);
++    for (const auto& record : records) TEST_ASSERT(record.format_version == 2);
++    Journal::validate_committed_records(records);
++    MarketManager restored(8);
++    EventDispatcher replay_dispatcher;
++    TradingEngine replay_engine(restored, replay_dispatcher);
++    TEST_ASSERT(JournalReplayEngine::replay(records, replay_engine, replay_dispatcher, &markets).success());
++
++    // A syntactically valid vector containing only an input is NOT a commit.
++    records.resize(1);
++    MarketManager untouched(8);
++    EventDispatcher empty_dispatcher;
++    TradingEngine untouched_engine(untouched, empty_dispatcher);
++    bool rejected = false;
++    try { JournalReplayEngine::replay(records, untouched_engine, empty_dispatcher); }
++    catch (const std::runtime_error&) { rejected = true; }
++    TEST_ASSERT(rejected && untouched.find_book(Symbol("AAPL"))->active_order_count() == 0);
++    TEST_ASSERT(empty_dispatcher.subscriber_count(SystemEventType::TRADE) == 0);
++}
++
++JournalRecord input(uint64_t sequence, uint64_t command) {
++    JournalRecord record{sequence, Timestamp(command), JournalRecordType::ORDER_INSERT,
++        Symbol("AAPL"), CommandSequence(command), OrderId(command), Side::BUY,
++        Price(1'000'000), Quantity(1), OrderId(0), OrderId(0)};
++    record.format_version = 2;
++    return record;
++}
++
++JournalRecord outcome(uint64_t sequence, uint64_t command) {
++    auto record = input(sequence, command);
++    record.type = JournalRecordType::COMMAND_RESULT;
++    record.price = Price(0);
++    record.quantity = Quantity(0);
++    return record;
++}
++
++void write_prefix(std::ostream& out) {
++    write_command_journal_header(out);
++    write_journal_record(out, input(1, 1));
++    write_journal_record(out, outcome(2, 1));
++}
++
++void test_incomplete_new_format_discards_whole_final_command() {
++    TempFile file("m1_command_tail.journal.csv");
++    for (unsigned mode = 0; mode < 3; ++mode) {
++        {
++            std::ofstream out(file.path, std::ios::binary | std::ios::trunc);
++            write_prefix(out);
++            auto second = input(3, 2);
++            second.side = Side::SELL;
++            write_journal_record(out, second);
++            JournalRecord trade{4, Timestamp(2), JournalRecordType::TRADE, Symbol("AAPL"),
++                CommandSequence(2), OrderId(0), Side::BUY, Price(1'000'000), Quantity(1),
++                OrderId(1), OrderId(2)};
++            trade.format_version = 2;
++            write_journal_record(out, trade);
++            if (mode == 1) out << "5,2,COMMAND_RESULT,AAPL,2";
++            if (mode == 2) {
++                std::ostringstream line;
++                write_journal_record(line, outcome(5, 2));
++                std::string text = line.str();
++                text.pop_back(); // No final newline: not a complete written row.
++                out << text;
++            }
++        }
++        bool rejected = false;
++        try { (void)Journal::load(file.path.string()); }
++        catch (const std::runtime_error&) { rejected = true; }
++        TEST_ASSERT(rejected);
++        const auto recovered = Journal::load(file.path.string(), true);
++        TEST_ASSERT(recovered.size() == 2);
++        TEST_ASSERT(recovered.back().type == JournalRecordType::COMMAND_RESULT);
++    }
++}
++
++void test_new_format_corruption_is_not_a_tolerated_tail() {
++    TempFile file("m1_command_corrupt.journal.csv");
++    for (unsigned mode = 0; mode < 4; ++mode) {
++        {
++            std::ofstream out(file.path, std::ios::binary | std::ios::trunc);
++            write_prefix(out);
++            write_journal_record(out, input(3, 2));
++            if (mode == 0) out << "broken,middle,row\n";
++            auto closing = outcome(4, 2);
++            if (mode == 1) closing.order_id = OrderId(99);
++            if (mode == 2) closing.sequence = 5;
++            if (mode == 3) closing.symbol = Symbol("TSLA");
++            write_journal_record(out, closing);
++        }
++        bool rejected = false;
++        try { (void)Journal::load(file.path.string(), true); }
++        catch (const std::runtime_error&) { rejected = true; }
++        TEST_ASSERT(rejected);
++    }
++}
++
++void test_queue_budget_includes_the_writer_owned_buffer() {
++    JournalBatchQueue queue(4);
++    std::vector<JournalRecord> records;
++    records.reserve(2);
++    records.push_back(input(1, 1));
++    records.push_back(outcome(2, 1));
++    const size_t charge = records.capacity();
++    TEST_ASSERT(queue.try_reserve(charge));
++    TEST_ASSERT(queue.try_push(std::move(records), charge));
++    JournalBatchQueue::Batch writing;
++    TEST_ASSERT(queue.wait_pop(writing));
++    TEST_ASSERT(queue.used_slots() == charge);
++    TEST_ASSERT(!queue.try_reserve(queue.capacity()));
++    queue.finish(writing);
++    TEST_ASSERT(queue.used_slots() == 0);
++    TEST_ASSERT(queue.try_reserve(4));
++    queue.release(4);
++    queue.close();
++    TEST_ASSERT(!queue.try_reserve(1));
++    TEST_ASSERT(!queue.wait_pop(writing));
++}
++
++void test_direct_v2_vectors_validate_before_replay() {
++    const std::vector<JournalRecord> good{input(1, 1), outcome(2, 1)};
++    for (unsigned mode = 0; mode < 5; ++mode) {
++        auto records = good;
++        if (mode == 0) records[0].side = static_cast<Side>(99);
++        if (mode == 1) records[0].time_in_force = static_cast<TimeInForce>(99);
++        if (mode == 2) records[0].format_version = 1;
++        if (mode == 3) records[1].outcome = static_cast<CommandOutcome>(99);
++        if (mode == 4) { records[0].format_version = 3; records[1].format_version = 3; }
++        MarketManager markets(4);
++        EventDispatcher dispatcher;
++        TradingEngine engine(markets, dispatcher);
++        bool rejected = false;
++        try { JournalReplayEngine::replay(records, engine, dispatcher); }
++        catch (const std::runtime_error&) { rejected = true; }
++        TEST_ASSERT(rejected && markets.find_book(Symbol("AAPL"))->active_order_count() == 0);
++    }
++}
++
++void test_observer_compatibility_failure_is_not_silent_or_partly_queued() {
++    TempFile file("m1_command_observer_failure.journal.csv");
++    MarketManager markets(4);
++    markets.process(Symbol("AAPL"), order(1, 1, Side::SELL));
++    EventDispatcher dispatcher;
++    AsyncJournalWriter journal(file.path.string(), 2);
++    journal.attach(dispatcher);
++    TradingEngine engine(markets, dispatcher);
++    bool threw = false;
++    try { engine.submit(Timestamp(2), Symbol("AAPL"), order(2, 2)); }
++    catch (const std::runtime_error&) { threw = true; }
++    TEST_ASSERT(threw && engine.failed());
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 0);
++    journal.stop();
++    TEST_ASSERT(!journal.healthy() && journal.accepted_count() == 0);
++    TEST_ASSERT(journal.buffered_record_slots() == 0);
++    TEST_ASSERT(Journal::load(file.path.string()).empty());
++}
++
++void test_mixed_binding_is_rejected_before_matching() {
++    TempFile file("m1_command_mixed_binding.journal.csv");
++    MarketManager markets(4);
++    EventDispatcher dispatcher;
++    AsyncJournalWriter journal(file.path.string(), 16);
++    journal.attach(dispatcher);
++    TradingEngine engine(markets, dispatcher, journal);
++    TEST_ASSERT(engine.submit(Timestamp(1), Symbol("AAPL"), order(1, 1)).routing_status ==
++        RoutingStatus::SYSTEM_UNAVAILABLE);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 0);
++    journal.stop();
++    TEST_ASSERT(!journal.healthy() && Journal::load(file.path.string()).empty());
++}
++
++} // namespace
++
++int main() {
++    try {
++        test_reservation_failure_is_before_any_publication_or_book_change();
++        test_commit_failure_does_not_claim_the_command_was_unapplied();
++        test_trade_append_failure_retains_the_core_event_and_stops();
++        test_observer_failure_aborts_only_uncommitted_groups();
++        test_real_writer_rejects_too_small_budget_without_mutation();
++        test_canonical_roundtrip_and_replay_preflight();
++        test_incomplete_new_format_discards_whole_final_command();
++        test_new_format_corruption_is_not_a_tolerated_tail();
++        test_queue_budget_includes_the_writer_owned_buffer();
++        test_direct_v2_vectors_validate_before_replay();
++        test_observer_compatibility_failure_is_not_silent_or_partly_queued();
++        test_mixed_binding_is_rejected_before_matching();
++        std::cout << "Command journal tests passed\n";
++        return 0;
++    } catch (const std::exception& error) {
++        std::cerr << "Command journal tests failed: " << error.what() << '\n';
++        return 1;
++    }
++}
+diff --git a/tests/event_delivery_integration_tests.cpp b/tests/event_delivery_integration_tests.cpp
+new file mode 100644
+index 0000000..cef7ea3
+--- /dev/null
++++ b/tests/event_delivery_integration_tests.cpp
+@@ -0,0 +1,190 @@
++#include "event_sink.hpp"
++#include "market_snapshot.hpp"
++#include "trading_engine.hpp"
++#include <filesystem>
++#include <iostream>
++#include <limits>
++#include <optional>
++#include <stdexcept>
++
++#define TEST_ASSERT(x) do { if (!(x)) throw std::runtime_error("assertion failed: " #x); } while(false)
++
++namespace {
++
++Command new_order(uint64_t sequence, Side side = Side::BUY) {
++    return NewOrderCommand(CommandSequence(sequence), OrderId(sequence), side,
++        Price(1'000'000), Quantity(1));
++}
++
++void test_blocked_book_is_rejected_before_order_publication() {
++    MarketManager markets(4);
++    FixedEventBuffer<0> full;
++    const auto first = markets.process(Symbol("AAPL"), new_order(1), full);
++    TEST_ASSERT(first.process_result.applied());
++    TEST_ASSERT(!first.process_result.event_output_complete);
++    const auto state = markets.find_book(Symbol("AAPL"))->capture_state();
++    EventDispatcher dispatcher;
++    size_t calls = 0;
++    auto subscription = dispatcher.subscribe_all([&](const SystemEvent&) { ++calls; });
++    dispatcher.freeze();
++    TradingEngine engine(markets, dispatcher);
++    const auto blocked = engine.submit(Timestamp(2), Symbol("AAPL"), new_order(2));
++    TEST_ASSERT(blocked.routing_status == RoutingStatus::SYSTEM_UNAVAILABLE);
++    TEST_ASSERT(blocked.process_result.status == ProcessStatus::OUTPUT_BLOCKED);
++    TEST_ASSERT(calls == 0);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->capture_state() == state);
++    // A direct per-book sink backlog does not silently block unrelated books.
++    TEST_ASSERT(engine.submit(Timestamp(2), Symbol("TSLA"), new_order(1)).process_result.applied());
++    TEST_ASSERT(!engine.failed());
++    VectorEventSink resumed;
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->retry_pending_events(resumed));
++    TEST_ASSERT(resumed.events().size() == 1);
++    TEST_ASSERT(engine.submit(Timestamp(3), Symbol("AAPL"), new_order(2)).process_result.applied());
++}
++
++void test_engine_reentrancy_never_publishes_nested_commands() {
++    for (SystemEventType trigger : {SystemEventType::ORDER, SystemEventType::ORDER_RESTED,
++                                   SystemEventType::PROCESSING_LATENCY}) {
++        MarketManager markets(4);
++        EventDispatcher dispatcher;
++        TradingEngine engine(markets, dispatcher);
++        std::optional<MarketProcessResult> nested;
++        size_t orders = 0;
++        auto subscription = dispatcher.subscribe_all([&](const SystemEvent& event) {
++            if (event.event_type == SystemEventType::ORDER) ++orders;
++            if (event.event_type == trigger && !nested) {
++                // Set a value before calling in case the implementation recurses.
++                nested = MarketProcessResult{RoutingStatus::UNKNOWN_SYMBOL,
++                    ProcessResult{ProcessStatus::REJECTED, 0, 0}};
++                nested = engine.submit(Timestamp(10), Symbol("TSLA"), new_order(1));
++            }
++        });
++        dispatcher.freeze();
++        TEST_ASSERT(engine.submit(Timestamp(1), Symbol("AAPL"), new_order(1)).process_result.applied());
++        TEST_ASSERT(nested && nested->routing_status == RoutingStatus::SYSTEM_UNAVAILABLE);
++        TEST_ASSERT(nested->process_result.status == ProcessStatus::OUTPUT_BLOCKED);
++        TEST_ASSERT(orders == 1);
++        TEST_ASSERT(markets.find_book(Symbol("TSLA"))->active_order_count() == 0);
++        TEST_ASSERT(!engine.failed());
++    }
++}
++
++void test_dispatcher_exceptions_fail_engine_closed() {
++    for (SystemEventType trigger : {SystemEventType::ORDER, SystemEventType::ORDER_RESTED,
++                                   SystemEventType::PROCESSING_LATENCY}) {
++        MarketManager markets(4);
++        EventDispatcher dispatcher;
++        TradingEngine engine(markets, dispatcher);
++        size_t before_throw = 0;
++        size_t after_throw = 0;
++        auto first = dispatcher.subscribe_all([&](const SystemEvent& event) {
++            if (event.event_type == trigger) ++before_throw;
++        });
++        auto failing = dispatcher.subscribe_all([&](const SystemEvent& event) {
++            if (event.event_type == trigger) throw std::runtime_error("injected callback failure");
++        });
++        auto last = dispatcher.subscribe_all([&](const SystemEvent& event) {
++            if (event.event_type == trigger) ++after_throw;
++        });
++        dispatcher.freeze();
++        bool threw = false;
++        try { engine.submit(Timestamp(1), Symbol("AAPL"), new_order(1)); }
++        catch (const std::runtime_error&) { threw = true; }
++        TEST_ASSERT(threw && engine.failed());
++        TEST_ASSERT(before_throw == 1 && after_throw == 0);
++        const auto state = markets.find_book(Symbol("AAPL"))->capture_state();
++        const auto next = engine.submit(Timestamp(2), Symbol("TSLA"), new_order(1));
++        TEST_ASSERT(next.routing_status == RoutingStatus::SYSTEM_UNAVAILABLE);
++        TEST_ASSERT(before_throw == 1 && after_throw == 0);
++        TEST_ASSERT(markets.find_book(Symbol("AAPL"))->capture_state() == state);
++        TEST_ASSERT(markets.find_book(Symbol("TSLA"))->active_order_count() == 0);
++        TEST_ASSERT(state.active_order_count == (trigger == SystemEventType::ORDER ? 0u : 1u));
++        if (trigger == SystemEventType::ORDER_RESTED) {
++            const auto* book = markets.find_book(Symbol("AAPL"));
++            TEST_ASSERT(book->event_output_state() == EventOutputState::FAILED);
++            TEST_ASSERT(book->pending_event_count() == 1);
++        }
++    }
++}
++
++void test_market_data_exception_stops_future_commands() {
++    MarketManager markets(4);
++    EventDispatcher dispatcher;
++    TradingEngine engine(markets, dispatcher);
++    size_t calls = 0;
++    auto subscription = dispatcher.subscribe(SystemEventType::MARKET_DATA,
++        [&](const SystemEvent&) { ++calls; throw std::runtime_error("injected quote callback failure"); });
++    dispatcher.freeze();
++    bool threw = false;
++    try {
++        engine.publish_market_data(Timestamp(1), Symbol("AAPL"),
++            MarketDataEvent{Price(100), Quantity(1), Price(100), Price(200)});
++    } catch (const std::runtime_error&) { threw = true; }
++    TEST_ASSERT(threw && engine.failed() && calls == 1);
++    TEST_ASSERT(engine.submit(Timestamp(2), Symbol("AAPL"), new_order(1)).routing_status ==
++        RoutingStatus::SYSTEM_UNAVAILABLE);
++    TEST_ASSERT(markets.find_book(Symbol("AAPL"))->active_order_count() == 0);
++    threw = false;
++    try {
++        engine.publish_market_data(Timestamp(3), Symbol("AAPL"),
++            MarketDataEvent{Price(100), Quantity(1), Price(100), Price(200)});
++    } catch (const std::logic_error&) { threw = true; }
++    TEST_ASSERT(threw && calls == 1);
++}
++
++void test_snapshot_preflight_leaves_no_generation_files() {
++    const auto base = std::filesystem::temp_directory_path();
++    std::filesystem::path directory;
++    for (unsigned i = 0; i < 1024; ++i) {
++        const auto candidate = base / ("matching_engine_output_barrier_" + std::to_string(i));
++        if (std::filesystem::create_directory(candidate)) { directory = candidate; break; }
++    }
++    TEST_ASSERT(!directory.empty());
++    struct Cleanup {
++        std::filesystem::path directory;
++        ~Cleanup() { std::error_code ignored; std::filesystem::remove_all(directory, ignored); }
++    } cleanup{directory};
++    MarketManager markets(4);
++    FixedEventBuffer<0> full;
++    // TSLA sorts after AAPL/NVDA. Without all-books preflight those earlier
++    // generation files would already be written when TSLA capture fails.
++    TEST_ASSERT(markets.process(Symbol("TSLA"), new_order(1), full).process_result.applied());
++    bool rejected = false;
++    try { MarketSnapshotStore::save_atomic(directory / "market.snapshot", 7, markets); }
++    catch (const std::logic_error&) { rejected = true; }
++    TEST_ASSERT(rejected && std::filesystem::is_empty(directory));
++    VectorEventSink resumed;
++    TEST_ASSERT(markets.find_book(Symbol("TSLA"))->retry_pending_events(resumed));
++    MarketSnapshotStore::save_atomic(directory / "market.snapshot", 7, markets);
++    const auto restored = MarketSnapshotStore::load(directory / "market.snapshot");
++    TEST_ASSERT(restored.success());
++    TEST_ASSERT(restored.markets->find_book(Symbol("TSLA"))->capture_state() ==
++        markets.find_book(Symbol("TSLA"))->capture_state());
++}
++
++void test_capacity_index_limit_is_checked_before_allocation() {
++    if (std::numeric_limits<size_t>::max() > std::numeric_limits<uint32_t>::max()) {
++        bool rejected = false;
++        try { OrderBook too_large(static_cast<size_t>(std::numeric_limits<uint32_t>::max()) + 1, false); }
++        catch (const std::length_error&) { rejected = true; }
++        TEST_ASSERT(rejected);
++    }
++}
++
++} // namespace
++
++int main() {
++    try {
++        test_blocked_book_is_rejected_before_order_publication();
++        test_engine_reentrancy_never_publishes_nested_commands();
++        test_dispatcher_exceptions_fail_engine_closed();
++        test_market_data_exception_stops_future_commands();
++        test_snapshot_preflight_leaves_no_generation_files();
++        test_capacity_index_limit_is_checked_before_allocation();
++        std::cout << "Event delivery integration tests passed\n";
++        return 0;
++    } catch (const std::exception& error) {
++        std::cerr << "Event delivery integration tests failed: " << error.what() << '\n';
++        return 1;
++    }
++}

@@ -119,7 +119,9 @@ private:
             RejectReason::INVALID_QUANTITY, RejectReason::POOL_EXHAUSTED,
             RejectReason::INDEX_EXHAUSTED, RejectReason::ORDER_NOT_FOUND,
             RejectReason::PRICE_OUT_OF_RANGE, RejectReason::OFF_TICK_PRICE,
-            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE
+            RejectReason::QUANTITY_LIMIT, RejectReason::INVALID_LOT_SIZE,
+            RejectReason::POST_ONLY_WOULD_TRADE, RejectReason::LEVEL_VOLUME_OVERFLOW,
+            RejectReason::INVALID_SIDE, RejectReason::INVALID_TIME_IN_FORCE
         };
         for (RejectReason reason : reasons) {
             if (value == to_string(reason)) return reason;

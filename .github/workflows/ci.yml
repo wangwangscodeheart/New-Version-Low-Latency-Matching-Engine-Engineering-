@@ -46,13 +46,14 @@ jobs:
           cmake --build build/tsan --target
           matching_engine_async_logger_tests
           matching_engine_async_journal_tests
+          matching_engine_command_journal_tests
           matching_engine_monitor_tests
       - name: Test asynchronous components
         env:
           TSAN_OPTIONS: halt_on_error=1
         run: >-
           ctest --test-dir build/tsan --output-on-failure
-          -R "matching_engine_(async_logger|async_journal|monitor)"
+          -R "matching_engine_(async_logger|async_journal|command_journal|monitor)"
 
   benchmark-smoke:
     runs-on: ubuntu-latest

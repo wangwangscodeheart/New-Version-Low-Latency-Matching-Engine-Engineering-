@@ -1,0 +1,461 @@
+Start testing: Nov 12 22:54 ������׼ʱ��
+----------------------------------------------------------
+1/22 Testing: matching_engine_unit
+1/22 Test: matching_engine_unit
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_unit_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_unit" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+╔════════════════════════════════════════════════════════════╗
+║              UNIT TEST SUITE                               ║
+╚════════════════════════════════════════════════════════════╝
+
+Running Matching Engine Test Suite...
+
+Test 1: Simple Fill... Passed
+Test 2: Partial Fill... Passed
+Test 3: Multi-Level Sweep... Passed
+Test 4: Cancel Order... Passed
+Test 5: Price-Time Priority... Passed
+Test 6: Invariants... Passed
+Test 7: Replay Determinism... Passed
+Test 8: Empty Book Edge Case... Passed
+Test 9: Crossed Order Prevention... Passed
+Test 10: Input Validation... Passed
+Test 11: Duplicate Order ID... Passed
+Test 12: Command/EngineEvent Sequences... Passed
+Test: Deterministic Command Sequence... Passed
+Test 12: Pool Exhaustion... Passed
+Test 13: Price Ladder Fallback... Passed
+Test 14: High-Frequency Cancel/Reuse... Passed
+Test 15: Event Reserve Configuration... Passed
+Test 16: Limit-Level Pool Lifecycle... Passed
+Test 17: Instrument Rules... Passed
+Test 18: Disk Log Roundtrip... Passed
+Test 19: Corrupt Log Rejection... Passed
+
+✅ All tests passed!
+<end of output>
+Test time =   4.06 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_unit" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_unit" time elapsed: 00:00:04
+----------------------------------------------------------
+
+2/22 Testing: matching_engine_properties
+2/22 Test: matching_engine_properties
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_property_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_properties" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+╔════════════════════════════════════════════════════════════╗
+║           PROPERTY-BASED TEST SUITE                        ║
+║   (QuickCheck-style randomized testing)                    ║
+╚════════════════════════════════════════════════════════════╝
+
+============================================================
+PROPERTY-BASED TEST SUITE
+============================================================
+
+🔬 Property Test 1: Book Never Crosses
+   ✓ Passed randomized crossing checks
+
+🔬 Property Test 2: Replay Idempotence
+   ✓ Passed 50 replay trials
+
+🔬 Property Test 3: Volume Conservation
+   ✓ Volume conservation verified
+
+🔬 Property Test 4: FIFO Priority
+   ✓ FIFO order maintained
+
+🔬 Property Test 5: Price Reasonableness
+   ✓ Price spread remains non-negative
+
+✅ All property tests passed!
+<end of output>
+Test time =   0.46 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_properties" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_properties" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/22 Testing: matching_engine_differential
+3/22 Test: matching_engine_differential
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_differential_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_differential" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Differential tests passed: 25 seeds x 4000 commands, seed_base=3523149824, generator=enum_boundary_v2
+<end of output>
+Test time =   1.88 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_differential" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_differential" time elapsed: 00:00:01
+----------------------------------------------------------
+
+4/22 Testing: matching_engine_snapshot
+4/22 Test: matching_engine_snapshot
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_snapshot_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_snapshot" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+All snapshot tests passed
+<end of output>
+Test time =   0.14 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_snapshot" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_snapshot" time elapsed: 00:00:00
+----------------------------------------------------------
+
+5/22 Testing: matching_engine_market_snapshot
+5/22 Test: matching_engine_market_snapshot
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_market_snapshot_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_market_snapshot" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Market snapshot tests passed
+<end of output>
+Test time =   0.18 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_market_snapshot" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_market_snapshot" time elapsed: 00:00:00
+----------------------------------------------------------
+
+6/22 Testing: matching_engine_market_manager
+6/22 Test: matching_engine_market_manager
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_market_manager_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_market_manager" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+MarketManager tests passed
+<end of output>
+Test time =   0.17 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_market_manager" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_market_manager" time elapsed: 00:00:00
+----------------------------------------------------------
+
+7/22 Testing: matching_engine_event_system
+7/22 Test: matching_engine_event_system
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_event_system_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_event_system" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Event system tests passed
+<end of output>
+Test time =   0.17 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_event_system" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_event_system" time elapsed: 00:00:00
+----------------------------------------------------------
+
+8/22 Testing: matching_engine_event_delivery
+8/22 Test: matching_engine_event_delivery
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_event_delivery_integration_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_event_delivery" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Event delivery integration tests passed
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_event_delivery" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_event_delivery" time elapsed: 00:00:00
+----------------------------------------------------------
+
+9/22 Testing: matching_engine_journal_replay
+9/22 Test: matching_engine_journal_replay
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_journal_replay_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_journal_replay" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Journal, audit and replay tests passed
+<end of output>
+Test time =   0.17 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_journal_replay" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_journal_replay" time elapsed: 00:00:00
+----------------------------------------------------------
+
+10/22 Testing: matching_engine_async_logger
+10/22 Test: matching_engine_async_logger
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_async_logger_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_async_logger" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Async logger tests passed
+<end of output>
+Test time =   0.18 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_async_logger" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_async_logger" time elapsed: 00:00:00
+----------------------------------------------------------
+
+11/22 Testing: matching_engine_monitor
+11/22 Test: matching_engine_monitor
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_monitor_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_monitor" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Monitor tests passed
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_monitor" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_monitor" time elapsed: 00:00:00
+----------------------------------------------------------
+
+12/22 Testing: matching_engine_market_data
+12/22 Test: matching_engine_market_data
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_market_data_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_market_data" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Market data tests passed
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_market_data" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_market_data" time elapsed: 00:00:00
+----------------------------------------------------------
+
+13/22 Testing: matching_engine_strategy
+13/22 Test: matching_engine_strategy
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_strategy_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_strategy" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Strategy tests passed
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_strategy" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_strategy" time elapsed: 00:00:00
+----------------------------------------------------------
+
+14/22 Testing: matching_engine_async_journal
+14/22 Test: matching_engine_async_journal
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_async_journal_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_async_journal" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Async journal tests passed
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_async_journal" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_async_journal" time elapsed: 00:00:00
+----------------------------------------------------------
+
+15/22 Testing: matching_engine_command_journal
+15/22 Test: matching_engine_command_journal
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_command_journal_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_command_journal" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Command journal tests passed
+<end of output>
+Test time =   0.19 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_command_journal" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_command_journal" time elapsed: 00:00:00
+----------------------------------------------------------
+
+16/22 Testing: matching_engine_market_data_generator
+16/22 Test: matching_engine_market_data_generator
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_market_data_generator_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_market_data_generator" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_market_data_generator" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_market_data_generator" time elapsed: 00:00:00
+----------------------------------------------------------
+
+17/22 Testing: matching_engine_feed_gateway
+17/22 Test: matching_engine_feed_gateway
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_feed_gateway_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_feed_gateway" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Feed gateway tests passed
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_feed_gateway" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_feed_gateway" time elapsed: 00:00:00
+----------------------------------------------------------
+
+18/22 Testing: matching_engine_capacity_metrics
+18/22 Test: matching_engine_capacity_metrics
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_capacity_metrics_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_capacity_metrics" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Capacity metrics tests passed
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_capacity_metrics" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_capacity_metrics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+19/22 Testing: matching_engine_risk_engine
+19/22 Test: matching_engine_risk_engine
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_risk_engine_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_risk_engine" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Risk engine tests passed
+<end of output>
+Test time =   0.12 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_risk_engine" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_risk_engine" time elapsed: 00:00:00
+----------------------------------------------------------
+
+20/22 Testing: matching_engine_order_types
+20/22 Test: matching_engine_order_types
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_order_type_tests.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_order_types" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+Order type tests passed
+<end of output>
+Test time =   0.20 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_order_types" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_order_types" time elapsed: 00:00:00
+----------------------------------------------------------
+
+21/22 Testing: matching_engine_demo_integration
+21/22 Test: matching_engine_demo_integration
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_demo.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_demo_integration" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+╔══════════════════════════════════╗
+║   DETERMINISTIC MATCHING ENGINE  ║
+╚══════════════════════════════════╝
+
+========== SCENARIO 1: Building Order Book ==========
+
+📝 Adding sell orders...
+   [Book State] Bid: -  |  Ask: 100.00
+
+📝 Adding buy orders...
+   [Book State] Bid: 99.50  |  Ask: 100.00
+
+========== SCENARIO 2: Aggressive Order ==========
+
+💥 Aggressive buy order (sweeps multiple levels)...
+   [Book State] Bid: 99.50  |  Ask: 101.00
+
+========== SCENARIO 3: Order Cancellation ==========
+
+🗑️  Cancelling order ID 4 (Buy @ 99.00)...
+   [Book State] Bid: 99.50  |  Ask: 101.00
+
+========== EVENT LOG ==========
+Total events: 9
+
+Recent events:
+  ORDER_RESTED,5,0,5,BUY,995000,35,35,5
+  TRADE,6,0,3,6,1000000,20
+  TRADE,6,1,2,6,1005000,30
+  TRADE,6,2,1,6,1010000,30
+  ORDER_CANCELLED,7,0,4,BUY,990000,40,4
+
+========== DETERMINISTIC REPLAY ==========
+
+💾 Saving event log...
+✓ Saved to matching_engine.log
+
+🔄 Replaying from log...
+
+✅ Replay verification: PASSED
+
+✨ Demonstration complete!
+
+Key Features Demonstrated:
+  ✓ Price-time priority (FIFO)
+  ✓ Multi-level order sweeping
+  ✓ Fast order cancellation (O(1) unlink)
+  ✓ Pre-allocated order objects with event logging
+  ✓ Deterministic command replay
+<end of output>
+Test time =   0.16 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_demo_integration" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_demo_integration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+22/22 Testing: matching_engine_v2_demo_integration
+22/22 Test: matching_engine_v2_demo_integration
+Command: "D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan/matching_engine_v2_demo.exe"
+Directory: D:/Low-Latency-Matching-Engine-Engineering/build/m1-enum-asan
+"matching_engine_v2_demo_integration" start time: Nov 12 22:54 ������׼ʱ��
+Output:
+----------------------------------------------------------
+=== Trading System Monitor ===
+Global: orders=4 trades=1 cancels=1 rejects=0 volume=40 avg_latency_ns=20980.00 max_latency_ns=40700 data_warnings=0 data_errors=0 dropped_logs=0
+AAPL: orders=2 trades=1 cancels=1 rejects=0 volume=40 avg_latency_ns=27833.33 max_latency_ns=40700
+TSLA: orders=1 trades=0 cancels=0 rejects=0 volume=0 avg_latency_ns=11200.00 max_latency_ns=11200
+NVDA: orders=1 trades=0 cancels=0 rejects=0 volume=0 avg_latency_ns=10200.00 max_latency_ns=10200
+Replay: commands=5 expected_trades=1 actual_trades=1 result=PASS
+Market data: generated=60 published=60 rejected=0
+Files: synthetic_market_data.csv, trading_v2.journal.csv, trading_v2.audit.csv, trading_v2_async.log
+<end of output>
+Test time =   0.13 sec
+----------------------------------------------------------
+Test Passed.
+"matching_engine_v2_demo_integration" end time: Nov 12 22:54 ������׼ʱ��
+"matching_engine_v2_demo_integration" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Nov 12 22:54 ������׼ʱ��

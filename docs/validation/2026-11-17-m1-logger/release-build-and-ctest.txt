@@ -1,0 +1,55 @@
+Active code page: 65001
+ninja: no work to do.
+Test project D:/Low-Latency-Matching-Engine-Engineering/build/m1-logger-release
+      Start  1: matching_engine_unit
+ 1/24 Test  #1: matching_engine_unit ....................   Passed    0.46 sec
+      Start  2: matching_engine_properties
+ 2/24 Test  #2: matching_engine_properties ..............   Passed    0.14 sec
+      Start  3: matching_engine_differential
+ 3/24 Test  #3: matching_engine_differential ............   Passed    0.41 sec
+      Start  4: matching_engine_snapshot
+ 4/24 Test  #4: matching_engine_snapshot ................   Passed    0.21 sec
+      Start  5: matching_engine_market_snapshot
+ 5/24 Test  #5: matching_engine_market_snapshot .........   Passed    0.82 sec
+      Start  6: matching_engine_market_manager
+ 6/24 Test  #6: matching_engine_market_manager ..........   Passed    0.24 sec
+      Start  7: matching_engine_event_system
+ 7/24 Test  #7: matching_engine_event_system ............   Passed    0.14 sec
+      Start  8: matching_engine_event_delivery
+ 8/24 Test  #8: matching_engine_event_delivery ..........   Passed    0.21 sec
+      Start  9: matching_engine_journal_replay
+ 9/24 Test  #9: matching_engine_journal_replay ..........   Passed    0.20 sec
+      Start 10: matching_engine_async_logger
+10/24 Test #10: matching_engine_async_logger ............   Passed    0.13 sec
+      Start 11: matching_engine_monitor
+11/24 Test #11: matching_engine_monitor .................   Passed    0.14 sec
+      Start 12: matching_engine_market_data
+12/24 Test #12: matching_engine_market_data .............   Passed    0.11 sec
+      Start 13: matching_engine_strategy
+13/24 Test #13: matching_engine_strategy ................   Passed    0.15 sec
+      Start 14: matching_engine_async_journal
+14/24 Test #14: matching_engine_async_journal ...........   Passed    0.20 sec
+      Start 15: matching_engine_command_journal
+15/24 Test #15: matching_engine_command_journal .........   Passed    0.38 sec
+      Start 16: matching_engine_allocation_failure
+16/24 Test #16: matching_engine_allocation_failure ......   Passed    0.11 sec
+      Start 17: matching_engine_order_pool
+17/24 Test #17: matching_engine_order_pool ..............   Passed    0.09 sec
+      Start 18: matching_engine_market_data_generator
+18/24 Test #18: matching_engine_market_data_generator ...   Passed    0.13 sec
+      Start 19: matching_engine_feed_gateway
+19/24 Test #19: matching_engine_feed_gateway ............   Passed    0.11 sec
+      Start 20: matching_engine_capacity_metrics
+20/24 Test #20: matching_engine_capacity_metrics ........   Passed    0.13 sec
+      Start 21: matching_engine_risk_engine
+21/24 Test #21: matching_engine_risk_engine .............   Passed    0.14 sec
+      Start 22: matching_engine_order_types
+22/24 Test #22: matching_engine_order_types .............   Passed    0.68 sec
+      Start 23: matching_engine_demo_integration
+23/24 Test #23: matching_engine_demo_integration ........   Passed    0.09 sec
+      Start 24: matching_engine_v2_demo_integration
+24/24 Test #24: matching_engine_v2_demo_integration .....   Passed    0.16 sec
+
+100% tests passed out of 24
+
+Total Test time (real) =   7.56 sec

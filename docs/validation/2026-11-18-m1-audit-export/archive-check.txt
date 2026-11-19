@@ -1,0 +1,5 @@
+Current normalized source blobs: 38/38 matched
+Isolated-index reconstruction: 38/38 blob identities matched
+release archive: 54/54 build steps; 24/24 CTest passes
+asan archive: 54/54 build steps; 24/24 CTest passes
+Real staged content unchanged; isolated audit index removed

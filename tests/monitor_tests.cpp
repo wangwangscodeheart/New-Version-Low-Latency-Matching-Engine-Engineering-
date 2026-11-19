@@ -4,6 +4,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <atomic>
 
 #define TEST_ASSERT(condition)                                                \
     do {                                                                      \
@@ -75,10 +76,101 @@ void test_cli_output_and_logger_metric() {
     TEST_ASSERT(text.find("dropped_logs=0") != std::string::npos);
 }
 
+void test_logger_stream_failure_is_visible_in_snapshot_and_cli() {
+    class FailedFlushBuffer : public std::stringbuf {
+    public:
+        std::atomic<bool> fail{false};
+        int sync() override { return fail.load() ? -1 : 0; }
+    } buffer;
+    std::ostream output(&buffer);
+    AsyncLogger logger(output, 4);
+    buffer.fail.store(true);
+    TEST_ASSERT(logger.enqueue(SystemEvent::market_data(Timestamp(1), Symbol("AAPL"),
+        MarketDataEvent{Price(100), Quantity(1), Price(99), Price(101)})));
+    logger.stop();
+    Monitor monitor;
+    const auto snapshot = monitor.snapshot(&logger);
+    TEST_ASSERT(snapshot.logger_attached && snapshot.logger_health == LoggerHealth::WRITE_FAILURE);
+    TEST_ASSERT(snapshot.accepted_logs == 1 && snapshot.written_logs == 1 && snapshot.failed_logs == 0);
+    std::ostringstream printed;
+    monitor.print(printed, &logger);
+    TEST_ASSERT(printed.str().find("logger_health=WRITE_FAILURE") != std::string::npos);
+    TEST_ASSERT(printed.str().find("written_logs=1") != std::string::npos);
+}
+
+void test_idless_events_share_registered_symbol_metrics() {
+    MarketManager markets(16);
+    EventDispatcher dispatcher;
+    Monitor monitor;
+    monitor.attach(dispatcher, &markets);
+    dispatcher.freeze();
+    TradingEngine engine(markets, dispatcher);
+    engine.submit(Timestamp(1), Symbol("AAPL"),
+        NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
+                        from_double(100), Quantity(1)));
+    dispatcher.publish(SystemEvent::data_quality(Timestamp(2), Symbol("AAPL"),
+        DataQualityEvent{DataQualitySeverity::WARNING,
+                        DataQualityCode::STALE_SYMBOL, "stale"}));
+    dispatcher.publish(SystemEvent::data_quality(Timestamp(3), Symbol("AAPL"),
+        DataQualityEvent{DataQualitySeverity::ERROR,
+                        DataQualityCode::INVALID_VALUE, "invalid"}));
+    // A registered symbol without InstrumentId must use the same counters even
+    // for an event other than DATA_QUALITY.
+    dispatcher.publish(SystemEvent::order(Timestamp(4), Symbol("AAPL"),
+        NewOrderCommand(CommandSequence(2), OrderId(2), Side::BUY,
+                        from_double(99), Quantity(1))));
+
+    const MonitorSnapshot first = monitor.snapshot();
+    const TradingMetrics& aapl = first.by_symbol.at("AAPL");
+    TEST_ASSERT(first.global.orders == 2 && aapl.orders == 2);
+    TEST_ASSERT(first.global.data_warnings == 1 && aapl.data_warnings == 1);
+    TEST_ASSERT(first.global.data_errors == 1 && aapl.data_errors == 1);
+    TEST_ASSERT(aapl.latency_samples == 1);
+    TEST_ASSERT(first.by_symbol.at("TSLA").data_warnings == 0);
+
+    // Reading a snapshot must not accumulate or modify counters.
+    const MonitorSnapshot second = monitor.snapshot();
+    TEST_ASSERT(second.by_symbol.at("AAPL").orders == aapl.orders);
+    TEST_ASSERT(second.by_symbol.at("AAPL").data_warnings == aapl.data_warnings);
+    TEST_ASSERT(second.by_symbol.at("AAPL").data_errors == aapl.data_errors);
+}
+
+void test_unknown_symbol_and_monitor_without_registry() {
+    MarketManager markets(16);
+    EventDispatcher dispatcher;
+    Monitor registered;
+    Monitor unregistered;
+    registered.attach(dispatcher, &markets);
+    unregistered.attach(dispatcher);
+    dispatcher.freeze();
+    TradingEngine engine(markets, dispatcher);
+    engine.submit(Timestamp(1), Symbol("NVDA"),
+        NewOrderCommand(CommandSequence(1), OrderId(1), Side::BUY,
+                        from_double(100), Quantity(1)));
+    dispatcher.publish(SystemEvent::data_quality(Timestamp(2), Symbol("NVDA"),
+        DataQualityEvent{DataQualitySeverity::WARNING,
+                        DataQualityCode::STALE_SYMBOL, "stale"}));
+    dispatcher.publish(SystemEvent::data_quality(Timestamp(3), Symbol("MSFT"),
+        DataQualityEvent{DataQualitySeverity::ERROR,
+                        DataQualityCode::INVALID_VALUE, "invalid"}));
+
+    for (const Monitor* monitor : {&registered, &unregistered}) {
+        const MonitorSnapshot snapshot = monitor->snapshot();
+        TEST_ASSERT(snapshot.global.orders == 1);
+        TEST_ASSERT(snapshot.by_symbol.at("NVDA").orders == 1);
+        TEST_ASSERT(snapshot.by_symbol.at("NVDA").data_warnings == 1);
+        TEST_ASSERT(snapshot.by_symbol.at("MSFT").data_errors == 1);
+        TEST_ASSERT(snapshot.global.data_errors == 1);
+    }
+}
+
 int main() {
     try {
         test_global_and_symbol_metrics();
         test_cli_output_and_logger_metric();
+        test_logger_stream_failure_is_visible_in_snapshot_and_cli();
+        test_idless_events_share_registered_symbol_metrics();
+        test_unknown_symbol_and_monitor_without_registry();
         std::cout << "Monitor tests passed\n";
         return 0;
     } catch (const std::exception& error) {

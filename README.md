@@ -164,17 +164,18 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 |---|---|
 | Unit Test 可执行文件 | 21 个固定测试函数，覆盖撮合、撤单、拒绝、事件顺序、Sequence、Replay、索引和池化 |
 | Property Test 可执行文件 | 5 组随机/属性测试 |
-| Differential Test 可执行文件 | 25 个固定种子 × 4,000 条命令，逐命令比较状态、事件和完整盘口 |
+| Differential Test 可执行文件 | 25个固定种子×4,000条命令，enum_boundary_v2含非法枚举；逐命令比较状态/事件/不变量，每25步及最终比较完整盘口 |
 | Snapshot Test 可执行文件 | 5 组恢复测试，包含继续执行、非法快照原子失败、磁盘往返、截断与 checksum 损坏检测 |
+| Market Snapshot Test 可执行文件 | 8组多品种恢复/故障测试，覆盖generation非复用、legacy碰撞、占位及提交前失败 |
 | Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
 | V1 + V2 Release CTest | 20/20 通过（2026-08-07 本机复验） |
-| MSVC Release CTest | V2 当前 20/20 通过 |
-| MSVC ASan RelWithDebInfo CTest | 20/20 通过（2026-08-07，提交 `a99dd15`） |
+| MSVC Release CTest | 27/27 通过（2026-11-19，`c690dfd` 后工作区增量版本） |
+| MSVC ASan RelWithDebInfo CTest | 27/27 通过（2026-11-19，同一工作区版本；分配故障程序的ASan覆盖限制见下文） |
 | Linux Release / UBSan / TSan | 本机无 Linux 工具链，尚未执行；以未来真实 runner 日志为准 |
 
-2026-08-07 的 Release 与 MSVC ASan 构建均为 20/20 CTest 通过；ASan 总测试时间 10.46 秒。历史 Release `0.74 s` 和 ASan `3.80 s` 是 V1 阶段结果，不与当前 V2 测试耗时混用。完整口径见 [当前验证记录](docs/VALIDATION.md)。
+2026-11-19最新增量已接通Journal接受后公开投影→编码→有界整批队列→独立本地簿，并在原V2 Demo演示；新增提交/消费失效屏障，最终27项CTest及额外100万命令差分通过，见[M2闭环](docs/M2_PUBLIC_FEED.md)。这是进程内模拟、使用合成订单，不是交易所真实行情；不承诺自动重传、撮合回滚、断电持久化或全部V2.1完成。此前[M1第十批](docs/M1_BATCH_10.md)及性能/日志限制保留，历史证据见[VALIDATION](docs/VALIDATION.md)。
 
-`.github/workflows/ci.yml` 配置了 Linux Release、ASan+UBSan、外围异步模块 TSan 和缩小负载的 V2 benchmark smoke。共享 CI 的 benchmark 只验证程序可运行，不作为正式延迟数据。工作流需要推送后由 GitHub runner 实际验证；本节的 20/20 仅代表本机 MSVC Release 结果。
+`.github/workflows/ci.yml`配置了Linux Release、ASan+UBSan、异步组件与CommandJournal的TSan及benchmark smoke。共享CI基准仅检查运行。本节27/27指本机MSVC Release/ASan，不代表Linux runner通过。
 
 ## 性能结论：怎样理解“30 ns”
 
@@ -201,7 +202,7 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 - 带校验和、版本头、fsync 策略和 fail-stop 语义的生产级 WAL；
 - 生产级二进制 WAL、高可用复制与完整断电恢复；
 - 生产级故障注入、网络分区和进程崩溃测试；Reference Engine 与确定性 Differential Testing 已实现；
-- 完全无内部临时事件缓冲的撮合实现；当前 V2 批次会在命令后清空，V1 兼容诊断捕获严格限制在构造时预留容量内；
+- 完全无内部临时事件缓冲的撮合实现；V2批次在完整接受后清空，拒收则保留待发并阻断新命令；V1兼容诊断捕获严格限制在构造时预算内；
 - 完全消除 `std::map` 节点分配。
 
 CSV 的 `save_log/load_log` 只用于 `EngineEvent` 的可读诊断往返，不是 Replay 输入，也不是持久化恢复协议。

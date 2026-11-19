@@ -8,6 +8,7 @@
 #include "process_status.hpp"
 #include <algorithm>
 #include <deque>
+#include <limits>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -82,6 +83,16 @@ private:
                    RejectReason::DUPLICATE_ORDER_ID);
             return ProcessStatus::REJECTED;
         }
+        if (command.side != Side::BUY && command.side != Side::SELL) {
+            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::INVALID_SIDE);
+            return ProcessStatus::REJECTED;
+        }
+        if (command.time_in_force != TimeInForce::GTC &&
+            command.time_in_force != TimeInForce::IOC &&
+            command.time_in_force != TimeInForce::POST_ONLY) {
+            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::INVALID_TIME_IN_FORCE);
+            return ProcessStatus::REJECTED;
+        }
         if (command.price.get() <= 0) {
             reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::INVALID_PRICE);
             return ProcessStatus::REJECTED;
@@ -106,17 +117,29 @@ private:
             reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::INVALID_LOT_SIZE);
             return ProcessStatus::REJECTED;
         }
-        if (locations_.size() >= capacity_) {
-            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::POOL_EXHAUSTED);
-            return ProcessStatus::REJECTED;
-        }
-
         const bool would_trade = command.side == Side::BUY
             ? (!asks_.empty() && command.price.get() >= asks_.begin()->first)
             : (!bids_.empty() && command.price.get() <= bids_.begin()->first);
         if (command.time_in_force == TimeInForce::POST_ONLY && would_trade) {
             reject(output, CommandType::NEW_ORDER, command.order_id,
                    RejectReason::POST_ONLY_WOULD_TRADE);
+            return ProcessStatus::REJECTED;
+        }
+
+        if (command.time_in_force != TimeInForce::IOC && !would_trade) {
+            const bool overflow = command.side == Side::BUY
+                ? level_volume_would_overflow(bids_, command.price, command.quantity)
+                : level_volume_would_overflow(asks_, command.price, command.quantity);
+            if (overflow) {
+                reject(output, CommandType::NEW_ORDER, command.order_id,
+                       RejectReason::LEVEL_VOLUME_OVERFLOW);
+                return ProcessStatus::REJECTED;
+            }
+        }
+        // Business rules (including Post-Only) take precedence over capacity,
+        // matching the public rejection contract of the optimized book.
+        if (locations_.size() >= capacity_) {
+            reject(output, CommandType::NEW_ORDER, command.order_id, RejectReason::POOL_EXHAUSTED);
             return ProcessStatus::REJECTED;
         }
 
@@ -140,6 +163,21 @@ private:
                                 aggressive.remaining, aggressive.priority);
         }
         return ProcessStatus::APPLIED;
+    }
+
+    template<typename Book>
+    static bool level_volume_would_overflow(const Book& book, Price price, Quantity quantity) {
+        const auto level = book.find(price.get());
+        uint64_t remaining_capacity = std::numeric_limits<uint64_t>::max();
+        if (level != book.end()) {
+            // Independently derive the budget from orders, not an aggregate
+            // shared with OrderBook; subtraction itself cannot wrap around.
+            for (const auto& order : level->second) {
+                if (order.remaining.get() > remaining_capacity) return true;
+                remaining_capacity -= order.remaining.get();
+            }
+        }
+        return quantity.get() > remaining_capacity;
     }
 
     template<typename OppositeBook, typename Crosses>

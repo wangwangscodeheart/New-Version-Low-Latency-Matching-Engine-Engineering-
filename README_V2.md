@@ -2,6 +2,8 @@
 
 ## 1. 项目背景
 
+2026-11-19增量：原撮合核心保留，新增Journal整组接受后的公开行情投影、公共订单引用、二进制Encoder、有界整批输出和独立本地簿闭环；原V2 Demo已接线。最终MSVC Release/ASan均27/27，额外100万命令差分通过；设计、数据来源及故障边界见[M2记录](docs/M2_PUBLIC_FEED.md)。数据是项目合成报价/模拟订单，不是真实交易所逐笔数据；网络重传、durable prefix及新路径性能仍未验收。
+
 Version 2 不是新项目，也没有重写 Version 1。它保留原有 `OrderBook`、Price Ladder、对象池、固定容量订单索引、价格时间优先撮合、Command Replay 和 Snapshot，在撮合核心外增加真实交易基础设施常见的路由、事件、恢复、审计和可观测性边界。
 
 目标是把“能够正确撮合一组订单”的算法 Demo，升级为“能够管理多个品种、记录输入、复现状态并解释运行过程”的小型交易基础设施。
@@ -64,27 +66,37 @@ ProcessingLatencyEvent
 
 Market Data 可以进入同一 Dispatcher，但不会直接修改 OrderBook。只有订单命令可以改变撮合状态。
 
+原Demo现另启用公开行情闭环：协调器先暂存完整内部事件，CommandJournal接受整组后才交给PublicFeedPublisher，显式drain后Decoder/Gateway更新独立本地簿。原始Dispatcher回调早于Journal提交，不能直接作为“已提交公开行情”；参考[新架构图](docs/ARCHITECTURE.md)。
+
 ## 5. 核心模块
 
 ### MarketManager
 
 `MarketManager` 默认注册 AAPL、TSLA、NVDA，每个 symbol 拥有独立 OrderBook、订单 ID 空间、交易规则、容量和事件序列。同一个 OrderId 可以出现在不同 symbol 中，唯一键的业务语义是 `(symbol, order_id)`。
 
+核心直接入口也验证Side与TimeInForce支持集合，不能绕过外围后把非法枚举当SELL/GTC。拒单保留序号/ID优先级，不改变盘口或FIFO；诊断方向非法时显示UNKNOWN。Journal预准入与核心业务拒绝属于不同层，边界和760条穷举验证见[M1第四批](docs/M1_BATCH_04.md)。
+
 ### Event System
 
 `SystemEvent` 统一携带 `timestamp`、`event_type`、`symbol`、预解析 `InstrumentId` 和 `payload`。payload 复用 V1 的 `Command` 和 `EngineEvent`。Dispatcher 同步且按订阅顺序执行；组件连接完成后可调用 `freeze()` 固化订阅，发布路径直接遍历稳定槽位，不再逐事件复制回调数组。
 
-V2 的 TradingEngine 使用可注入 Event Sink 接收单条命令产生的 EngineEvent。事件按 EventIndex 顺序交给 Dispatcher，命令完成后清空 OrderBook 的临时事件批次，因此 V2 长期运行不在每个订单簿中保存全量事件历史。`NullEventSink`、`VectorEventSink` 和 `FixedEventBuffer` 分别用于无记录基准、Replay/测试以及固定容量批次。固定 Sink 容量不足时 `ProcessResult::event_output_complete` 会显式变为 false，不会把不完整输出伪装为成功交付。V1 的旧诊断接口暂时保留，但捕获长度被硬限制在构造时的 event reserve 内，达到上限后同样报告输出不完整且不会扩容。
+V2 的 TradingEngine 使用可注入 Event Sink 接收单条命令产生的 EngineEvent。事件按 EventIndex 顺序交给 Dispatcher，全部接受后才清空 OrderBook 的临时批次；长期运行不保存全量事件历史。批次在构造时按容量预留并有硬上限。固定 Sink 返回false时，`event_output_complete=false`，整批与未接受游标保留，后续命令返回OUTPUT_BLOCKED；显式`retry_pending_events()`仅向同一逻辑输出流续送后缀，不重新撮合。Sink抛异常的接受状态不明，簿进入FAILED，禁止自动重试和快照；TradingEngine订阅异常也会停止该协调器后续接单。详见[M1事件输出契约与验证](docs/M1_BATCH_02.md)。
+
+`NullEventSink`、`VectorEventSink` 和 `FixedEventBuffer` 分别用于无记录基准、Replay/测试及固定容量接收。V1无Sink诊断捕获保留原event reserve上限；它不是可靠投递API。Journal整命令接受现由独立CommandJournal标准接线处理，仍不等于fsync持久化或端到端Exactly-Once。
 
 ### Journal
 
 Journal 保存 `ORDER_INSERT`、`CANCEL`、派生 `TRADE` 和 `COMMAND_RESULT`。结果区分 APPLIED、业务拒绝、sequence 拒绝和未知 symbol。恢复时只重新提交订单与撤单；Trade 必须由撮合核心重新生成，再与历史 Trade 对比。Journal sequence 解决相同 timestamp 下的稳定顺序问题。
 
-`AsyncJournalWriter` 使用无状态 `JournalProjector` 将事件直接投影到独立有界队列，不再持有随历史增长的内存副本。正常停止时会取消订阅、排空、flush 和 close；队列首次溢出后进入 `QUEUE_OVERFLOW` 终态并停止接受后续记录，写失败进入 `WRITE_FAILURE`，不会继续伪装成可恢复状态。它可作为 `TradingEngine` 的 Submission Gate：非健康状态下，下一条命令明确返回 `SYSTEM_UNAVAILABLE`，且不会发布输入事件或修改 OrderBook。恢复模式只能忽略最后一条不完整尾记录；文件中间损坏始终失败。它仍不宣称具备每条记录 fsync 的断电持久性。
+标准接线是`TradingEngine(markets, dispatcher, journal)`（journal引用，不再attach）。`CommandJournal`在发布输入/修改簿前预留整命令记录预算，输入+Trade+最终结果组成一个批次入异步队列；预算包括stage、排队和worker正在写的vector容量。失败区分未准入和已应用但未完整接受，后者停止接单，不假装回滚。
+
+新文件以`DME_JOURNAL,2,COMMAND_BATCHES`标头识别，读取与Replay先验证完整命令组。宽容EOF恢复丢整条未完成尾命令，不保留孤立输入；中间损坏和完整行身份错误仍拒绝。旧11/12/13列legacy读取及attach观察模式保留，但不提供相同的撮合前预算保证，且不能与标准模式混用。正常stop排空flush；无CRC、fsync或durable水位，不能称断电持久化。详见[M1整命令Journal契约与证据](docs/M1_BATCH_03.md)。
 
 ### Audit Log
 
 Audit Log 回答“某个订单经历了什么”，记录 CREATE、SUBMIT、PARTIALLY_FILLED、FILLED 和 CANCELLED。它不承担系统恢复职责。
+
+冷路径导出现在检查header/记录写入、flush及拥有文件的close；新借用ostream入口flush但不close，使用当前flags/locale（正常默认十进制）。失败抛给调用者，内存记录可重新导出，不回滚已发生撮合。filename仍为文本模式trunc写入，可能留下部分文件，不提供原子替换或断电保证；详见[M1第十批](docs/M1_BATCH_10.md)。
 
 ### Replay
 
@@ -93,6 +105,8 @@ V2 Replay 读取 Journal，复用正常的 TradingEngine → MarketManager → O
 ### Disk Snapshot
 
 单 OrderBook 的 Snapshot 支持版本化二进制落盘。文件只保存显式整数配置和订单字段，不保存指针、对象池地址或 STL 容器布局；尾部 checksum 检测损坏和截断。写入流程为 `snapshot.tmp → flush/fsync → 重新读取校验 → 原子替换 current`。Linux 在 rename 后同步父目录，Windows 使用 `FlushFileBuffers` 与 write-through replace。多品种层使用代际文件：先完整写入并验证每个 symbol 的同代 Book 文件，最后以同样的刷新与替换流程提交带 checksum 的 manifest。恢复先在独立 MarketManager 中恢复全部品种，随后只回放 `journal_sequence > snapshot_sequence` 的记录。它仍不承诺跨设备 rename、磁盘控制器行为、复制或生产级高可用语义。
+
+多品种保存现先检查整代Book/临时路径，再创建不自动清理的`.reserved`占位；一旦占位成功，同manifest下的同generation即使后续失败或状态相同也不能复用。占位前校验失败不消耗generation，旧v1布局照常加载。重试需真实有效的新截点或另一个manifest命名空间；没有自动GC，也不把保存异常一律解释为未发布，详见[M1第八批](docs/M1_BATCH_08.md)。
 
 ### Market Data 与数据质量
 
@@ -109,18 +123,20 @@ Dispatcher 返回可移动、不可复制的 RAII Subscription。Journal、Audit
 ### Async Logger
 
 ```text
-Trading Thread → non-blocking try_push → Bounded Queue
+Trading Thread → try_push（不等待空位）→ Bounded Queue
                                             ↓
                                       Logger Thread
                                             ↓
                                       format/write/flush
 ```
 
-队列满时撮合线程不等待，而是增加 dropped counter。`stop()` 会拒绝新日志、排空队列、join、flush 并关闭文件。
+队列满时不等待空位，而是增加dropped counter；mutex仍可能等待，不能称无锁或严格非阻塞。新增健康状态及accepted/written/failed/dropped计数；写失败不再虚增written，flush/close错误也可见。healthy只表示未观察到流/worker错误，不能替代dropped检查，更不是fsync证明。诊断Logger仍best-effort，不替代Journal完整组契约或生命周期AuditLog。
+
+生产者/Dispatcher静止后，由一个控制线程stop：拒绝新入队，worker处理/标记失败尾部并flush及关闭拥有的文件，控制线程join。只支持顺序重复stop，不承诺并发stop都等待完成。可借用ostream但不负责close，流须活到join结束且无并发访问；header写入和首次flush属于冷初始化。详见[M1第九批及故障证据](docs/M1_BATCH_09.md)。
 
 ### Monitor
 
-Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。已注册品种通过 `InstrumentId` 更新预分配指标槽位，避免逐事件字符串哈希；未知品种和独立数据质量事件走兼容回退表。`TradingEngine` 使用 `steady_clock` 测量 MarketManager 路由加 OrderBook 处理时间，输出平均值和最大值。Async Logger 丢弃数也进入监控快照。当前仍以互斥锁保护 CLI 并发快照，这一点应计入端到端性能口径。
+Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。已注册品种通过 `InstrumentId` 更新预分配指标槽位，避免逐事件字符串哈希；未知品种和独立数据质量事件走兼容回退表。`TradingEngine` 使用 `steady_clock` 测量 MarketManager 路由加 OrderBook 处理时间，输出平均值和最大值。Async Logger 的accepted/written/failed/dropped及健康状态也进入snapshot/CLI；运行中这些原子计数不是事务快照。当前仍以互斥锁保护 CLI 并发快照，这一点应计入端到端性能口径。
 
 ## 6. Journal 与 Audit 为什么必须分离
 
@@ -219,13 +235,15 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 
 `PreTradeRisk` 位于 `TradingEngine` 之前，使用 `InstrumentId` 索引的增量状态。冷启动绑定时可重建一次已有挂单；热路径不再调用 `symbols()` 或 `capture_state()`，而由 Rested/Trade/Cancel 事件 O(1) 更新活动订单、买卖挂单量和 pending notional。仓位上限使用 `position + open_buy + new_buy` 或 `position - open_sell - new_sell` 的保守最坏成交投影；Kill Switch 拒绝新订单但允许降低风险的撤单。主动成交后的真实持仓仍由外围账户组件注入，因此这是盘前风险骨架，不是完整实时持仓/PnL/保证金系统。
 
+价格偏离与仓位现用精确整数比较，覆盖MIN/MAX及全宽数量；跨档累计量无法表示或导入/回调失败后，风险状态失效，新单返回STATE_UNAVAILABLE。风险层仍放行撤单，但FAILED的Engine不会因此恢复；完整重绑也不清除Engine失败。金额/敞口仍是浮点估算，详见[M1第六批及证据](docs/M1_BATCH_06.md)。
+
 ## 15. IOC 与 Post Only
 
 `NewOrderCommand` 新增 `TimeInForce`，旧调用默认保持 GTC。IOC 按正常价格时间优先级立即撮合，未成交余量生成取消事件且不进入价格档位；Post Only 在修改状态前检查是否会立即成交，会穿价时以 `POST_ONLY_WOULD_TRADE` 拒绝，否则作为普通被动限价单挂入。Journal 新增 `time_in_force` 列并继续兼容旧 11/12 列文件。端到端测试覆盖 Journal 落盘、重新加载、TIF 字段保真和 Replay 后订单簿一致性，确保 IOC/Post Only 不会在恢复时退化为 GTC。
 
 ## 16. CI 与 Sanitizer
 
-CI 包含 Linux Release 全量测试、ASan+UBSan 全量测试、异步 Logger/Journal/Monitor 的 TSan 测试，以及通过 `BENCHMARK_SMOKE=ON` 缩小负载的 V2 benchmark 冒烟运行。CI 延迟不写入正式性能结论；正式 benchmark 仍要求固定机器、编译参数和环境元数据。本机 MSVC Release 当前为 20/20 CTest 通过，Linux CI 状态以代码推送后的 runner 结果为准。
+CI包含Linux Release、ASan+UBSan、异步组件与CommandJournal的TSan配置及缩小负载benchmark smoke。CI延迟不作为正式性能结论。2026-11-19公开行情闭环后，本机MSVC Release与ASan均27/27通过，见[M2记录](docs/M2_PUBLIC_FEED.md)；此前24/24保留为[M1第十批](docs/M1_BATCH_10.md)历史结果。独立分配故障程序替换new/delete存在ASan覆盖限制，见[M1第五批](docs/M1_BATCH_05.md)。Linux/UBSan/TSan仍以未来真实runner证据为准，配置不等于通过。
 
 普通 CTest 的差分测试使用 25 × 4000 条命令以保持反馈速度。`workflow_dispatch` 提供手动压力任务，运行 100 × 100000 条确定性命令；测试程序也接受 `--seeds`、`--commands` 和 `--seed-base`。失败会报告 seed 和首个不一致 sequence，可将 commands 限制为该 sequence 重放最短失败前缀。
 

@@ -1,0 +1,16 @@
+failed stream: accepted=1 written=0
+Short/thrown write failures: successful prefix=1, failed tail=2
+Bounded queue saturation: dropped=1, admitted FIFO retained, producer no sink I/O
+Flush return/exception failures: written=accepted=1 but health failed
+Header write/flush failures and zero queue rejected before worker start
+Diagnostic logger failure isolated from canonical Journal and Audit lifecycle
+Async logger tests passed
+new_level side=BUY record=1 indexed=0 free_levels=4
+new_level side=BUY record=0 indexed=0 free_levels=4
+new_level side=SELL record=1 indexed=0 free_levels=4
+new_level side=SELL record=0 indexed=0 free_levels=4
+partial_match side=BUY indexed=0 retained_trades=2 delivered=0
+partial_match side=SELL indexed=0 retained_trades=2 delivered=0
+Allocation failure tests passed
+Monitor tests passed
+Differential tests passed: 100 seeds x 10000 commands, seed_base=3523149824, generator=enum_boundary_v2

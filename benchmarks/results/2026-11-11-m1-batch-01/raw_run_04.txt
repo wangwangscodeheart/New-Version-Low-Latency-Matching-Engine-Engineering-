@@ -1,0 +1,152 @@
+﻿
+============================================================
+        V2 PERFORMANCE BENCHMARK
+        V2 多品种撮合引擎性能基准测试
+============================================================
+
+[Environment / 测试环境]
+  Git Commit        : c690dfd8b008
+  OS                : Windows-10.0.26300
+  Compiler          : MSVC-19.44.35228.0
+  Compiler Flags    : /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG
+  Build Type        : Release
+  Warmup Operations : 60000
+  Measured Ops      : 60000
+  Process Runs      : 5
+  Sampling Clock    : steady_clock
+
+METADATA_JSON,{"git_commit":"c690dfd8b008","cpu":"Intel64 Family 6 Model 183 Stepping 1, GenuineIntel","logical_processors":"24","os":"Windows-10.0.26300","compiler":"MSVC-19.44.35228.0","compiler_flags":"/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG","build_type":"Release","events_enabled":true,"warmup_operations":60000,"measured_operations":60000,"process_runs":5,"sampling_clock":"steady_clock"}
+============================================================
+ PERFORMANCE RESULTS / 性能测试结果
+============================================================
+
+[1/7] Core Matching / 核心撮合路径
+------------------------------------------------------------
+  Scenario / 场景
+    core_pre_resolved_instrument
+  Description / 说明
+    EN   : Pre-resolved instrument, core matching path
+    中文 : 已预解析交易品种，仅测试核心撮合路径
+
+  Batch Median per Op / 批次中位单操作耗时 : 70.78 ns
+  Throughput / 吞吐量                      : 14.13 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 100.00 ns
+    P99   : 100.00 ns
+    P99.9 : 200.00 ns
+    Max   : 3.50 us
+
+[2/7] Routing / 多品种路由
+------------------------------------------------------------
+  Scenario / 场景
+    core_plus_routing
+  Description / 说明
+    EN   : Core matching with symbol routing
+    中文 : 核心撮合 + 多品种路由
+
+  Batch Median per Op / 批次中位单操作耗时 : 49.27 ns
+  Throughput / 吞吐量                      : 20.30 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 100.00 ns
+    P99   : 200.00 ns
+    P99.9 : 200.00 ns
+    Max   : 3.90 us
+
+[3/7] Event Dispatcher / 事件分发
+------------------------------------------------------------
+  Scenario / 场景
+    dispatcher
+  Description / 说明
+    EN   : Trading engine with synchronous event dispatch
+    中文 : 交易引擎 + 同步事件分发
+
+  Batch Median per Op / 批次中位单操作耗时 : 123.55 ns
+  Throughput / 吞吐量                      : 8.09 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 100.00 ns
+    P99   : 300.00 ns
+    P99.9 : 400.00 ns
+    Max   : 6.50 us
+
+[4/7] Monitor / 监控
+------------------------------------------------------------
+  Scenario / 场景
+    dispatcher_monitor
+  Description / 说明
+    EN   : Dispatcher with monitoring enabled
+    中文 : 事件分发 + 监控
+
+  Batch Median per Op / 批次中位单操作耗时 : 168.53 ns
+  Throughput / 吞吐量                      : 5.93 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 200.00 ns
+    P99   : 300.00 ns
+    P99.9 : 400.00 ns
+    Max   : 7.70 us
+
+[5/7] Async Logger / 异步日志
+------------------------------------------------------------
+  Scenario / 场景
+    dispatcher_async_logger
+  Description / 说明
+    EN   : Dispatcher with asynchronous logging
+    中文 : 事件分发 + 异步日志
+
+  Batch Median per Op / 批次中位单操作耗时 : 564.87 ns
+  Throughput / 吞吐量                      : 1.77 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 300.00 ns
+    P99   : 3.10 us
+    P99.9 : 53.90 us
+    Max   : 512.90 us
+
+[6/7] Async Journal / 异步 Journal
+------------------------------------------------------------
+  Scenario / 场景
+    dispatcher_async_journal
+  Description / 说明
+    EN   : Dispatcher with asynchronous journal
+    中文 : 事件分发 + 异步 Journal
+
+  Batch Median per Op / 批次中位单操作耗时 : 385.31 ns
+  Throughput / 吞吐量                      : 2.60 M ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 1.40 us
+    P99   : 4.60 us
+    P99.9 : 62.70 us
+    Max   : 1.48 ms
+
+[7/7] Full V2 / 完整 V2 路径
+------------------------------------------------------------
+  Scenario / 场景
+    full_v2
+  Description / 说明
+    EN   : Monitor + async logger + async journal
+    中文 : 监控 + 异步日志 + 异步 Journal
+
+  Batch Median per Op / 批次中位单操作耗时 : 4.14 us
+  Throughput / 吞吐量                      : 241.28 K ops/s
+
+  Sampled Latency / 单操作采样延迟
+    P50   : 2.70 us
+    P99   : 7.50 us
+    P99.9 : 253.60 us
+    Max   : 1.81 ms
+
+============================================================
+ MACHINE-READABLE OUTPUT / 机器可读原始数据
+============================================================
+RESULT_CSV,scenario,operations,batch_avg_ns,throughput_per_sec,sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum
+RESULT_CSV,core_pre_resolved_instrument,60000,70.78,14129283,100,100,200,3500,16435168435000393696
+RESULT_CSV,core_plus_routing,60000,49.27,20297700,100,200,200,3900,16435168435000393696
+RESULT_CSV,dispatcher,60000,123.55,8094107,100,300,400,6500,16435168435000393696
+RESULT_CSV,dispatcher_monitor,60000,168.53,5933779,200,300,400,7700,16435168435000393696
+RESULT_CSV,dispatcher_async_logger,60000,564.87,1770335,300,3100,53900,512900,16435168435000393696
+RESULT_CSV,dispatcher_async_journal,60000,385.31,2595347,1400,4600,62700,1482800,16435168435000393696
+RESULT_CSV,full_v2,60000,4144.61,241277,2700,7500,253600,1811700,16435168435000393696

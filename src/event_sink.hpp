@@ -7,9 +7,15 @@
 #include <optional>
 #include <vector>
 
-// Sink contract: push returns false when the receiver cannot accept an event.
-// OrderBook reports that condition explicitly through ProcessResult instead of
-// silently dropping output.
+// Sink contract: true means this event was accepted exactly once by this sink;
+// false means it was NOT accepted and may be offered again on an explicit retry.
+// A sink must not return false after performing acceptance side effects.
+// An exception makes acceptance unknown: OrderBook fails closed and does not
+// automatically retry. This is an in-process delivery contract, not durable or
+// exactly-once end-to-end delivery. Callbacks must not move the active book.
+// Retry continues the SAME logical output stream from its unaccepted suffix;
+// switching to a new independent consumer would omit its already accepted
+// prefix. Reusing/draining a buffer for the same consumer is permitted.
 class NullEventSink {
 public:
     bool push(const EngineEvent&) noexcept { return true; }

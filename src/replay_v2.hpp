@@ -49,6 +49,11 @@ public:
                                       TradingEngine& engine,
                                       EventDispatcher& dispatcher,
                                       const MarketManager* expected_manager = nullptr) {
+        if (std::any_of(records.begin(), records.end(), [](const JournalRecord& record) {
+                return record.format_version != 1;
+            })) {
+            Journal::validate_committed_records(records);
+        }
         auto actual_trades = std::make_shared<std::vector<JournalRecord>>();
         auto actual_outcomes = std::make_shared<std::vector<JournalRecord>>();
         auto trade_subscription = dispatcher.subscribe(SystemEventType::TRADE,

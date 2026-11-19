@@ -20,7 +20,7 @@ Command generate_command(std::mt19937& random, uint64_t sequence) {
     std::uniform_int_distribution<uint64_t> id(0, 340);
     if (action(random) < 68) {
         const uint64_t order_id = id(random);
-        const Side side = action(random) < 50 ? Side::BUY : Side::SELL;
+        Side side = action(random) < 50 ? Side::BUY : Side::SELL;
         int64_t price = 100 + static_cast<int64_t>(action(random) % 100) * 100;
         const int price_case = action(random);
         if (price_case < 3) price = 0;
@@ -32,8 +32,12 @@ Command generate_command(std::mt19937& random, uint64_t sequence) {
         else if (quantity_case < 6) quantity = 105;
         else if (quantity_case < 12) ++quantity;
         const int tif_case = action(random);
-        const TimeInForce tif = tif_case < 80 ? TimeInForce::GTC
+        TimeInForce tif = tif_case < 80 ? TimeInForce::GTC
             : tif_case < 90 ? TimeInForce::IOC : TimeInForce::POST_ONLY;
+        // Generator v2: reuse an existing draw (no extra PRNG consumption) to
+        // exercise invalid enum bytes in the ordinary CTest differential run.
+        if (tif_case < 3) side = static_cast<Side>(tif_case == 2 ? 255 : tif_case + 2);
+        else if (tif_case < 6) tif = static_cast<TimeInForce>(tif_case == 5 ? 255 : tif_case);
         return NewOrderCommand(CommandSequence(sequence), OrderId(order_id), side,
                                Price(price), Quantity(quantity), tif);
     }
@@ -91,7 +95,8 @@ int main(int argc, char** argv) {
             run_seed(seed_base + offset, commands);
         }
         std::cout << "Differential tests passed: " << seeds << " seeds x "
-                  << commands << " commands, seed_base=" << seed_base << '\n';
+                  << commands << " commands, seed_base=" << seed_base
+                  << ", generator=enum_boundary_v2\n";
         return 0;
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

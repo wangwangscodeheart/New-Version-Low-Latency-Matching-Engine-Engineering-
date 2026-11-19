@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 
 struct MarketDataOrder { Price price; Quantity remaining; Side side; };
@@ -37,9 +38,27 @@ class MarketDataBook {
 public:
     bool apply(const FeedAddOrder& add) {
         if (add.order_id == 0 || add.price.get() <= 0 || add.quantity.get() == 0 ||
+            (add.side != Side::BUY && add.side != Side::SELL) ||
             orders_.find(add.order_id) != orders_.end()) return false;
-        orders_.emplace(add.order_id, MarketDataOrder{add.price, add.quantity, add.side});
-        levels(add.side)[add.price.get()] += add.quantity.get();
+        auto& side_levels = levels(add.side);
+        auto level = side_levels.find(add.price.get());
+        if (level != side_levels.end() &&
+            add.quantity.get() > std::numeric_limits<uint64_t>::max() - level->second) {
+            return false;
+        }
+
+        // Stage the level before inserting the order. If either allocation
+        // fails, neither an orphan order nor an empty price level may remain.
+        const bool new_level = level == side_levels.end();
+        if (new_level) level = side_levels.emplace(add.price.get(), 0).first;
+        try {
+            orders_.emplace(add.order_id,
+                            MarketDataOrder{add.price, add.quantity, add.side});
+        } catch (...) {
+            if (new_level) side_levels.erase(level);
+            throw;
+        }
+        level->second += add.quantity.get();
         return true;
     }
     bool apply(const FeedCancelOrder& cancel) {

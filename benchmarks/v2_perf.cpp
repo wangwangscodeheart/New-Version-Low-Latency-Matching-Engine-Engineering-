@@ -325,7 +325,7 @@ struct EngineFixture {
     std::unique_ptr<AsyncJournalWriter> journal;
     std::string logger_path;
     std::string journal_path;
-    TradingEngine engine{markets, dispatcher};
+    std::unique_ptr<TradingEngine> engine;
 
     EngineFixture(bool with_monitor, bool with_logger, bool with_journal,
                   const std::string& suffix) {
@@ -339,17 +339,24 @@ struct EngineFixture {
             journal_path = "benchmark_" + suffix + ".journal.csv";
             journal = std::make_unique<AsyncJournalWriter>(
                 journal_path, 262144);
-            journal->attach(dispatcher);
         }
+        engine = journal ? std::make_unique<TradingEngine>(markets, dispatcher, *journal)
+                         : std::make_unique<TradingEngine>(markets, dispatcher);
         dispatcher.freeze();
     }
     MarketProcessResult submit(Timestamp timestamp, const Symbol& symbol, size_t,
                                const Command& command) {
-        return engine.submit(timestamp, symbol, command);
+        return engine->submit(timestamp, symbol, command);
     }
     void stop() {
         if (logger) logger->stop();
         if (journal) journal->stop();
+        if (logger && (!logger->healthy() || logger->dropped_count() != 0 || logger->failed_count() != 0)) {
+            throw std::runtime_error("Benchmark event logger did not drain cleanly");
+        }
+        if (journal && !journal->healthy()) {
+            throw std::runtime_error("Benchmark journal did not accept/drain complete commands");
+        }
         std::error_code ignored;
         if (!logger_path.empty()) std::filesystem::remove(logger_path, ignored);
         if (!journal_path.empty()) std::filesystem::remove(journal_path, ignored);

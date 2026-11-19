@@ -97,19 +97,63 @@ public:
         if (manifest.filename().string().find_first_of(",\r\n") != std::string::npos) {
             throw std::runtime_error("Unsafe snapshot manifest filename");
         }
+        if (manifest.filename().empty() || manifest.filename() == "." || manifest.filename() == "..") {
+            throw std::runtime_error("Snapshot manifest needs a filename");
+        }
+        // No generation file may be written before every book passes the
+        // output barrier. Snapshot format intentionally excludes pending output.
+        const auto symbols = markets.symbols();
+        if (symbols.empty() || symbols.size() > 100'000) {
+            throw std::runtime_error("Invalid snapshot market count");
+        }
+        for (const Symbol& symbol : symbols) {
+            const OrderBook* book = markets.find_book(symbol);
+            if (!book || !book->ready_for_commands()) {
+                throw std::logic_error("Cannot snapshot a book with unfinished output");
+            }
+            if (symbol.value().find_first_of(",\r\n") != std::string::npos) {
+                throw std::runtime_error("Symbol cannot be encoded in manifest");
+            }
+            if (book->capacity() == 0) {
+                throw std::runtime_error("Invalid snapshot book capacity");
+            }
+        }
+        const std::string generation = manifest.filename().string() + ".g" +
+                                       std::to_string(snapshot_sequence);
+        std::vector<std::filesystem::path> book_paths;
+        book_paths.reserve(symbols.size());
+        // Check ALL destinations before the first write, including legacy
+        // generations that have no reservation marker. symlink_status also
+        // treats dangling symlinks as occupied rather than overwriting them.
+        for (size_t index = 0; index < symbols.size(); ++index) {
+            const auto path = directory / (generation + "." + std::to_string(index) + ".book");
+            auto temporary = path;
+            temporary += ".tmp";
+            if (std::filesystem::exists(std::filesystem::symlink_status(path)) ||
+                std::filesystem::exists(std::filesystem::symlink_status(temporary))) {
+                throw std::runtime_error("Snapshot generation path already exists");
+            }
+            book_paths.push_back(path);
+        }
+        // A persistent tombstone consumes this generation even if a later
+        // write fails. Retry with a new sequence; never recycle it implicitly.
+        // Control-plane callers must serialize saves to the same manifest.
+        if (!std::filesystem::create_directory(directory / (generation + ".reserved"))) {
+            throw std::runtime_error("Snapshot generation already reserved");
+        }
         std::ostringstream body;
         body << "DME_MARKET_SNAPSHOT,1," << snapshot_sequence << ','
              << markets.symbol_count() << '\n';
         size_t index = 0;
-        for (const Symbol& symbol : markets.symbols()) {
+        for (const Symbol& symbol : symbols) {
             const OrderBook* book = markets.find_book(symbol);
             if (!book) throw std::runtime_error("Symbol disappeared during snapshot");
             if (symbol.value().find_first_of(",\r\n") != std::string::npos) {
                 throw std::runtime_error("Symbol cannot be encoded in manifest");
             }
-            const std::string filename = manifest.filename().string() + ".g" +
-                std::to_string(snapshot_sequence) + "." + std::to_string(index++) + ".book";
-            SnapshotFile::save_atomic(directory / filename, snapshot_sequence,
+            const auto& path = book_paths[index++];
+            const std::string filename = path.filename().string();
+            SnapshotFile::save_atomic(path, snapshot_sequence,
                                       book->create_snapshot());
             body << symbol.value() << ',' << filename << ',' << book->capacity() << '\n';
         }

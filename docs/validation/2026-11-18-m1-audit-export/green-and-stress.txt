@@ -1,0 +1,7 @@
+audit export: stream_failed=1 error_reported=1
+Audit CSV golden passed: 9 lifecycle records, owned/borrowed, empty header
+Audit write failures passed: 12 cases; failed sink retained; healthy re-export/continued lifecycle
+Audit flush failures passed: 4 cases; complete bytes do not imply successful export
+Audit filename failures passed: directory/missing parent, subsequent export succeeds
+Journal, audit and replay tests passed
+Differential tests passed: 100 seeds x 10000 commands, seed_base=3523149824, generator=enum_boundary_v2

@@ -1,0 +1,7 @@
+new_level side=BUY record=1 indexed=0 free_levels=4
+new_level side=BUY record=0 indexed=0 free_levels=4
+new_level side=SELL record=1 indexed=0 free_levels=4
+new_level side=SELL record=0 indexed=0 free_levels=4
+partial_match side=BUY indexed=0 retained_trades=2 delivered=0
+partial_match side=SELL indexed=0 retained_trades=2 delivered=0
+Allocation failure tests passed

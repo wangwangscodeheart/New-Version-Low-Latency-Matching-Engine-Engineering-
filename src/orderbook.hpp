@@ -24,6 +24,8 @@
 #include <limits>
 #include <type_traits>
 #include <utility>
+#include <exception>
+#include <stdexcept>
 
 // ============================================================================
 // ORDER BOOK - deterministic price-time matching core
@@ -55,8 +57,12 @@ private:
     // Event Log: Stores objects by value (contiguous memory)
     std::vector<EngineEvent> event_log_;
     size_t event_capture_limit_ = 0;
+    size_t command_event_limit_ = 0;
+    size_t next_delivery_cursor_ = 0;
     bool command_event_capture_complete_ = true;
     bool command_batch_mode_ = false;
+    bool processing_ = false;
+    EventOutputState event_output_state_ = EventOutputState::READY;
     
     CommandSequence last_applied_command_sequence_{0};
     CommandSequence current_command_sequence_{0};
@@ -70,13 +76,39 @@ private:
     size_t peak_active_orders_ = 0;
     size_t peak_active_levels_ = 0;
 
+    static size_t checked_capacity(size_t capacity) {
+        if (capacity > std::numeric_limits<uint32_t>::max()) {
+            throw std::length_error("OrderBook capacity exceeds the EventIndex range");
+        }
+        return capacity;
+    }
+
+    // Moving during a command/callback would invalidate the owner's live stack.
+    // Check before the first member is moved; idle READY/PENDING/FAILED books
+    // can transfer their state, including an unfinished output batch.
+    static OrderBook& checked_move_source(OrderBook& other) noexcept {
+        if (other.processing_) std::terminate();
+        return other;
+    }
+
+    class ProcessingScope {
+        bool& processing_;
+    public:
+        explicit ProcessingScope(bool& processing) noexcept : processing_(processing) {
+            processing_ = true;
+        }
+        ~ProcessingScope() { processing_ = false; }
+        ProcessingScope(const ProcessingScope&) = delete;
+        ProcessingScope& operator=(const ProcessingScope&) = delete;
+    };
+
 public:
     // Pre-allocate memory to avoid runtime allocation
     explicit OrderBook(size_t capacity = 1000000, bool record_events = true,
                          PriceLadderConfig price_config = {},
                          size_t event_reserve_multiplier = 2,
                          InstrumentConfig instrument_config = {})
-          : order_pool_(capacity), level_pool_(capacity), bids_(level_pool_), asks_(level_pool_),
+          : order_pool_(checked_capacity(capacity)), level_pool_(capacity), bids_(level_pool_), asks_(level_pool_),
             order_index_(capacity), price_ladder_(price_config),
             record_events_(record_events),
             instrument_config_(instrument_config) {
@@ -91,7 +123,11 @@ public:
                   (event_reserve_multiplier != 0 &&
                    capacity <= max_size / event_reserve_multiplier)
                       ? capacity * event_reserve_multiplier : capacity;
-              event_log_.reserve(reserve_events);
+              // The aggressive order reserves a pool slot before matching, so
+              // at most capacity-1 passive fills plus one rest/IOC cancel can
+              // be emitted. A zero-capacity book still needs one rejection.
+              command_event_limit_ = std::max(capacity, size_t{1});
+              event_log_.reserve(std::max(reserve_events, command_event_limit_));
               event_capture_limit_ = reserve_events;
           }
     }
@@ -100,7 +136,7 @@ public:
     OrderBook& operator=(const OrderBook&) = delete;
 
     OrderBook(OrderBook&& other) noexcept
-        : order_pool_(std::move(other.order_pool_)),
+        : order_pool_(std::move(checked_move_source(other).order_pool_)),
           level_pool_(std::move(other.level_pool_)),
           bids_(std::move(other.bids_)),
           asks_(std::move(other.asks_)),
@@ -108,8 +144,11 @@ public:
           price_ladder_(std::move(other.price_ladder_)),
           event_log_(std::move(other.event_log_)),
           event_capture_limit_(other.event_capture_limit_),
+          command_event_limit_(other.command_event_limit_),
+          next_delivery_cursor_(other.next_delivery_cursor_),
           command_event_capture_complete_(other.command_event_capture_complete_),
           command_batch_mode_(other.command_batch_mode_),
+          event_output_state_(other.event_output_state_),
           last_applied_command_sequence_(other.last_applied_command_sequence_),
           current_command_sequence_(other.current_command_sequence_),
           next_event_index_(other.next_event_index_),
@@ -125,11 +164,102 @@ public:
         asks_.rebind_pool(level_pool_);
         other.cached_bid_level_ = nullptr;
         other.cached_ask_level_ = nullptr;
+        other.event_log_.clear();
+        other.next_delivery_cursor_ = 0;
+        other.command_batch_mode_ = false;
+        other.event_output_state_ = EventOutputState::FAILED;
     }
 
     OrderBook& operator=(OrderBook&&) = delete;
 
+    EventOutputState event_output_state() const noexcept { return event_output_state_; }
+    bool ready_for_commands() const noexcept {
+        return !processing_ && event_output_state_ == EventOutputState::READY;
+    }
+    // In FAILED this suffix includes the event whose acceptance is unknown.
+    size_t pending_event_count() const noexcept {
+        return event_output_state_ == EventOutputState::READY
+            ? 0 : event_log_.size() - next_delivery_cursor_;
+    }
+
     ProcessResult process(const Command& command) {
+        if (!ready_for_commands()) return output_blocked();
+        ProcessingScope processing(processing_);
+        next_delivery_cursor_ = event_log_.size();
+        try {
+            return process_impl(command);
+        } catch (...) {
+            // Keep diagnostics, but do not imply rollback of any core changes.
+            event_output_state_ = EventOutputState::FAILED;
+            throw;
+        }
+    }
+
+    // V2/system path: retain the complete command batch until every event has
+    // been accepted. false leaves a resumable suffix and prevents new commands.
+    // Exceptions fail closed because core state/acceptance may be ambiguous.
+    template<typename EventSink>
+    ProcessResult process(const Command& command, EventSink& sink) {
+        if (!ready_for_commands()) return output_blocked();
+        ProcessingScope processing(processing_);
+        event_log_.clear();
+        next_delivery_cursor_ = 0;
+        command_batch_mode_ = true;
+        try {
+            ProcessResult result = process_impl(command);
+            command_batch_mode_ = false;
+            result.event_output_complete = result.event_output_complete &&
+                deliver_pending_events(sink);
+            result.event_begin = 0;
+            return result;
+        } catch (...) {
+            command_batch_mode_ = false;
+            event_output_state_ = EventOutputState::FAILED;
+            throw;
+        }
+    }
+
+    template<typename EventSink>
+    bool retry_pending_events(EventSink& sink) {
+        if (processing_ || event_output_state_ == EventOutputState::FAILED) return false;
+        if (event_output_state_ == EventOutputState::READY) return true;
+        ProcessingScope processing(processing_);
+        try {
+            return deliver_pending_events(sink);
+        } catch (...) {
+            event_output_state_ = EventOutputState::FAILED;
+            throw;
+        }
+    }
+
+    // Compatibility wrappers. All matching logic is routed through process().
+    void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
+        (void)process(NewOrderCommand(next_compatibility_sequence(), id, side, price, qty));
+    }
+
+    void process_cancel(OrderId id) {
+        (void)process(CancelOrderCommand(next_compatibility_sequence(), id));
+    }
+
+private:
+    static ProcessResult output_blocked() noexcept {
+        return ProcessResult{ProcessStatus::OUTPUT_BLOCKED, 0, 0, false};
+    }
+
+    template<typename EventSink>
+    bool deliver_pending_events(EventSink& sink) {
+        event_output_state_ = EventOutputState::PENDING;
+        while (next_delivery_cursor_ < event_log_.size()) {
+            if (!sink.push(event_log_[next_delivery_cursor_])) return false;
+            ++next_delivery_cursor_;
+        }
+        event_log_.clear();
+        next_delivery_cursor_ = 0;
+        event_output_state_ = EventOutputState::READY;
+        return true;
+    }
+
+    ProcessResult process_impl(const Command& command) {
         const size_t event_begin = event_log_.size();
         command_event_capture_complete_ = true;
         const CommandSequence sequence = get_command_sequence(command);
@@ -159,48 +289,6 @@ public:
                              command_event_capture_complete_};
     }
 
-    // V2/system path: retain events only for the duration of one command,
-    // deliver them in EventIndex order, then release the batch. This prevents
-    // a long-running routed engine from accumulating full event history inside
-    // every OrderBook. The legacy overload above remains temporarily for V1
-    // diagnostics and replay migration.
-    template<typename EventSink>
-    ProcessResult process(const Command& command, EventSink& sink) {
-        event_log_.clear();
-        command_batch_mode_ = true;
-        ProcessResult result{ProcessStatus::REJECTED, 0, 0};
-        try {
-            result = process(command);
-        } catch (...) {
-            command_batch_mode_ = false;
-            event_log_.clear();
-            throw;
-        }
-        command_batch_mode_ = false;
-        bool complete = true;
-        for (size_t i = result.event_begin;
-             i < result.event_begin + result.event_count; ++i) {
-            if (!sink.push(event_log_[i])) {
-                complete = false;
-                break;
-            }
-        }
-        result.event_output_complete = result.event_output_complete && complete;
-        result.event_begin = 0;
-        event_log_.clear();
-        return result;
-    }
-
-    // Compatibility wrappers. All matching logic is routed through process().
-    void process_new_order(OrderId id, Side side, Price price, Quantity qty) {
-        (void)process(NewOrderCommand(next_compatibility_sequence(), id, side, price, qty));
-    }
-
-    void process_cancel(OrderId id) {
-        (void)process(CancelOrderCommand(next_compatibility_sequence(), id));
-    }
-
-private:
     void update_capacity_peaks() noexcept {
         peak_active_orders_ = std::max(peak_active_orders_, order_index_.size());
         peak_active_levels_ = std::max(peak_active_levels_, bids_.size() + asks_.size());
@@ -209,12 +297,14 @@ private:
     template<typename Event, typename... Args>
     void emit_event(Args&&... args) {
         if (!record_events_) return;
-        // V1 compatibility capture is deliberately bounded. The command-batch
-        // path may grow for a single multi-level sweep, but is drained before
-        // the next command and therefore cannot accumulate history.
+        // Both paths are bounded. V1 keeps its original diagnostic-history
+        // budget; V2 must never allocate or discard output during a command.
         if (!command_batch_mode_ && event_log_.size() >= event_capture_limit_) {
             command_event_capture_complete_ = false;
             return;
+        }
+        if (command_batch_mode_ && event_log_.size() >= command_event_limit_) {
+            throw std::length_error("Command event batch exceeded its reserved bound");
         }
         event_log_.emplace_back(std::in_place_type<Event>,
                                 std::forward<Args>(args)...);
@@ -244,6 +334,15 @@ private:
             order_index_.prepare_insert(id.get());
         if (index_reservation.status == FixedOrderIndex::InsertStatus::DUPLICATE) {
             emit_rejection(CommandType::NEW_ORDER, id, RejectReason::DUPLICATE_ORDER_ID);
+            return ProcessStatus::REJECTED;
+        }
+        if (side != Side::BUY && side != Side::SELL) {
+            emit_rejection(CommandType::NEW_ORDER, id, RejectReason::INVALID_SIDE);
+            return ProcessStatus::REJECTED;
+        }
+        if (time_in_force != TimeInForce::GTC && time_in_force != TimeInForce::IOC &&
+                time_in_force != TimeInForce::POST_ONLY) {
+            emit_rejection(CommandType::NEW_ORDER, id, RejectReason::INVALID_TIME_IN_FORCE);
             return ProcessStatus::REJECTED;
         }
         if (price.get() <= 0) {
@@ -277,6 +376,28 @@ private:
             emit_rejection(CommandType::NEW_ORDER, id,
                            RejectReason::POST_ONLY_WOULD_TRADE);
             return ProcessStatus::REJECTED;
+        }
+
+        // In an uncrossed book, an existing same-side limit level means this
+        // order cannot trade. A crossing order can only rest at a new level;
+        // IOC never rests. Check the aggregate before allocating or matching,
+        // so overflow rejects the whole command without changing the book.
+        if (time_in_force != TimeInForce::IOC && !would_trade) {
+            const LimitLevel* level = side == Side::BUY
+                ? cached_bid_level_ : cached_ask_level_;
+            if (!level || level->price != price) {
+                // With !would_trade the shared ladder cannot point at an
+                // opposite-side level here. Off-grid legal prices use map.
+                level = price_ladder_.contains_price(price.get())
+                    ? price_ladder_.find(price.get())
+                    : (side == Side::BUY ? bids_.find(price.get()) : asks_.find(price.get()));
+            }
+            if (level && qty.get() >
+                    std::numeric_limits<uint64_t>::max() - level->total_volume.get()) {
+                emit_rejection(CommandType::NEW_ORDER, id,
+                               RejectReason::LEVEL_VOLUME_OVERFLOW);
+                return ProcessStatus::REJECTED;
+            }
         }
 
         // Reserve the order object before acknowledging the command.
@@ -315,7 +436,19 @@ private:
             order_index_.erase(id.get());
             order_pool_.deallocate(order);
         } else if (!order->is_filled()) {
-            add_to_book(order);
+            try {
+                add_to_book(order);
+            } catch (...) {
+                // A new map node can fail before the aggressive order is
+                // linked. PriceLevelStore returns its empty level slot; return
+                // this unlinked order/index slot too. Earlier trades are NOT
+                // rolled back, and the public process wrapper still fails closed.
+                if (!order->parent_level) {
+                    order_index_.erase(id.get());
+                    order_pool_.deallocate(order);
+                }
+                throw;
+            }
             if (record_events_) emit_event<OrderRestedEvent>(
                 current_command_sequence_, EventIndex(next_event_index_++),
                 order->id, order->side, order->price,
@@ -383,6 +516,7 @@ public:
 
       size_t active_order_count() const noexcept { return order_index_.size(); }
       size_t capacity() const noexcept { return order_pool_.capacity(); }
+      bool event_recording_enabled() const noexcept { return record_events_; }
       const InstrumentConfig& instrument_config() const noexcept {
           return instrument_config_;
       }
@@ -419,6 +553,9 @@ public:
       }
 
       OrderBookSnapshot create_snapshot() const {
+          if (!ready_for_commands()) {
+              throw std::logic_error("Cannot snapshot an active or output-blocked OrderBook");
+          }
           OrderBookSnapshot snapshot;
           snapshot.last_applied_command_sequence = last_applied_command_sequence_;
           snapshot.instrument_config = instrument_config_;

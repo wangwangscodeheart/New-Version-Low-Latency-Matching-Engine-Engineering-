@@ -1,0 +1,6 @@
+core_edge_probe.cpp
+R01 volume_overflow: both_applied=1 total_volume=0 invariants=0
+R02 post_only_full: core=POST_ONLY_WOULD_TRADE reference=POOL_EXHAUSTED
+R03 sink_overflow: applied=1 generated=2 delivered=1 retained=0 active=0
+R04 monitor_quality: global_warnings=1 AAPL_warnings=0
+R05 gate_mid_command: first_applied=1 next_unavailable=1 active=1

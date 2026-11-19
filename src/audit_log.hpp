@@ -3,6 +3,8 @@
 
 #include "event_dispatcher.hpp"
 #include <fstream>
+#include <ostream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -182,17 +184,30 @@ public:
 
     const std::vector<AuditRecord>& records() const noexcept { return records_; }
 
-    void save(const std::string& filename) const {
-        std::ofstream file(filename, std::ios::out | std::ios::trunc);
-        if (!file) throw std::runtime_error("Cannot open audit log: " + filename);
-        file << "timestamp,action,symbol,order_id,price,quantity,remaining,status\n";
+    // Cold, owner-quiescent export. Borrowed streams use their current numeric
+    // flags/locale (normally default decimal), are flushed, but never closed,
+    // cleared, or reconfigured. A failed export may have written a prefix.
+    void save(std::ostream& output) const {
+        output << "timestamp,action,symbol,order_id,price,quantity,remaining,status\n";
+        if (!output) throw std::runtime_error("Cannot write audit log header");
         for (const AuditRecord& record : records_) {
-            file << record.timestamp.get() << ',' << to_string(record.action) << ','
+            output << record.timestamp.get() << ',' << to_string(record.action) << ','
                  << record.symbol.value() << ',' << record.order_id.get() << ','
                  << record.price.get() << ',' << record.quantity.get() << ','
                  << record.remaining_quantity.get() << ',' << to_string(record.status)
                  << '\n';
+            if (!output) throw std::runtime_error("Cannot write audit log record");
         }
+        output.flush();
+        if (!output) throw std::runtime_error("Cannot flush audit log");
+    }
+
+    void save(const std::string& filename) const {
+        std::ofstream file(filename, std::ios::out | std::ios::trunc);
+        if (!file) throw std::runtime_error("Cannot open audit log: " + filename);
+        save(file);
+        file.close();
+        if (file.fail()) throw std::runtime_error("Cannot close audit log: " + filename);
     }
 };
 

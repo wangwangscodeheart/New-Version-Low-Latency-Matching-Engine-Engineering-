@@ -1,0 +1,9 @@
+Differential tests passed: 100 seeds x 10000 commands, seed_base=3523149824, generator=enum_boundary_v2
+position MAX-1 plus BUY 2: accepted=0
+Full-width position boundaries passed: 24 cases
+Exact price deviation passed: 15 extremes + 9150 small oracle cases
+MIN position exposure passed: pre/post bind
+Pending position passed: 24786 small oracle + 4 full-width cases
+Aggregate import passed: BUY/SELL overflow + exact maximum + rebind
+Aggregate callback failure passed: observer unavailable + engine FAILED
+Risk engine tests passed

@@ -79,7 +79,11 @@ enum class Side : uint8_t {
 
 // Helper function
 inline const char* to_string(Side side) {
-    return side == Side::BUY ? "BUY" : "SELL";
+    switch (side) {
+        case Side::BUY: return "BUY";
+        case Side::SELL: return "SELL";
+    }
+    return "UNKNOWN";
 }
 
 #endif
