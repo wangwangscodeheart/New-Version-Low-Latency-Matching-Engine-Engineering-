@@ -51,7 +51,7 @@ void check_roundtrip(const FeedMessage& expected) {
         TEST_ASSERT(same_message(actual, expected)); ++count;
     });
     decoder.finish();
-    TEST_ASSERT(count == 1 && frame.size() == 24 + expected.header.body_length);
+    TEST_ASSERT(count == 1 && frame.size() == FeedEncoder::HEADER_SIZE + expected.header.body_length);
     for (size_t i = frame.size(); i < frame.bytes.size(); ++i) TEST_ASSERT(frame.bytes[i] == 0);
 }
 void append(std::vector<uint8_t>& bytes, const FeedMessage& message) {
