@@ -2,6 +2,16 @@
 
 ## 1. 项目背景
 
+2026-11-23第五批：在原离线入口接入单遍原始源SHA-256、可选预期摘要与gzip CRC/ISIZE；zlib默认关闭，启用时不生成解压文件。保留单写者和晚到错误STALE边界，checksum不等于授权或来源认证；仍无真实市场记录，见[第五批说明](docs/M3_ITCH_INPUT_INTEGRITY.md)。
+
+2026-11-22第四批：补显式配置的日内时间、系统阶段和市场报告账本，Broken只修正本口径统计、不复活显示单；离线检查器要求本地使用声明，未下载真实数据、未完成真实性/授权验收。旧默认API不自动获得新保证，见[第四批说明](docs/M3_ITCH_REPORT_VALIDATION.md)。
+
+2026-11-22第三批：将Y/L/V/W/K/J/h/I/N从仅长度识别升级为类型化解码与元数据保存，目标历史wire种类增至22；K按股票正文路由、V/W保存为全市场状态、h按场所分开保留，不改变显示簿。仍无真实文件或完整业务/交易日验收，见[第三批说明](docs/M3_ITCH_METADATA.md)。
+
+2026-11-22增量：增加`ItchBookRebuilder`，复用独立`MarketDataBook`的部分减量/替换能力，实现Stock Locate路由、全市场日内引用检查和原生可见订单生命周期。V1撮合与M2模拟发布不改；P/Q/B只做报告计数，不是完整成交账本。合成验证、状态含义和剩余门禁见[M3第二批](docs/M3_NATIVE_REBUILD.md)。
+
+2026-11-21增量：开始M3原始Nasdaq ITCH接收端，只加入BinaryFILE读取器和核心生命周期消息解码器；尚无真实样本回放或订单簿应用。公开历史文件不是原始入场指令或UDP抓包，不能用来声称复现Nasdaq撮合。两条独立链路与授权边界见[M3说明](docs/M3_NASDAQ_ITCH.md)。
+
 2026-11-19增量：原撮合核心保留，新增Journal整组接受后的公开行情投影、公共订单引用、二进制Encoder、有界整批输出和独立本地簿闭环；原V2 Demo已接线。最终MSVC Release/ASan均27/27，额外100万命令差分通过；设计、数据来源及故障边界见[M2记录](docs/M2_PUBLIC_FEED.md)。数据是项目合成报价/模拟订单，不是真实交易所逐笔数据；网络重传、durable prefix及新路径性能仍未验收。
 
 Version 2 不是新项目，也没有重写 Version 1。它保留原有 `OrderBook`、Price Ladder、对象池、固定容量订单索引、价格时间优先撮合、Command Replay 和 Snapshot，在撮合核心外增加真实交易基础设施常见的路由、事件、恢复、审计和可观测性边界。
@@ -136,7 +146,9 @@ Trading Thread → try_push（不等待空位）→ Bounded Queue
 
 ### Monitor
 
-Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。已注册品种通过 `InstrumentId` 更新预分配指标槽位，避免逐事件字符串哈希；未知品种和独立数据质量事件走兼容回退表。`TradingEngine` 使用 `steady_clock` 测量 MarketManager 路由加 OrderBook 处理时间，输出平均值和最大值。Async Logger 的accepted/written/failed/dropped及健康状态也进入snapshot/CLI；运行中这些原子计数不是事务快照。当前仍以互斥锁保护 CLI 并发快照，这一点应计入端到端性能口径。
+Monitor 统计全局及每个 symbol 的订单、成交、撤单、拒绝和成交量。已注册品种通过 `InstrumentId` 更新预分配指标槽位，避免逐事件字符串哈希；未知品种和独立数据质量事件走兼容回退表。`TradingEngine` 使用 `steady_clock` 测量预解析InstrumentId的MarketManager/OrderBook处理及同步回调时间，输出平均值和最大值；symbol解析发生在该计时段之前。Async Logger 的accepted/written/failed/dropped及健康状态也进入snapshot/CLI；运行中这些原子计数不是事务快照。当前仍以互斥锁保护 CLI 并发快照，这一点应计入端到端性能口径。
+
+mutex也用于每次`on_event`更新，不仅用于CLI读取。运行时Monitor没有P50/P99/P99.9直方图；当前计时包围`MarketManager::process`及其同步事件回调，不覆盖后续Journal整组提交、公开投影入队和消费者应用完成。它不是完整交易链路延迟，也不能用Benchmark离线分位数冒充运行时监控指标。
 
 ## 6. Journal 与 Audit 为什么必须分离
 
@@ -180,7 +192,11 @@ V2 Demo 会生成：
 ./build-v2/matching_engine_v2_benchmarks
 ```
 
-原 `matching_engine_benchmarks` 继续用于 V1 撮合核心性能口径。V2 benchmark 使用同一确定性挂单/撤单负载，分别输出预解析 `InstrumentId` 的 Core、字符串 Routing、冻结 Dispatcher、Monitor、AsyncLogger、AsyncJournal 和 Full V2。每层包含独立预热、5 个全新 fixture 的 batch 中位数，以及与 batch 分离的逐笔 Median/P99/P99.9/Max；非零 checksum 验证 batch 与采样运行得到一致结果。输出同时包含 commit、CPU、操作系统、编译器和 Build Type 元数据。
+原 `matching_engine_benchmarks` 继续用于 V1 撮合核心性能口径。原七个V2 benchmark场景使用同一确定性挂单/撤单负载，分别输出预解析 `InstrumentId` 的 Core、字符串 Routing、冻结 Dispatcher、Monitor、AsyncLogger、AsyncJournal 和 Full V2。每层包含独立预热、5 个全新 fixture 的 batch 中位数，以及与 batch 分离的逐笔 Median/P99/P99.9/Max；非零 checksum 验证 batch 与采样运行得到一致结果。输出同时包含 commit、CPU、操作系统、编译器和 Build Type 元数据。
+
+这里的`full_v2`不包含M2新增的PublicFeedPublisher/Encoder/公开队列/Decoder/MarketDataBook，不能代表现在的完整公开行情链路。新链路的独立分层、分配及受控吞吐/分位数验收仍待完成；下述合成工程初测、旧纳秒微基准和CI smoke均不能替代正式门禁。见[分阶段性能验收](docs/BENCHMARK.md)。
+
+同日后续已新增`journal_public_feed_sync`、`full_v2_public_feed_sync`、`full_v2_public_feed_burst16`三个独立合成工程场景，不替换原七场景。新场景检查实际本地消费后再形成延迟样本，排除无公开增量命令，并报告消息/字节/队列高水位；保留3进程原始结果和二进制身份。它是初步工程基线，分配与分层成本、真实数据和受控性能仍未验收；边界、负载及复现命令见[BENCHMARK](docs/BENCHMARK.md)。
 
 一次交互运行只用于冒烟，不能作为正式性能结论。正式结果必须在固定机器、电源模式和后台负载下运行多个全新进程并保存完整原始输出。当前五进程 Windows 基线、环境 JSON、逐轮 CSV 与完整 stdout 位于 `benchmarks/results/2026-08-07-v2-baseline/`；`scripts/run_benchmark_windows.ps1` 可重新生成一组不覆盖旧证据的新目录。Batch Average 与逐笔采样使用不同计时边界，不能把两者数值直接混用。
 
@@ -235,6 +251,8 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 
 `PreTradeRisk` 位于 `TradingEngine` 之前，使用 `InstrumentId` 索引的增量状态。冷启动绑定时可重建一次已有挂单；热路径不再调用 `symbols()` 或 `capture_state()`，而由 Rested/Trade/Cancel 事件 O(1) 更新活动订单、买卖挂单量和 pending notional。仓位上限使用 `position + open_buy + new_buy` 或 `position - open_sell - new_sell` 的保守最坏成交投影；Kill Switch 拒绝新订单但允许降低风险的撤单。主动成交后的真实持仓仍由外围账户组件注入，因此这是盘前风险骨架，不是完整实时持仓/PnL/保证金系统。
 
+该包装器是可选上游接入层；直接调用TradingEngine的订单不会自动经过它。账户盘前控制应归属券商/交易接入或策略执行侧，不应宣传成交易所撮合核心的一部分。现有挂单预算更新不等于已完成“成交→账户持仓→资金”的自动、幂等核算链路。
+
 价格偏离与仓位现用精确整数比较，覆盖MIN/MAX及全宽数量；跨档累计量无法表示或导入/回调失败后，风险状态失效，新单返回STATE_UNAVAILABLE。风险层仍放行撤单，但FAILED的Engine不会因此恢复；完整重绑也不清除Engine失败。金额/敞口仍是浮点估算，详见[M1第六批及证据](docs/M1_BATCH_06.md)。
 
 ## 15. IOC 与 Post Only
@@ -243,7 +261,7 @@ Async Logger 使用有界互斥队列而非 lock-free ring buffer。该选择优
 
 ## 16. CI 与 Sanitizer
 
-CI包含Linux Release、ASan+UBSan、异步组件与CommandJournal的TSan配置及缩小负载benchmark smoke。CI延迟不作为正式性能结论。2026-11-19公开行情闭环后，本机MSVC Release与ASan均27/27通过，见[M2记录](docs/M2_PUBLIC_FEED.md)；此前24/24保留为[M1第十批](docs/M1_BATCH_10.md)历史结果。独立分配故障程序替换new/delete存在ASan覆盖限制，见[M1第五批](docs/M1_BATCH_05.md)。Linux/UBSan/TSan仍以未来真实runner证据为准，配置不等于通过。
+CI包含Linux Release、ASan+UBSan、异步组件与CommandJournal的TSan配置及缩小负载benchmark smoke。2026-11-20，`b889136`的[真实runner](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/44668927537)已通过Release 27/27、ASan+UBSan 27/27、TSan子集4/4及smoke；手动压力任务未触发。CI延迟不是正式性能结论，TSan子集不是完整引擎的并行撮合证明。此前本机结果见[M2记录](docs/M2_PUBLIC_FEED.md)和[M1第十批](docs/M1_BATCH_10.md)；独立分配故障程序替换new/delete的ASan覆盖限制仍见[M1第五批](docs/M1_BATCH_05.md)。
 
 普通 CTest 的差分测试使用 25 × 4000 条命令以保持反馈速度。`workflow_dispatch` 提供手动压力任务，运行 100 × 100000 条确定性命令；测试程序也接受 `--seeds`、`--commands` 和 `--seed-base`。失败会报告 seed 和首个不一致 sequence，可将 commands 限制为该 sequence 重放最短失败前缀。
 

@@ -1,0 +1,172 @@
+{
+  "schema_version": 6,
+  "review_date": "2026-11-23",
+  "code_baseline": "b889136644264e61ff9b8106330283330d7cb7a4",
+  "phase_status": "HISTORICAL_22_TYPE_OFFLINE_INSPECTOR_WITH_SOURCE_SHA256_AND_OPTIONAL_GZIP_SYNTHETIC_ONLY_NO_DATASET_ACCEPTED",
+  "asset_scope": "EQUITIES_ONLY",
+  "scope_decision": {
+    "date": "2026-11-20",
+    "basis": "USER_CHOICE",
+    "crypto_perpetuals_selected": false,
+    "next_action": "IMPLEMENT_NATIVE_ITCH_WITH_SYNTHETIC_TESTS_WHILE_WAITING_FOR_DATA_USAGE_CONFIRMATION"
+  },
+  "planned_primary_source": {
+    "decision_date": "2026-11-21",
+    "candidate_id": "nasdaq_official_itch_samples",
+    "venue": "Nasdaq",
+    "trading_date": "2020-01-30",
+    "file": "01302020.NASDAQ_ITCH50.gz",
+    "catalog_url": "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/",
+    "catalog_compressed_bytes": 5597158940,
+    "catalog_size_verified_date": "2026-11-21",
+    "intended_initial_symbols": ["AAPL", "MSFT"],
+    "actual_symbol_coverage_verified": false,
+    "source_file_sha256": null,
+    "downloaded": false,
+    "local_research_usage_permission": "NOT_CONFIRMED",
+    "raw_and_derived_redistribution_permission": "NOT_CONFIRMED",
+    "cloud_ai_raw_data_processing_permission": "NOT_CONFIRMED",
+    "status": "PLANNED_NOT_ACCEPTED_OR_VALIDATED"
+  },
+  "downloaded_market_records": 0,
+  "adapter_implemented": true,
+  "adapter_coverage": "22_HISTORICAL_KINDS_OPTIONAL_TIME_SYSTEM_PHASE_AND_E_C_P_BREAK_CORRELATION_NOT_FULL_BUSINESS_VALIDATION",
+  "implementation_scope": "SYNTHETIC_BOOK_METADATA_REPORT_LEDGER_TEMPORAL_CHECKS_AND_SINGLE_PASS_FILE_INTEGRITY_INSPECTOR",
+  "offline_inspector": {
+    "requires_caller_local_use_attestation": true,
+    "verifies_usage_rights": false,
+    "downloads_data": false,
+    "supports_gzip": true,
+    "gzip_requires_explicit_build_option_and_local_zlib": true,
+    "gzip_enabled_by_default": false,
+    "checks_all_gzip_members_crc_and_isize": true,
+    "computes_file_checksum": true,
+    "checksum_algorithm": "SHA-256",
+    "checksum_domain": "RAW_SOURCE_BYTES_INCLUDING_GZIP_HEADERS_AND_TRAILERS",
+    "expected_checksum_comparison": "OPTIONAL_CALLER_SUPPLIED_NOT_SOURCE_AUTHENTICATION",
+    "authenticates_source": false,
+    "authenticates_trading_date": false,
+    "checks_intraday_timestamp_range_by_default": true,
+    "checks_e_c_p_broken_correlation_by_default": true,
+    "requires_all_six_system_events_by_default": true,
+    "cross_broken_correlation_supported": false,
+    "legacy_library_default_enables_new_checks": false
+  },
+  "real_session_validation_completed": false,
+  "constraints": {
+    "create_accounts": false,
+    "purchase_data": false,
+    "download_large_archives": false,
+    "contact_provider_without_user_direction": false,
+    "send_raw_data_to_cloud_ai_without_verified_terms": false,
+    "redistribute_without_verified_terms": false,
+    "fabricate_missing_orders_or_trades": false
+  },
+  "candidates": [
+    {
+      "id": "lobster_official_equity_samples",
+      "provider": "LOBSTER",
+      "role": "OPTIONAL_INDEPENDENT_REFERENCE_SUBJECT_TO_LICENSE",
+      "source_url": "https://php.lobsterdata.com/info/DataSamples.php",
+      "terms_url": "https://php.lobsterdata.com/termsAndConditions.php",
+      "schema_url": "https://php.lobsterdata.com/info/DataStructure.php",
+      "asset_class": "US_EQUITIES",
+      "data_kind": "LEVEL_RESTRICTED_MESSAGE_AND_AGGREGATED_BOOK_FILES",
+      "rights_status": "SAMPLE_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED",
+      "access_status": "SMALL_DOWNLOADS_LISTED_NOT_FETCHED",
+      "semantic_status": "NOT_DIRECTLY_COMPATIBLE",
+      "blockers": [
+        "No affirmative sample redistribution grant verified on the official pages reviewed",
+        "Partial deletion is not the existing full-order FeedCancelOrder",
+        "Hidden executions, crosses and halts are not represented by the current visible-order feed model",
+        "Level-limited messages and aggregate snapshots do not prove a complete order-level initial state"
+      ],
+      "source_file_sha256": null,
+      "local_fixture": null
+    },
+    {
+      "id": "nasdaq_official_itch_samples",
+      "provider": "Nasdaq",
+      "role": "PLANNED_PRIMARY_NATIVE_PROTOCOL_SOURCE",
+      "source_url": "https://data.nasdaq.com/databases/NTV",
+      "catalog_url": "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/",
+      "schema_url": "https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHspecification.pdf",
+      "baseline_schema_url": "https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/NQTVITCHSpecification_5.0.pdf",
+      "framing_schema_url": "https://www.nasdaqtrader.com/content/technicalsupport/specifications/dataproducts/binaryfile.pdf",
+      "asset_class": "US_EQUITIES",
+      "data_kind": "NATIVE_ITCH_ORDER_AND_TRADE_MESSAGES",
+      "rights_status": "RAW_SAMPLE_REDISTRIBUTION_PERMISSION_NOT_ESTABLISHED",
+      "access_status": "2020_01_30_CATALOG_ENTRY_VERIFIED_ARCHIVE_NOT_FETCHED",
+      "semantic_status": "HISTORICAL_22_KIND_VISIBLE_BOOK_AND_METADATA_SYNTHETIC_ONLY_REAL_SESSION_AND_REFERENCE_VALIDATION_PENDING",
+      "blockers": [
+        "Public sample availability alone does not establish raw-data redistribution rights",
+        "Planned file is about 5.60 GB compressed and has not been downloaded or hashed",
+        "Local research use, derived-publication and cloud-AI processing rights still require confirmation",
+        "All 22 historical kinds and optional E/C/P break correlation are synthetic-tested; full business schedule, official tape and real record coverage remain unvalidated",
+        "No real-session schema compatibility or independent reference comparison completed"
+      ],
+      "source_file_sha256": null,
+      "local_fixture": null
+    },
+    {
+      "id": "iex_historical",
+      "provider": "IEX",
+      "source_url": "https://iextrading.com/trading/market-data/",
+      "terms_url": "https://www.iex.io/legal/hist-data-terms",
+      "schema_url": "https://www.iex.io/products/market-data-connectivity",
+      "asset_class": "US_EQUITIES",
+      "data_kind": "PRODUCT_DEPENDENT_TOPS_DEEP_OR_DEEP_PLUS",
+      "rights_status": "PUBLISHED_CUSTOM_TERMS_WITH_ATTRIBUTION_REQUIREMENTS",
+      "access_status": "OFFICIAL_PAGE_SAYS_HISTORICAL_PCAP_NOT_CURRENTLY_DIRECTLY_DOWNLOADABLE",
+      "semantic_status": "EQUITY_DEEP_IS_AGGREGATED_DEEP_PLUS_IS_ORDER_BY_ORDER",
+      "blockers": [
+        "No directly accessible official historical order-level sample verified",
+        "Aggregated TOPS or equity DEEP data must not be relabeled as L3 order events"
+      ],
+      "source_file_sha256": null,
+      "local_fixture": null
+    },
+    {
+      "id": "hyperliquid_zenodo_18184441",
+      "provider": "Jakob Albers and coauthors; Zenodo collector release",
+      "source_url": "https://zenodo.org/records/18184441",
+      "doi": "10.5281/zenodo.18184441",
+      "version": "1.0",
+      "terms_url": "https://zenodo.org/records/18184441/preview/README.md?include_deleted=0",
+      "schema_url": "https://zenodo.org/records/18184441/preview/SCHEMA.md?include_deleted=0",
+      "asset_class": "CRYPTO_PERPETUAL_FUTURES",
+      "selection_status": "EXCLUDED_BY_USER_EQUITY_SCOPE",
+      "period_for_order_statuses_and_book_diffs": "2025-12",
+      "instruments": ["BTC", "ETH", "SOL"],
+      "data_kind": "SEPARATE_ORDER_STATUS_BOOK_DIFF_AND_TRADE_STREAMS",
+      "rights_status": "COLLECTOR_README_EXPLICITLY_DECLARES_CC_BY_4_0",
+      "license_id": "CC-BY-4.0",
+      "access_status": "NO_SMALL_EVENT_FILE_LISTED_LOCAL_RANGE_PROBE_FORBIDDEN",
+      "semantic_status": "CROSS_STREAM_JOIN_AND_INITIAL_STATE_UNVERIFIED",
+      "provider_archive": {
+        "file": "book_diffs_202512.tar",
+        "displayed_size": "49.6 GB",
+        "provider_md5": "350656ae19550b14d2e1ebe025b25dc7",
+        "provider_md5_verified_locally": false,
+        "source_file_sha256": null
+      },
+      "bounded_access_probe": {
+        "date": "2026-11-20",
+        "url": "https://zenodo.org/records/18184441/files/book_diffs_202512.tar?download=1",
+        "requested_range": "bytes=0-65535",
+        "response_status": 403,
+        "response_body_consumed": false,
+        "market_data_files_written": false,
+        "scope": "OBSERVED_IN_THIS_ENVIRONMENT_NOT_A_GLOBAL_AVAILABILITY_CLAIM"
+      },
+      "blockers": [
+        "User chose to keep the first real-data validation set within equities on 2026-11-20",
+        "No small downloadable market-event fixture verified; no multi-GB archive downloaded",
+        "Raw book diffs omit timestamps and remove does not distinguish cancellation from complete execution",
+        "Statuses and trades must be joined and their ordering and size semantics validated with real records",
+        "No order-level starting snapshot or complete small replay window verified"
+      ],
+      "local_fixture": null
+    }
+  ]
+}

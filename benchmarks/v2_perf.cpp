@@ -2,6 +2,7 @@
 #include "async_logger.hpp"
 #include "event_sink.hpp"
 #include "monitor.hpp"
+#include "public_feed_benchmark.hpp"
 #include "trading_engine.hpp"
 #include <algorithm>
 #include <array>
@@ -12,6 +13,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -39,6 +41,7 @@ namespace {
 constexpr size_t PAIRS_PER_SYMBOL = MATCHING_ENGINE_V2_BENCHMARK_PAIRS;
 constexpr size_t COMMAND_COUNT = PAIRS_PER_SYMBOL * 2 * 3;
 constexpr size_t BATCH_RUNS = 5;
+constexpr size_t PUBLIC_CYCLES_PER_SYMBOL = PAIRS_PER_SYMBOL / 4 == 0 ? 1 : PAIRS_PER_SYMBOL / 4;
 
 struct Result {
     std::string scenario;
@@ -49,6 +52,10 @@ struct Result {
     uint64_t p999_ns = 0;
     uint64_t max_ns = 0;
     uint64_t checksum = 0;
+    size_t operations = 0;
+    size_t latency_samples = 0;
+    size_t drain_every_commands = 0;
+    std::optional<public_feed_benchmark::Stats> publication;
 };
 
 std::string format_latency(double ns) {
@@ -138,10 +145,26 @@ ScenarioInfo scenario_info(const std::string& scenario) {
 
     if (scenario == "full_v2") {
         return {
-            "Full V2 / 完整 V2 路径",
+            "Legacy Full V2 / 原 V2 组合路径",
             "Monitor + async logger + async journal",
             "监控 + 异步日志 + 异步 Journal"
         };
+    }
+
+    if (scenario == "journal_public_feed_sync") {
+        return {"Journal + Public Feed / 日志接受与模拟行情闭环",
+            "Mixed synthetic orders, async journal acceptance, public projection and local apply; drain per command",
+            "混合合成订单，Journal接受到公开行情消费；每命令drain，不含durable"};
+    }
+    if (scenario == "full_v2_public_feed_sync") {
+        return {"Full V2 + Public Feed / 原组合加模拟行情闭环",
+            "Mixed synthetic orders with Monitor, Logger, Journal and local feed apply; drain per command",
+            "相同混合合成负载，加Monitor/Logger；每命令drain，不含durable"};
+    }
+    if (scenario == "full_v2_public_feed_burst16") {
+        return {"Full V2 + Burst Feed / 原组合加串行批次消费",
+            "Same mixed synthetic orders; drain every 16 commands, latency ends at covering drain return",
+            "相同混合合成负载，每16命令消费；可见命令计时至覆盖批次drain返回"};
     }
 
     return {
@@ -167,10 +190,22 @@ void print_human_result(const Result& result, size_t index, size_t total) {
         << "  Throughput / 吞吐量                      : "
         << format_throughput(result.throughput) << "\n\n"
         << "  Sampled Latency / 单操作采样延迟\n"
-        << "    P50   : " << format_latency(result.median_ns) << '\n'
-        << "    P99   : " << format_latency(result.p99_ns) << '\n'
-        << "    P99.9 : " << format_latency(result.p999_ns) << '\n'
-        << "    Max   : " << format_latency(result.max_ns) << "\n\n";
+        << "    P50   : " << format_latency(static_cast<double>(result.median_ns)) << '\n'
+        << "    P99   : " << format_latency(static_cast<double>(result.p99_ns)) << '\n'
+        << "    P99.9 : " << format_latency(static_cast<double>(result.p999_ns)) << '\n'
+        << "    Max   : " << format_latency(static_cast<double>(result.max_ns)) << '\n'
+        << "  Commands / latency samples : " << result.operations << " / " << result.latency_samples << '\n';
+    if (result.publication) {
+        const auto& stats = *result.publication;
+        std::cout << "  Public messages / wire bytes : " << stats.public_messages << " / " << stats.wire_bytes << '\n'
+            << "  Peak pending batches / messages / bytes : " << stats.peak_pending_batches << " / "
+            << stats.peak_pending_messages << " / " << stats.peak_pending_bytes << '\n'
+            << "  Visible / no-visible commands : " << stats.visible_commands << " / " << stats.no_visible_commands << '\n'
+            << "  Drain interval (commands) : " << result.drain_every_commands << '\n'
+            << "  Boundary : submit to covering drain return, visible commands only; async acceptance, NOT durable\n"
+            << "  Allocation counts : NOT MEASURED; queues/maps/byte buffers may allocate\n";
+    }
+    std::cout << '\n';
 }
 
 std::string environment(const char* name) {
@@ -236,6 +271,8 @@ Result measure(const std::string& name, Factory&& factory) {
     // Separate batch and sampled runs so clock/vector overhead never contaminates
     // the throughput measurement.
     auto warmup_runner = factory("warmup");
+    const size_t operations = warmup_runner->operation_count();
+    if (operations == 0) throw std::runtime_error("Benchmark workload is empty");
     const uint64_t expected_checksum = warmup_runner->run(false, nullptr);
     warmup_runner->stop();
 
@@ -258,18 +295,28 @@ Result measure(const std::string& name, Factory&& factory) {
 
     auto sampled_runner = factory("sampled");
     std::vector<uint64_t> latencies;
-    latencies.reserve(COMMAND_COUNT);
+    latencies.reserve(operations);
     const uint64_t sampled_checksum = sampled_runner->run(true, &latencies);
     sampled_runner->stop();
     if (expected_checksum != sampled_checksum) {
         throw std::runtime_error("Batch and sampled benchmark states diverged");
     }
+    if (latencies.empty()) throw std::runtime_error("Benchmark has no latency samples");
     std::sort(latencies.begin(), latencies.end());
-    return Result{name, elapsed_ns / COMMAND_COUNT,
-        static_cast<double>(COMMAND_COUNT) * 1e9 / elapsed_ns,
-        latencies[latencies.size() / 2], latencies[latencies.size() * 99 / 100],
-        latencies[latencies.size() * 999 / 1000], latencies.back(),
-        expected_checksum};
+    Result result;
+    result.scenario = name;
+    result.batch_ns = elapsed_ns / static_cast<double>(operations);
+    result.throughput = static_cast<double>(operations) * 1e9 / elapsed_ns;
+    result.median_ns = latencies[latencies.size() / 2];
+    result.p99_ns = latencies[latencies.size() * 99 / 100];
+    result.p999_ns = latencies[latencies.size() * 999 / 1000];
+    result.max_ns = latencies.back();
+    result.checksum = expected_checksum;
+    result.operations = operations;
+    result.latency_samples = latencies.size();
+    result.drain_every_commands = sampled_runner->drain_every_commands();
+    result.publication = sampled_runner->publication_stats();
+    return result;
 }
 
 class Runner {
@@ -277,7 +324,45 @@ public:
     virtual ~Runner() = default;
     virtual uint64_t run(bool sample, std::vector<uint64_t>* latencies) = 0;
     virtual void stop() {}
+    virtual size_t operation_count() const noexcept { return COMMAND_COUNT; }
+    virtual size_t drain_every_commands() const noexcept { return 0; }
+    virtual std::optional<public_feed_benchmark::Stats> publication_stats() const { return std::nullopt; }
 };
+
+class PublicFeedRunner final : public Runner {
+    public_feed_benchmark::Fixture fixture_;
+    size_t drain_every_;
+public:
+    PublicFeedRunner(size_t drain_every, bool validate, bool diagnostics)
+        : fixture_(PUBLIC_CYCLES_PER_SYMBOL, drain_every, validate, diagnostics),
+          drain_every_(drain_every) {}
+    uint64_t run(bool sample, std::vector<uint64_t>* latencies) override {
+        return fixture_.run(sample, latencies);
+    }
+    void stop() override { fixture_.stop(); }
+    size_t operation_count() const noexcept override { return fixture_.operation_count(); }
+    size_t drain_every_commands() const noexcept override { return drain_every_; }
+    std::optional<public_feed_benchmark::Stats> publication_stats() const override { return fixture_.stats(); }
+};
+
+void print_clock_probe(bool raw_output) {
+    std::array<uint64_t, 2048> samples{};
+    for (auto& sample : samples) {
+        const auto start = std::chrono::steady_clock::now();
+        const auto finish = std::chrono::steady_clock::now();
+        sample = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count());
+    }
+    std::sort(samples.begin(), samples.end());
+    std::cout << "  Empty clock pair P50 / P99 / Max (ns): " << samples[samples.size() / 2]
+        << " / " << samples[samples.size() * 99 / 100] << " / " << samples.back()
+        << " (reported, NOT subtracted)\n\n";
+    if (raw_output) {
+        std::cout << "CLOCK_PROBE_CSV,samples,p50_ns,p99_ns,p999_ns,max_ns\nCLOCK_PROBE_CSV,"
+            << samples.size() << ',' << samples[samples.size() / 2] << ','
+            << samples[samples.size() * 99 / 100] << ',' << samples[samples.size() * 999 / 1000]
+            << ',' << samples.back() << '\n';
+    }
+}
 
 template<typename Submit>
 class SubmitRunner : public Runner {
@@ -396,13 +481,15 @@ int main()
         << "  Compiler          : " << MATCHING_ENGINE_COMPILER << '\n'
         << "  Compiler Flags    : " << MATCHING_ENGINE_COMPILER_FLAGS << '\n'
         << "  Build Type        : " << MATCHING_ENGINE_BUILD_TYPE << '\n'
-        << "  Warmup Operations : " << COMMAND_COUNT << '\n'
-        << "  Measured Ops      : " << COMMAND_COUNT << '\n'
-        << "  Process Runs      : " << BATCH_RUNS << '\n'
+        << "  Legacy operations : " << COMMAND_COUNT << '\n'
+        << "  Public operations : " << PUBLIC_CYCLES_PER_SYMBOL * 3 * 8 << '\n'
+        << "  Public workload   : synthetic_mixed_visible_v1 (3 symbols, no external data)\n"
+        << "  Batch fixtures/process : " << BATCH_RUNS << '\n'
         << "  Sampling Clock    : steady_clock\n\n";
+    print_clock_probe(raw_output);
     if (raw_output)
     {
-        std::cout << "METADATA_JSON,{\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
+        std::cout << "METADATA_JSON,{\"schema_version\":2,\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
                   << "\",\"cpu\":\"" << environment("PROCESSOR_IDENTIFIER")
                   << "\",\"logical_processors\":\"" << environment("NUMBER_OF_PROCESSORS")
                   << "\",\"os\":\"" << MATCHING_ENGINE_OS
@@ -412,8 +499,17 @@ int main()
                   << "\",\"events_enabled\":true"
                   << ",\"warmup_operations\":" << COMMAND_COUNT
                   << ",\"measured_operations\":" << COMMAND_COUNT
-                  << ",\"process_runs\":" << BATCH_RUNS
-                  << ",\"sampling_clock\":\"steady_clock\"}\n";
+                  << ",\"batch_fixtures_per_process\":" << BATCH_RUNS
+                  << ",\"sampling_clock\":\"steady_clock\""
+                  << ",\"legacy_workload\":\"rest_cancel_v1\""
+                  << ",\"public_workload\":\"synthetic_mixed_visible_v1\""
+                  << ",\"public_cycles_per_symbol\":" << PUBLIC_CYCLES_PER_SYMBOL
+                  << ",\"public_measured_operations\":" << PUBLIC_CYCLES_PER_SYMBOL * 3 * 8
+                  << ",\"public_sample_scope\":\"visible_commands\""
+                  << ",\"allocation_measurement\":\"not_measured\""
+                  << ",\"clock_probe_samples\":2048"
+                  << ",\"market_data_origin\":\"synthetic\""
+                  << ",\"recovery_exercised\":false}\n";
     }
 
     std::vector<Result> results;
@@ -443,6 +539,16 @@ int main()
         return engine_factory("full_" + suffix, true, true, true);
     }));
 
+    results.push_back(measure("journal_public_feed_sync", [](const std::string& suffix) {
+        return std::make_unique<PublicFeedRunner>(1, suffix == "warmup", false);
+    }));
+    results.push_back(measure("full_v2_public_feed_sync", [](const std::string& suffix) {
+        return std::make_unique<PublicFeedRunner>(1, suffix == "warmup", true);
+    }));
+    results.push_back(measure("full_v2_public_feed_burst16", [](const std::string& suffix) {
+        return std::make_unique<PublicFeedRunner>(16, suffix == "warmup", true);
+    }));
+
 
     std::cout
         << "============================================================\n"
@@ -465,12 +571,24 @@ int main()
                      "sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum\n";
         for (const Result &result : results)
         {
-            std::cout << "RESULT_CSV," << result.scenario << ',' << COMMAND_COUNT << ','
+            std::cout << "RESULT_CSV," << result.scenario << ',' << result.operations << ','
                       << std::fixed << std::setprecision(2) << result.batch_ns << ','
                       << std::setprecision(0) << result.throughput << ','
                       << result.median_ns << ',' << result.p99_ns << ','
                       << result.p999_ns << ',' << result.max_ns << ','
                       << result.checksum << '\n';
+        }
+        std::cout << "PUBLIC_FEED_CSV,scenario,commands,public_messages,wire_bytes,visible_commands,no_visible_commands,"
+                     "peak_pending_batches,peak_pending_messages,peak_pending_bytes,latency_samples,drain_every_commands,"
+                     "journal_boundary,latency_boundary,allocation_measurement\n";
+        for (const auto& result : results) {
+            if (!result.publication) continue;
+            const auto& stats = *result.publication;
+            std::cout << "PUBLIC_FEED_CSV," << result.scenario << ',' << stats.commands << ','
+                << stats.public_messages << ',' << stats.wire_bytes << ',' << stats.visible_commands << ','
+                << stats.no_visible_commands << ',' << stats.peak_pending_batches << ',' << stats.peak_pending_messages
+                << ',' << stats.peak_pending_bytes << ',' << result.latency_samples << ',' << result.drain_every_commands
+                << ",async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured\n";
         }
     }
     return 0;

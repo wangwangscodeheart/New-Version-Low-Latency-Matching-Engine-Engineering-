@@ -1,0 +1,10 @@
+﻿run,scenario,commands,public_messages,wire_bytes,visible_commands,no_visible_commands,peak_pending_batches,peak_pending_messages,peak_pending_bytes,latency_samples,drain_every_commands,journal_boundary,latency_boundary,allocation_measurement
+1,journal_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+1,full_v2_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+1,full_v2_public_feed_burst16,60000,67500,3210000,52500,7500,14,18,856,52500,16,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+2,journal_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+2,full_v2_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+2,full_v2_public_feed_burst16,60000,67500,3210000,52500,7500,14,18,856,52500,16,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+3,journal_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+3,full_v2_public_feed_sync,60000,67500,3210000,52500,7500,1,2,112,52500,1,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured
+3,full_v2_public_feed_burst16,60000,67500,3210000,52500,7500,14,18,856,52500,16,async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured

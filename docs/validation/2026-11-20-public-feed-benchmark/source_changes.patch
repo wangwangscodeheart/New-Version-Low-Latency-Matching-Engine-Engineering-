@@ -1,0 +1,1053 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 565f345..7522006 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -200,6 +200,12 @@ add_executable(matching_engine_committed_handoff_tests
+     tests/committed_handoff_tests.cpp
+ )
+ 
++add_executable(matching_engine_public_feed_benchmark_tests
++    tests/public_feed_benchmark_tests.cpp
++)
++target_include_directories(matching_engine_public_feed_benchmark_tests PRIVATE ${CMAKE_SOURCE_DIR}/benchmarks)
++target_link_libraries(matching_engine_public_feed_benchmark_tests PRIVATE Threads::Threads)
++
+ add_executable(matching_engine_capacity_metrics_tests
+     tests/capacity_metrics_tests.cpp
+ )
+@@ -269,6 +275,7 @@ if(BUILD_TESTING)
+     add_test(NAME matching_engine_feed_encoder COMMAND matching_engine_feed_encoder_tests)
+     add_test(NAME matching_engine_public_feed COMMAND matching_engine_public_feed_tests)
+     add_test(NAME matching_engine_committed_handoff COMMAND matching_engine_committed_handoff_tests)
++    add_test(NAME matching_engine_public_feed_benchmark COMMAND matching_engine_public_feed_benchmark_tests)
+     add_test(NAME matching_engine_capacity_metrics COMMAND matching_engine_capacity_metrics_tests)
+     add_test(NAME matching_engine_risk_engine COMMAND matching_engine_risk_engine_tests)
+     add_test(NAME matching_engine_order_types COMMAND matching_engine_order_type_tests)
+@@ -320,6 +327,7 @@ install(TARGETS
+     matching_engine_feed_encoder_tests
+     matching_engine_public_feed_tests
+     matching_engine_committed_handoff_tests
++    matching_engine_public_feed_benchmark_tests
+     matching_engine_market_data_generator_tests
+     matching_engine_benchmarks
+     matching_engine_v2_benchmarks
+diff --git a/benchmarks/v2_perf.cpp b/benchmarks/v2_perf.cpp
+index e6455a9..bea522c 100644
+--- a/benchmarks/v2_perf.cpp
++++ b/benchmarks/v2_perf.cpp
+@@ -2,6 +2,7 @@
+ #include "async_logger.hpp"
+ #include "event_sink.hpp"
+ #include "monitor.hpp"
++#include "public_feed_benchmark.hpp"
+ #include "trading_engine.hpp"
+ #include <algorithm>
+ #include <array>
+@@ -12,6 +13,7 @@
+ #include <iomanip>
+ #include <iostream>
+ #include <memory>
++#include <optional>
+ #include <sstream>
+ #include <string>
+ #include <vector>
+@@ -39,6 +41,7 @@ namespace {
+ constexpr size_t PAIRS_PER_SYMBOL = MATCHING_ENGINE_V2_BENCHMARK_PAIRS;
+ constexpr size_t COMMAND_COUNT = PAIRS_PER_SYMBOL * 2 * 3;
+ constexpr size_t BATCH_RUNS = 5;
++constexpr size_t PUBLIC_CYCLES_PER_SYMBOL = PAIRS_PER_SYMBOL / 4 == 0 ? 1 : PAIRS_PER_SYMBOL / 4;
+ 
+ struct Result {
+     std::string scenario;
+@@ -49,6 +52,10 @@ struct Result {
+     uint64_t p999_ns = 0;
+     uint64_t max_ns = 0;
+     uint64_t checksum = 0;
++    size_t operations = 0;
++    size_t latency_samples = 0;
++    size_t drain_every_commands = 0;
++    std::optional<public_feed_benchmark::Stats> publication;
+ };
+ 
+ std::string format_latency(double ns) {
+@@ -138,12 +145,28 @@ ScenarioInfo scenario_info(const std::string& scenario) {
+ 
+     if (scenario == "full_v2") {
+         return {
+-            "Full V2 / 完整 V2 路径",
++            "Legacy Full V2 / 原 V2 组合路径",
+             "Monitor + async logger + async journal",
+             "监控 + 异步日志 + 异步 Journal"
+         };
+     }
+ 
++    if (scenario == "journal_public_feed_sync") {
++        return {"Journal + Public Feed / 日志接受与模拟行情闭环",
++            "Mixed synthetic orders, async journal acceptance, public projection and local apply; drain per command",
++            "混合合成订单，Journal接受到公开行情消费；每命令drain，不含durable"};
++    }
++    if (scenario == "full_v2_public_feed_sync") {
++        return {"Full V2 + Public Feed / 原组合加模拟行情闭环",
++            "Mixed synthetic orders with Monitor, Logger, Journal and local feed apply; drain per command",
++            "相同混合合成负载，加Monitor/Logger；每命令drain，不含durable"};
++    }
++    if (scenario == "full_v2_public_feed_burst16") {
++        return {"Full V2 + Burst Feed / 原组合加串行批次消费",
++            "Same mixed synthetic orders; drain every 16 commands, latency ends at covering drain return",
++            "相同混合合成负载，每16命令消费；可见命令计时至覆盖批次drain返回"};
++    }
++
+     return {
+         "Unknown Scenario / 未知场景",
+         scenario,
+@@ -167,10 +190,22 @@ void print_human_result(const Result& result, size_t index, size_t total) {
+         << "  Throughput / 吞吐量                      : "
+         << format_throughput(result.throughput) << "\n\n"
+         << "  Sampled Latency / 单操作采样延迟\n"
+-        << "    P50   : " << format_latency(result.median_ns) << '\n'
+-        << "    P99   : " << format_latency(result.p99_ns) << '\n'
+-        << "    P99.9 : " << format_latency(result.p999_ns) << '\n'
+-        << "    Max   : " << format_latency(result.max_ns) << "\n\n";
++        << "    P50   : " << format_latency(static_cast<double>(result.median_ns)) << '\n'
++        << "    P99   : " << format_latency(static_cast<double>(result.p99_ns)) << '\n'
++        << "    P99.9 : " << format_latency(static_cast<double>(result.p999_ns)) << '\n'
++        << "    Max   : " << format_latency(static_cast<double>(result.max_ns)) << '\n'
++        << "  Commands / latency samples : " << result.operations << " / " << result.latency_samples << '\n';
++    if (result.publication) {
++        const auto& stats = *result.publication;
++        std::cout << "  Public messages / wire bytes : " << stats.public_messages << " / " << stats.wire_bytes << '\n'
++            << "  Peak pending batches / messages / bytes : " << stats.peak_pending_batches << " / "
++            << stats.peak_pending_messages << " / " << stats.peak_pending_bytes << '\n'
++            << "  Visible / no-visible commands : " << stats.visible_commands << " / " << stats.no_visible_commands << '\n'
++            << "  Drain interval (commands) : " << result.drain_every_commands << '\n'
++            << "  Boundary : submit to covering drain return, visible commands only; async acceptance, NOT durable\n"
++            << "  Allocation counts : NOT MEASURED; queues/maps/byte buffers may allocate\n";
++    }
++    std::cout << '\n';
+ }
+ 
+ std::string environment(const char* name) {
+@@ -236,6 +271,8 @@ Result measure(const std::string& name, Factory&& factory) {
+     // Separate batch and sampled runs so clock/vector overhead never contaminates
+     // the throughput measurement.
+     auto warmup_runner = factory("warmup");
++    const size_t operations = warmup_runner->operation_count();
++    if (operations == 0) throw std::runtime_error("Benchmark workload is empty");
+     const uint64_t expected_checksum = warmup_runner->run(false, nullptr);
+     warmup_runner->stop();
+ 
+@@ -258,18 +295,28 @@ Result measure(const std::string& name, Factory&& factory) {
+ 
+     auto sampled_runner = factory("sampled");
+     std::vector<uint64_t> latencies;
+-    latencies.reserve(COMMAND_COUNT);
++    latencies.reserve(operations);
+     const uint64_t sampled_checksum = sampled_runner->run(true, &latencies);
+     sampled_runner->stop();
+     if (expected_checksum != sampled_checksum) {
+         throw std::runtime_error("Batch and sampled benchmark states diverged");
+     }
++    if (latencies.empty()) throw std::runtime_error("Benchmark has no latency samples");
+     std::sort(latencies.begin(), latencies.end());
+-    return Result{name, elapsed_ns / COMMAND_COUNT,
+-        static_cast<double>(COMMAND_COUNT) * 1e9 / elapsed_ns,
+-        latencies[latencies.size() / 2], latencies[latencies.size() * 99 / 100],
+-        latencies[latencies.size() * 999 / 1000], latencies.back(),
+-        expected_checksum};
++    Result result;
++    result.scenario = name;
++    result.batch_ns = elapsed_ns / static_cast<double>(operations);
++    result.throughput = static_cast<double>(operations) * 1e9 / elapsed_ns;
++    result.median_ns = latencies[latencies.size() / 2];
++    result.p99_ns = latencies[latencies.size() * 99 / 100];
++    result.p999_ns = latencies[latencies.size() * 999 / 1000];
++    result.max_ns = latencies.back();
++    result.checksum = expected_checksum;
++    result.operations = operations;
++    result.latency_samples = latencies.size();
++    result.drain_every_commands = sampled_runner->drain_every_commands();
++    result.publication = sampled_runner->publication_stats();
++    return result;
+ }
+ 
+ class Runner {
+@@ -277,8 +324,46 @@ public:
+     virtual ~Runner() = default;
+     virtual uint64_t run(bool sample, std::vector<uint64_t>* latencies) = 0;
+     virtual void stop() {}
++    virtual size_t operation_count() const noexcept { return COMMAND_COUNT; }
++    virtual size_t drain_every_commands() const noexcept { return 0; }
++    virtual std::optional<public_feed_benchmark::Stats> publication_stats() const { return std::nullopt; }
++};
++
++class PublicFeedRunner final : public Runner {
++    public_feed_benchmark::Fixture fixture_;
++    size_t drain_every_;
++public:
++    PublicFeedRunner(size_t drain_every, bool validate, bool diagnostics)
++        : fixture_(PUBLIC_CYCLES_PER_SYMBOL, drain_every, validate, diagnostics),
++          drain_every_(drain_every) {}
++    uint64_t run(bool sample, std::vector<uint64_t>* latencies) override {
++        return fixture_.run(sample, latencies);
++    }
++    void stop() override { fixture_.stop(); }
++    size_t operation_count() const noexcept override { return fixture_.operation_count(); }
++    size_t drain_every_commands() const noexcept override { return drain_every_; }
++    std::optional<public_feed_benchmark::Stats> publication_stats() const override { return fixture_.stats(); }
+ };
+ 
++void print_clock_probe(bool raw_output) {
++    std::array<uint64_t, 2048> samples{};
++    for (auto& sample : samples) {
++        const auto start = std::chrono::steady_clock::now();
++        const auto finish = std::chrono::steady_clock::now();
++        sample = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count());
++    }
++    std::sort(samples.begin(), samples.end());
++    std::cout << "  Empty clock pair P50 / P99 / Max (ns): " << samples[samples.size() / 2]
++        << " / " << samples[samples.size() * 99 / 100] << " / " << samples.back()
++        << " (reported, NOT subtracted)\n\n";
++    if (raw_output) {
++        std::cout << "CLOCK_PROBE_CSV,samples,p50_ns,p99_ns,p999_ns,max_ns\nCLOCK_PROBE_CSV,"
++            << samples.size() << ',' << samples[samples.size() / 2] << ','
++            << samples[samples.size() * 99 / 100] << ',' << samples[samples.size() * 999 / 1000]
++            << ',' << samples.back() << '\n';
++    }
++}
++
+ template<typename Submit>
+ class SubmitRunner : public Runner {
+     Submit submit_;
+@@ -396,13 +481,15 @@ int main()
+         << "  Compiler          : " << MATCHING_ENGINE_COMPILER << '\n'
+         << "  Compiler Flags    : " << MATCHING_ENGINE_COMPILER_FLAGS << '\n'
+         << "  Build Type        : " << MATCHING_ENGINE_BUILD_TYPE << '\n'
+-        << "  Warmup Operations : " << COMMAND_COUNT << '\n'
+-        << "  Measured Ops      : " << COMMAND_COUNT << '\n'
+-        << "  Process Runs      : " << BATCH_RUNS << '\n'
++        << "  Legacy operations : " << COMMAND_COUNT << '\n'
++        << "  Public operations : " << PUBLIC_CYCLES_PER_SYMBOL * 3 * 8 << '\n'
++        << "  Public workload   : synthetic_mixed_visible_v1 (3 symbols, no external data)\n"
++        << "  Batch fixtures/process : " << BATCH_RUNS << '\n'
+         << "  Sampling Clock    : steady_clock\n\n";
++    print_clock_probe(raw_output);
+     if (raw_output)
+     {
+-        std::cout << "METADATA_JSON,{\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
++        std::cout << "METADATA_JSON,{\"schema_version\":2,\"git_commit\":\"" << MATCHING_ENGINE_GIT_COMMIT
+                   << "\",\"cpu\":\"" << environment("PROCESSOR_IDENTIFIER")
+                   << "\",\"logical_processors\":\"" << environment("NUMBER_OF_PROCESSORS")
+                   << "\",\"os\":\"" << MATCHING_ENGINE_OS
+@@ -412,8 +499,17 @@ int main()
+                   << "\",\"events_enabled\":true"
+                   << ",\"warmup_operations\":" << COMMAND_COUNT
+                   << ",\"measured_operations\":" << COMMAND_COUNT
+-                  << ",\"process_runs\":" << BATCH_RUNS
+-                  << ",\"sampling_clock\":\"steady_clock\"}\n";
++                  << ",\"batch_fixtures_per_process\":" << BATCH_RUNS
++                  << ",\"sampling_clock\":\"steady_clock\""
++                  << ",\"legacy_workload\":\"rest_cancel_v1\""
++                  << ",\"public_workload\":\"synthetic_mixed_visible_v1\""
++                  << ",\"public_cycles_per_symbol\":" << PUBLIC_CYCLES_PER_SYMBOL
++                  << ",\"public_measured_operations\":" << PUBLIC_CYCLES_PER_SYMBOL * 3 * 8
++                  << ",\"public_sample_scope\":\"visible_commands\""
++                  << ",\"allocation_measurement\":\"not_measured\""
++                  << ",\"clock_probe_samples\":2048"
++                  << ",\"market_data_origin\":\"synthetic\""
++                  << ",\"recovery_exercised\":false}\n";
+     }
+ 
+     std::vector<Result> results;
+@@ -443,6 +539,16 @@ int main()
+         return engine_factory("full_" + suffix, true, true, true);
+     }));
+ 
++    results.push_back(measure("journal_public_feed_sync", [](const std::string& suffix) {
++        return std::make_unique<PublicFeedRunner>(1, suffix == "warmup", false);
++    }));
++    results.push_back(measure("full_v2_public_feed_sync", [](const std::string& suffix) {
++        return std::make_unique<PublicFeedRunner>(1, suffix == "warmup", true);
++    }));
++    results.push_back(measure("full_v2_public_feed_burst16", [](const std::string& suffix) {
++        return std::make_unique<PublicFeedRunner>(16, suffix == "warmup", true);
++    }));
++
+ 
+     std::cout
+         << "============================================================\n"
+@@ -465,13 +571,25 @@ int main()
+                      "sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum\n";
+         for (const Result &result : results)
+         {
+-            std::cout << "RESULT_CSV," << result.scenario << ',' << COMMAND_COUNT << ','
++            std::cout << "RESULT_CSV," << result.scenario << ',' << result.operations << ','
+                       << std::fixed << std::setprecision(2) << result.batch_ns << ','
+                       << std::setprecision(0) << result.throughput << ','
+                       << result.median_ns << ',' << result.p99_ns << ','
+                       << result.p999_ns << ',' << result.max_ns << ','
+                       << result.checksum << '\n';
+         }
++        std::cout << "PUBLIC_FEED_CSV,scenario,commands,public_messages,wire_bytes,visible_commands,no_visible_commands,"
++                     "peak_pending_batches,peak_pending_messages,peak_pending_bytes,latency_samples,drain_every_commands,"
++                     "journal_boundary,latency_boundary,allocation_measurement\n";
++        for (const auto& result : results) {
++            if (!result.publication) continue;
++            const auto& stats = *result.publication;
++            std::cout << "PUBLIC_FEED_CSV," << result.scenario << ',' << stats.commands << ','
++                << stats.public_messages << ',' << stats.wire_bytes << ',' << stats.visible_commands << ','
++                << stats.no_visible_commands << ',' << stats.peak_pending_batches << ',' << stats.peak_pending_messages
++                << ',' << stats.peak_pending_bytes << ',' << result.latency_samples << ',' << result.drain_every_commands
++                << ",async_acceptance_not_durable,submit_to_drain_return_visible_commands,not_measured\n";
++        }
+     }
+     return 0;
+ }
+diff --git a/scripts/run_benchmark_windows.ps1 b/scripts/run_benchmark_windows.ps1
+index 28aa017..5227a80 100644
+--- a/scripts/run_benchmark_windows.ps1
++++ b/scripts/run_benchmark_windows.ps1
+@@ -5,6 +5,9 @@ param(
+ )
+ 
+ $ErrorActionPreference = "Stop"
++if ($Runs -le 0) {
++    throw "Runs must be a positive integer"
++}
+ $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+ $binary = (Resolve-Path (Join-Path $repo $Executable)).Path
+ $destination = Join-Path $repo $OutputDirectory
+@@ -14,42 +17,103 @@ if (Test-Path $destination) {
+ New-Item -ItemType Directory -Path $destination | Out-Null
+ 
+ $commit = (& git -C $repo rev-parse HEAD).Trim()
+-$status = & git -C $repo status --porcelain --untracked-files=no
++$status = @(& git -c core.quotepath=false -C $repo status --porcelain=v1 --untracked-files=all)
++$trackedChanges = @($status | Where-Object { -not $_.StartsWith("?? ") })
++$untrackedChanges = @($status | Where-Object { $_.StartsWith("?? ") })
+ $cpu = if ($env:PROCESSOR_IDENTIFIER) { $env:PROCESSOR_IDENTIFIER } else { "unknown" }
++$workRoot = Join-Path $repo "build/benchmark_work"
++New-Item -ItemType Directory -Path $workRoot -Force | Out-Null
++$workDirectories = @(for ($run = 1; $run -le $Runs; ++$run) {
++    "build/benchmark_work/run_{0:D2}_{1}" -f $run, [Guid]::NewGuid().ToString("N")
++})
+ $environment = [ordered]@{
+-    schema_version = 1
++    schema_version = 2
+     captured_at_utc = [DateTime]::UtcNow.ToString("o")
+     git_commit = $commit
+-    tracked_worktree_clean = ($status.Count -eq 0)
++    tracked_worktree_clean = ($trackedChanges.Count -eq 0)
++    current_worktree_dirty = ($status.Count -ne 0)
++    tracked_changed_files = $trackedChanges
++    untracked_files = $untrackedChanges
+     executable = $Executable.Replace("\", "/")
++    executable_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $binary).Hash.ToLowerInvariant()
++    invocation_working_directory = (Get-Location).Path
++    benchmark_working_directories = $workDirectories
++    benchmark_working_directory_policy = "unique_private_directory_per_run_under_build_retained"
+     operating_system = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
+     os_version = [Environment]::OSVersion.VersionString
+     cpu = $cpu
+     logical_processors = [Environment]::ProcessorCount
+     power_plan = (& powercfg /getactivescheme).Trim()
++    affinity_frozen = $false
++    power_plan_frozen = $false
++    cpu_frequency_frozen = $false
++    cpu_or_os_settings_changed = $false
++    raw_output_environment = "MATCHING_ENGINE_RAW_OUTPUT=1 (restored after capture)"
+     requested_runs = $Runs
+ }
+ $environment | ConvertTo-Json -Depth 3 | Set-Content -Encoding UTF8 (Join-Path $destination "environment.json")
+ 
+ $summary = New-Object System.Collections.Generic.List[string]
+ $summary.Add("run,scenario,operations,batch_avg_ns,throughput_per_sec,sample_median_ns,sample_p99_ns,sample_p999_ns,sample_max_ns,checksum")
+-for ($run = 1; $run -le $Runs; ++$run) {
+-    $rawPath = Join-Path $destination ("raw_run_{0:D2}.txt" -f $run)
+-    $lines = & $binary 2>&1
+-    if ($LASTEXITCODE -ne 0) { throw "Benchmark run $run failed" }
+-    $lines | Set-Content -Encoding UTF8 $rawPath
+-    foreach ($line in $lines) {
+-        $text = [string]$line
+-        if ($text.StartsWith("RESULT_CSV,") -and
+-            -not $text.StartsWith("RESULT_CSV,scenario,")) {
+-            $summary.Add("$run," + $text.Substring(11))
++$publicHeader = "scenario,commands,public_messages,wire_bytes,visible_commands,no_visible_commands,peak_pending_batches,peak_pending_messages,peak_pending_bytes,latency_samples,drain_every_commands,journal_boundary,latency_boundary,allocation_measurement"
++$publicSummary = New-Object System.Collections.Generic.List[string]
++$publicSummary.Add("run," + $publicHeader)
++$previousRawOutput = [Environment]::GetEnvironmentVariable("MATCHING_ENGINE_RAW_OUTPUT", "Process")
++try {
++    $env:MATCHING_ENGINE_RAW_OUTPUT = "1"
++    for ($run = 1; $run -le $Runs; ++$run) {
++        $rawPath = Join-Path $destination ("raw_run_{0:D2}.txt" -f $run)
++        $workDirectory = Join-Path $repo $workDirectories[$run - 1]
++        New-Item -ItemType Directory -Path $workDirectory | Out-Null
++        Push-Location -LiteralPath $workDirectory
++        $captureErrorPreference = $ErrorActionPreference
++        try {
++            # Windows PowerShell otherwise treats redirected native stderr as a
++            # terminating error before the exit code and raw output can be saved.
++            $ErrorActionPreference = "Continue"
++            $lines = @(& $binary 2>&1)
++            $exitCode = $LASTEXITCODE
++        } finally {
++            $ErrorActionPreference = $captureErrorPreference
++            Pop-Location
++        }
++        $lines | Set-Content -Encoding UTF8 $rawPath
++        $resultRows = 0
++        $publicRows = 0
++        $publicHeaderSeen = $false
++        foreach ($line in $lines) {
++            $text = [string]$line
++            if ($text.StartsWith("RESULT_CSV,") -and
++                -not $text.StartsWith("RESULT_CSV,scenario,")) {
++                $summary.Add("$run," + $text.Substring("RESULT_CSV,".Length))
++                ++$resultRows
++            } elseif ($text.StartsWith("PUBLIC_FEED_CSV,scenario,")) {
++                if ($text -ne ("PUBLIC_FEED_CSV," + $publicHeader)) {
++                    throw "Unexpected PUBLIC_FEED_CSV header in benchmark run $run"
++                }
++                $publicHeaderSeen = $true
++            } elseif ($text.StartsWith("PUBLIC_FEED_CSV,")) {
++                $publicSummary.Add("$run," + $text.Substring("PUBLIC_FEED_CSV,".Length))
++                ++$publicRows
++            }
++        }
++        if ($exitCode -ne 0) { throw "Benchmark run $run failed with exit code $exitCode (raw output preserved)" }
++        if ($resultRows -eq 0) { throw "Benchmark run $run produced no RESULT_CSV rows" }
++        if ($publicHeaderSeen -and $publicRows -eq 0) {
++            throw "Benchmark run $run advertised PUBLIC_FEED_CSV but produced no public-feed rows"
++        }
++        if ($publicRows -gt 0 -and -not $publicHeaderSeen) {
++            throw "Benchmark run $run produced PUBLIC_FEED_CSV rows without a header"
+         }
+     }
++} finally {
++    [Environment]::SetEnvironmentVariable("MATCHING_ENGINE_RAW_OUTPUT", $previousRawOutput, "Process")
++    $summary | Set-Content -Encoding UTF8 (Join-Path $destination "summary.csv")
++    $publicSummary | Set-Content -Encoding UTF8 (Join-Path $destination "public_feed_summary.csv")
++    $hashes = Get-ChildItem -File $destination | Sort-Object Name | ForEach-Object {
++        $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
++        "$hash  $($_.Name)"
++    }
++    $hashes | Set-Content -Encoding ASCII (Join-Path $destination "checksums.sha256")
+ }
+-$summary | Set-Content -Encoding UTF8 (Join-Path $destination "summary.csv")
+-$hashes = Get-ChildItem -File $destination | Sort-Object Name | ForEach-Object {
+-    $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+-    "$hash  $($_.Name)"
+-}
+-$hashes | Set-Content -Encoding ASCII (Join-Path $destination "checksums.sha256")
+ Write-Output "Benchmark evidence written to $destination"
+diff --git a/benchmarks/public_feed_benchmark.hpp b/benchmarks/public_feed_benchmark.hpp
+new file mode 100644
+index 0000000..1049531
+--- /dev/null
++++ b/benchmarks/public_feed_benchmark.hpp
+@@ -0,0 +1,438 @@
++#ifndef PUBLIC_FEED_BENCHMARK_HPP
++#define PUBLIC_FEED_BENCHMARK_HPP
++
++#include "async_journal.hpp"
++#include "async_logger.hpp"
++#include "monitor.hpp"
++#include "public_feed_publisher.hpp"
++#include "trading_engine.hpp"
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <chrono>
++#include <cstddef>
++#include <cstdint>
++#include <filesystem>
++#include <limits>
++#include <map>
++#include <memory>
++#include <random>
++#include <stdexcept>
++#include <string>
++#include <system_error>
++#include <tuple>
++#include <vector>
++
++// Synthetic engineering baseline for the existing in-process public loop.
++// This is not an exchange-data, transport, durability or allocation benchmark.
++namespace public_feed_benchmark {
++
++struct Stats {
++    uint64_t commands = 0;
++    uint64_t public_messages = 0;
++    uint64_t wire_bytes = 0;
++    uint64_t visible_commands = 0;
++    uint64_t no_visible_commands = 0;
++    size_t peak_pending_bytes = 0;
++    size_t peak_pending_batches = 0;
++    size_t peak_pending_messages = 0;
++};
++
++namespace detail {
++inline void require(bool value, const char* message) {
++    if (!value) throw std::runtime_error(message);
++}
++
++inline size_t multiply(size_t value, size_t factor) {
++    if (value > std::numeric_limits<size_t>::max() / factor ||
++        value > std::numeric_limits<uint64_t>::max() / factor) {
++        throw std::overflow_error("Public feed benchmark workload overflow");
++    }
++    return value * factor;
++}
++
++struct Configuration {
++    size_t cycles;
++    size_t drain_every;
++    size_t groups;
++    size_t commands;
++    size_t messages;
++    size_t bytes;
++    size_t visible;
++    size_t record_slots;
++    size_t journal_records;
++    size_t log_events;
++
++    Configuration(size_t cycles_per_symbol, size_t drain_interval)
++        : cycles(cycles_per_symbol), drain_every(drain_interval), groups(0),
++          commands(0), messages(0), bytes(0), visible(0), record_slots(0),
++          journal_records(0), log_events(0) {
++        if (cycles == 0 || drain_every == 0) {
++            throw std::invalid_argument("Public feed benchmark parameters must be positive");
++        }
++        groups = multiply(cycles, size_t{3});
++        commands = multiply(groups, size_t{8});
++        messages = multiply(groups, size_t{9});
++        bytes = multiply(groups, size_t{428});
++        visible = multiply(groups, size_t{7});
++        // At most two passive orders exist. Four reserved journal records per
++        // command cover the ENTIRE workload even if the writer never runs.
++        record_slots = multiply(commands, size_t{4});
++        journal_records = multiply(groups, size_t{19});
++        log_events = multiply(groups, size_t{26});
++    }
++};
++
++// Each fixture exclusively creates one unpredictable child under the resolved
++// temporary directory. Only that owned child may be removed on teardown.
++class TemporaryDirectory {
++    std::filesystem::path parent_;
++    std::filesystem::path directory_;
++    bool owned_ = false;
++public:
++    TemporaryDirectory()
++        : parent_(std::filesystem::canonical(std::filesystem::temp_directory_path())) {
++        static std::atomic<uint64_t> serial{0};
++        std::random_device random;
++        for (size_t attempt = 0; attempt < 100; ++attempt) {
++            const std::string suffix = std::to_string(random()) + "-" +
++                std::to_string(random()) + "-" +
++                std::to_string(serial.fetch_add(1, std::memory_order_relaxed));
++            const auto candidate = parent_ / ("public-feed-benchmark-" + suffix);
++            std::error_code error;
++            if (std::filesystem::create_directory(candidate, error)) {
++                directory_ = candidate;
++                owned_ = true;
++                return;
++            }
++            if (error && error != std::errc::file_exists) {
++                throw std::filesystem::filesystem_error(
++                    "Cannot create public feed benchmark temporary directory", candidate, error);
++            }
++        }
++        throw std::runtime_error("Cannot exclusively create benchmark temporary directory");
++    }
++    TemporaryDirectory(const TemporaryDirectory&) = delete;
++    TemporaryDirectory& operator=(const TemporaryDirectory&) = delete;
++    ~TemporaryDirectory() noexcept {
++        if (!owned_ || directory_.parent_path() != parent_ ||
++            directory_.filename().string().find("public-feed-benchmark-") != 0) return;
++        std::error_code error;
++        std::filesystem::remove_all(directory_, error);
++    }
++    std::string file(const char* name) const { return (directory_ / name).string(); }
++};
++
++// Do not decode twice to collect byte counts: the real gateway adapter alone
++// validates and decodes each command batch.
++class CountingFeedByteSink final : public FeedByteSink {
++    GatewayFeedSink& adapter_;
++    uint64_t accepted_bytes_ = 0;
++public:
++    explicit CountingFeedByteSink(GatewayFeedSink& adapter) : adapter_(adapter) {}
++    bool consume(const uint8_t* bytes, size_t size) override {
++        if (size > std::numeric_limits<uint64_t>::max() - accepted_bytes_) return false;
++        if (!adapter_.consume(bytes, size)) return false;
++        accepted_bytes_ += static_cast<uint64_t>(size);
++        return true;
++    }
++    void invalidate() noexcept override { adapter_.invalidate(); }
++    uint64_t accepted_bytes() const noexcept { return accepted_bytes_; }
++};
++} // namespace detail
++
++class Fixture {
++    using Clock = std::chrono::steady_clock;
++    const detail::Configuration config_;
++    const bool verify_each_drain_;
++    const bool diagnostics_;
++    detail::TemporaryDirectory temporary_;
++    // Capacity 16 is intentional: this workload has at most two live orders
++    // per symbol, and measures the public loop rather than production sizing.
++    MarketManager markets_{16};
++    EventDispatcher dispatcher_;
++    AsyncJournalWriter journal_;
++    MarketDataGateway gateway_{3};
++    GatewayFeedSink adapter_{gateway_};
++    detail::CountingFeedByteSink counting_sink_{adapter_};
++    PublicFeedPublisher publisher_;
++    TradingEngine engine_;
++    Monitor monitor_;
++    std::unique_ptr<AsyncLogger> logger_;
++    Stats stats_;
++    std::array<uint64_t, 3> command_sequences_{{0, 0, 0}};
++    std::array<uint64_t, 3> public_sequences_{{0, 0, 0}};
++    std::vector<Clock::time_point> pending_starts_;
++    bool used_ = false;
++    bool completed_ = false;
++    bool failed_ = false;
++    bool stopped_ = false;
++
++    void shutdown() noexcept {
++        if (stopped_) return;
++        stopped_ = true;
++        if (logger_) logger_->stop();
++        journal_.stop();
++    }
++
++    void require_running_health() const {
++        detail::require(!engine_.failed() && publisher_.available() && adapter_.available(),
++                        "Public feed benchmark output is unavailable");
++        detail::require(journal_.available() && journal_.dropped_count() == 0,
++                        "Public feed benchmark journal is unhealthy");
++        if (logger_) {
++            detail::require(logger_->available() && logger_->dropped_count() == 0 &&
++                            logger_->failed_count() == 0,
++                            "Public feed benchmark logger is unhealthy");
++        }
++    }
++
++    void compare_visible_books() const {
++        using VisibleOrder = std::tuple<uint8_t, int64_t, uint64_t>;
++        using LevelKey = std::pair<uint8_t, int64_t>;
++        for (size_t index = 0; index < command_sequences_.size(); ++index) {
++            const InstrumentId id(static_cast<uint32_t>(index));
++            const auto source = markets_.find_book(id)->capture_state();
++            const auto* local_book = gateway_.book(id);
++            const auto local = local_book->capture_state();
++            std::vector<VisibleOrder> source_orders;
++            std::vector<VisibleOrder> local_orders;
++            std::map<LevelKey, uint64_t> source_levels;
++            std::map<LevelKey, uint64_t> local_levels;
++            const auto collect = [&](const std::vector<BookLevelState>& levels) {
++                for (const auto& level : levels) {
++                    const LevelKey key{static_cast<uint8_t>(level.side), level.price.get()};
++                    source_levels.emplace(key, level.total_volume.get());
++                    for (const auto& order : level.orders) {
++                        source_orders.emplace_back(static_cast<uint8_t>(order.side),
++                            order.price.get(), order.remaining_quantity.get());
++                    }
++                }
++            };
++            collect(source.bid_levels);
++            collect(source.ask_levels);
++            for (const auto& order : local.orders) {
++                local_orders.emplace_back(static_cast<uint8_t>(order.side),
++                    order.price.get(), order.remaining.get());
++                local_levels[{static_cast<uint8_t>(order.side), order.price.get()}] +=
++                    order.remaining.get();
++            }
++            std::sort(source_orders.begin(), source_orders.end());
++            std::sort(local_orders.begin(), local_orders.end());
++            detail::require(source_orders == local_orders && source_levels == local_levels &&
++                            source.active_order_count == local_book->order_count(),
++                            "Public feed benchmark visible book projection diverged");
++            for (const auto& level : source_levels) {
++                const Price price(level.first.second);
++                const uint64_t quantity = level.first.first == static_cast<uint8_t>(Side::BUY)
++                    ? local_book->bid_quantity(price) : local_book->ask_quantity(price);
++                detail::require(quantity == level.second,
++                                "Public feed benchmark public price levels diverged");
++            }
++            detail::require(gateway_.state(id) == FeedState::HEALTHY &&
++                            gateway_.last_sequence(id) == public_sequences_[index],
++                            "Public feed benchmark consumer sequence diverged");
++        }
++    }
++
++    void drain(bool sample, std::vector<uint64_t>* latencies) {
++        detail::require(publisher_.drain(), "Public feed benchmark drain failed");
++        // The endpoint is the drain return which covers each visible command,
++        // before validation, bookkeeping, and vector insertion overhead.
++        if (sample && !pending_starts_.empty()) {
++            const auto finish = Clock::now();
++            for (const auto& start : pending_starts_) {
++                latencies->push_back(static_cast<uint64_t>(
++                    std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count()));
++            }
++            pending_starts_.clear();
++        }
++        stats_.wire_bytes = counting_sink_.accepted_bytes();
++        detail::require(publisher_.pending_bytes() == 0 && publisher_.pending_batches() == 0 &&
++                        adapter_.pending_bytes() == 0 &&
++                        gateway_.metrics().applied == stats_.public_messages,
++                        "Public feed benchmark drain accounting diverged");
++        require_running_health();
++        if (verify_each_drain_) compare_visible_books();
++    }
++
++    void verify_complete() const {
++        detail::require(completed_ && !failed_, "Public feed benchmark did not complete");
++        detail::require(stats_.commands == static_cast<uint64_t>(config_.commands) &&
++                        stats_.public_messages == static_cast<uint64_t>(config_.messages) &&
++                        stats_.wire_bytes == static_cast<uint64_t>(config_.bytes) &&
++                        stats_.visible_commands == static_cast<uint64_t>(config_.visible) &&
++                        stats_.no_visible_commands == static_cast<uint64_t>(config_.groups),
++                        "Public feed benchmark final counters diverged");
++        const auto& metrics = gateway_.metrics();
++        detail::require(metrics.applied == stats_.public_messages && metrics.gaps == 0 &&
++                        metrics.duplicates == 0 && metrics.out_of_order == 0 &&
++                        metrics.invalid_instruments == 0 && metrics.invalid_messages == 0 &&
++                        metrics.stale_messages == 0 && publisher_.available() &&
++                        adapter_.available() && publisher_.pending_bytes() == 0 &&
++                        publisher_.pending_batches() == 0 && adapter_.pending_bytes() == 0 &&
++                        pending_starts_.empty() && !engine_.failed(),
++                        "Public feed benchmark final consumer is unhealthy");
++        for (size_t index = 0; index < command_sequences_.size(); ++index) {
++            const InstrumentId id(static_cast<uint32_t>(index));
++            const auto* source = markets_.find_book(id);
++            const auto* local = gateway_.book(id);
++            detail::require(source->active_order_count() == 0 && !source->best_bid() &&
++                            !source->best_ask() && source->ready_for_commands() &&
++                            source->last_applied_command_sequence().get() ==
++                                static_cast<uint64_t>(config_.cycles) * 8 &&
++                            local->order_count() == 0 &&
++                            local->bid_quantity(Price(999000)) == 0 &&
++                            local->bid_quantity(Price(1000000)) == 0 &&
++                            local->ask_quantity(Price(999000)) == 0 &&
++                            local->ask_quantity(Price(1000000)) == 0 &&
++                            gateway_.state(id) == FeedState::HEALTHY &&
++                            gateway_.last_sequence(id) == static_cast<uint64_t>(config_.cycles) * 9,
++                            "Public feed benchmark final books are not empty and contiguous");
++        }
++        detail::require(journal_.accepted_command_count() == stats_.commands &&
++                        journal_.accepted_count() == static_cast<uint64_t>(config_.journal_records),
++                        "Public feed benchmark journal acceptance diverged");
++        if (diagnostics_) {
++            const auto metrics_snapshot = monitor_.snapshot(logger_.get());
++            const auto& global = metrics_snapshot.global;
++            const uint64_t groups = static_cast<uint64_t>(config_.groups);
++            detail::require(global.orders == groups * 6 && global.trades == groups * 3 &&
++                            global.cancels == groups * 3 && global.rejects == 0 &&
++                            global.traded_volume == groups * 15 &&
++                            global.latency_samples == stats_.commands &&
++                            global.data_warnings == 0 && global.data_errors == 0 &&
++                            logger_->accepted_count() == static_cast<uint64_t>(config_.log_events),
++                            "Public feed benchmark diagnostics counters diverged");
++        }
++    }
++
++public:
++    Fixture(size_t cycles_per_symbol, size_t drain_every, bool verify_each_drain,
++            bool diagnostics = false)
++        : config_(cycles_per_symbol, drain_every), verify_each_drain_(verify_each_drain),
++          diagnostics_(diagnostics), journal_(temporary_.file("commands.csv"), config_.record_slots),
++          publisher_(markets_, counting_sink_, config_.bytes),
++          engine_(markets_, dispatcher_, journal_, publisher_) {
++        if (diagnostics_) {
++            monitor_.attach(dispatcher_, &markets_);
++            // Four events per command cover all 26 diagnostic events per cycle.
++            logger_ = std::make_unique<AsyncLogger>(temporary_.file("diagnostics.csv"),
++                                                  config_.record_slots);
++            logger_->attach(dispatcher_);
++        }
++        dispatcher_.freeze();
++    }
++    Fixture(const Fixture&) = delete;
++    Fixture& operator=(const Fixture&) = delete;
++    ~Fixture() { shutdown(); }
++
++    size_t operation_count() const noexcept { return config_.commands; }
++    Stats stats() const { return stats_; }
++
++    uint64_t run(bool sample, std::vector<uint64_t>* latencies) {
++        if (used_ || stopped_) throw std::logic_error("Public feed benchmark fixture is single-use");
++        used_ = true;
++        try {
++            if (sample && !latencies) {
++                throw std::invalid_argument("Sampled public feed benchmark requires a latency vector");
++            }
++            if (sample) {
++                if (config_.visible > latencies->max_size() - latencies->size()) {
++                    throw std::overflow_error("Public feed benchmark latency vector overflow");
++                }
++                latencies->reserve(latencies->size() + config_.visible);
++                pending_starts_.reserve(std::min(config_.drain_every, config_.commands));
++            }
++            uint64_t checksum = 0;
++            uint64_t order_id = 0;
++            size_t since_drain = 0;
++            for (size_t cycle = 0; cycle < config_.cycles; ++cycle) {
++                for (size_t index = 0; index < command_sequences_.size(); ++index) {
++                    const InstrumentId id(static_cast<uint32_t>(index));
++                    const uint64_t a = ++order_id;
++                    const uint64_t b = ++order_id;
++                    const uint64_t c = ++order_id;
++                    const uint64_t d = ++order_id;
++                    const uint64_t e = ++order_id;
++                    const uint64_t ioc = ++order_id;
++                    const auto execute = [&](const Command& command, uint64_t public_messages) {
++                        if (sample && public_messages != 0) pending_starts_.push_back(Clock::now());
++                        const auto result = engine_.submit(Timestamp(stats_.commands + 1), id, command);
++                        detail::require(result.routed() && result.process_result.applied() &&
++                                        result.process_result.event_output_complete,
++                                        "Public feed benchmark command/output failed");
++                        ++stats_.commands;
++                        stats_.public_messages += public_messages;
++                        public_sequences_[index] += public_messages;
++                        if (public_messages != 0) ++stats_.visible_commands;
++                        else ++stats_.no_visible_commands;
++                        stats_.peak_pending_bytes = std::max(stats_.peak_pending_bytes,
++                                                             publisher_.pending_bytes());
++                        stats_.peak_pending_batches = std::max(stats_.peak_pending_batches,
++                                                               publisher_.pending_batches());
++                        const auto pending = stats_.public_messages - gateway_.metrics().applied;
++                        stats_.peak_pending_messages = std::max(stats_.peak_pending_messages,
++                                                                static_cast<size_t>(pending));
++                        checksum = checksum * 1099511628211ULL ^
++                            (get_command_sequence(command).get() << 8) ^
++                            (static_cast<uint64_t>(index) << 4) ^
++                            static_cast<uint64_t>(result.process_result.event_count) ^ public_messages;
++                        require_running_health();
++                        ++since_drain;
++                        if (since_drain == config_.drain_every) {
++                            drain(sample, latencies);
++                            since_drain = 0;
++                        }
++                    };
++                    const auto order = [&](uint64_t reference, Side side, int64_t price,
++                                           uint64_t quantity, TimeInForce tif = TimeInForce::GTC) {
++                        return Command{NewOrderCommand(CommandSequence(++command_sequences_[index]),
++                            OrderId(reference), side, Price(price), Quantity(quantity), tif)};
++                    };
++                    const auto cancel = [&](uint64_t reference) {
++                        return Command{CancelOrderCommand(CommandSequence(++command_sequences_[index]),
++                                                          OrderId(reference))};
++                    };
++                    execute(order(a, Side::SELL, 1000000, 10), 1);
++                    execute(order(b, Side::SELL, 1000000, 6), 1);
++                    execute(order(c, Side::BUY, 1000000, 12), 2);
++                    execute(cancel(b), 1);
++                    execute(order(d, Side::BUY, 999000, 3), 1);
++                    execute(order(e, Side::SELL, 999000, 5), 2);
++                    execute(cancel(e), 1);
++                    execute(order(ioc, Side::BUY, 999000, 1, TimeInForce::IOC), 0);
++                }
++            }
++            // Also flush an incomplete drain interval, including its samples.
++            if (since_drain != 0) drain(sample, latencies);
++            completed_ = true;
++            require_running_health();
++            return checksum;
++        } catch (...) {
++            failed_ = true;
++            shutdown();
++            throw;
++        }
++    }
++
++    void stop() {
++        shutdown();
++        if (!used_) return;
++        verify_complete();
++        detail::require(journal_.healthy() && journal_.dropped_count() == 0 &&
++                        journal_.buffered_record_slots() == 0 &&
++                        journal_.written_command_count() == stats_.commands &&
++                        journal_.written_count() == static_cast<uint64_t>(config_.journal_records),
++                        "Public feed benchmark journal did not finish healthily");
++        if (logger_) {
++            detail::require(logger_->healthy() && logger_->dropped_count() == 0 &&
++                            logger_->failed_count() == 0 &&
++                            logger_->accepted_count() == logger_->written_count(),
++                            "Public feed benchmark logger did not finish healthily");
++        }
++    }
++};
++} // namespace public_feed_benchmark
++
++#endif
+diff --git a/tests/public_feed_benchmark_tests.cpp b/tests/public_feed_benchmark_tests.cpp
+new file mode 100644
+index 0000000..34d095d
+--- /dev/null
++++ b/tests/public_feed_benchmark_tests.cpp
+@@ -0,0 +1,162 @@
++#include "../benchmarks/public_feed_benchmark.hpp"
++#include <algorithm>
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <iostream>
++#include <limits>
++#include <stdexcept>
++#include <vector>
++
++#define TEST_ASSERT(value) do { if (!(value)) throw std::runtime_error("assertion failed: " #value); } while (false)
++
++namespace {
++using public_feed_benchmark::Fixture;
++using public_feed_benchmark::Stats;
++
++template<typename Exception, typename Action>
++void expect_exception(Action&& action) {
++    bool caught = false;
++    try { action(); }
++    catch (const Exception&) { caught = true; }
++    TEST_ASSERT(caught);
++}
++
++Stats expected_stats(size_t cycles, size_t drain_every) {
++    Stats expected;
++    const size_t groups = cycles * 3;
++    expected.commands = static_cast<uint64_t>(groups * 8);
++    expected.public_messages = static_cast<uint64_t>(groups * 9);
++    expected.wire_bytes = static_cast<uint64_t>(groups * 428);
++    expected.visible_commands = static_cast<uint64_t>(groups * 7);
++    expected.no_visible_commands = static_cast<uint64_t>(groups);
++    const std::array<size_t, 8> bytes{{49, 49, 112, 32, 49, 105, 32, 0}};
++    const std::array<size_t, 8> messages{{1, 1, 2, 1, 1, 2, 1, 0}};
++    size_t queued_bytes = 0;
++    size_t queued_batches = 0;
++    size_t queued_messages = 0;
++    size_t interval = 0;
++    for (size_t command = 0; command < groups * 8; ++command) {
++        const size_t step = command % bytes.size();
++        queued_bytes += bytes[step];
++        queued_batches += bytes[step] == 0 ? size_t{0} : size_t{1};
++        queued_messages += messages[step];
++        expected.peak_pending_bytes = std::max(expected.peak_pending_bytes, queued_bytes);
++        expected.peak_pending_batches = std::max(expected.peak_pending_batches, queued_batches);
++        expected.peak_pending_messages = std::max(expected.peak_pending_messages, queued_messages);
++        if (++interval == drain_every) {
++            interval = 0;
++            queued_bytes = 0;
++            queued_batches = 0;
++            queued_messages = 0;
++        }
++    }
++    return expected;
++}
++
++void assert_stats(const Stats& actual, const Stats& expected) {
++    TEST_ASSERT(actual.commands == expected.commands);
++    TEST_ASSERT(actual.public_messages == expected.public_messages);
++    TEST_ASSERT(actual.wire_bytes == expected.wire_bytes);
++    TEST_ASSERT(actual.visible_commands == expected.visible_commands);
++    TEST_ASSERT(actual.no_visible_commands == expected.no_visible_commands);
++    TEST_ASSERT(actual.peak_pending_bytes == expected.peak_pending_bytes);
++    TEST_ASSERT(actual.peak_pending_batches == expected.peak_pending_batches);
++    TEST_ASSERT(actual.peak_pending_messages == expected.peak_pending_messages);
++}
++
++void test_matrix_and_visible_projection() {
++    for (const size_t cycles : {size_t{1}, size_t{2}, size_t{3}}) {
++        uint64_t expected_checksum = 0;
++        bool have_checksum = false;
++        // Five and seven require tail drains; 1000 exercises a wholly deferred
++        // workload. Sixteen includes the no-visible IOC in its command interval.
++        for (const size_t drain_every : {size_t{1}, size_t{5}, size_t{16},
++                                        size_t{7}, size_t{1000}}) {
++            const Stats expected = expected_stats(cycles, drain_every);
++            for (const bool diagnostics : {false, true}) {
++                for (const bool sample : {false, true}) {
++                    // Every drain compares visible order multisets and price
++                    // levels, including intermediate partial-trade states.
++                    Fixture fixture(cycles, drain_every, true, diagnostics);
++                    TEST_ASSERT(fixture.operation_count() == cycles * 3 * 8);
++                    assert_stats(fixture.stats(), Stats{});
++                    std::vector<uint64_t> latencies;
++                    const uint64_t checksum = fixture.run(sample, sample ? &latencies : nullptr);
++                    fixture.stop();
++                    fixture.stop();
++                    assert_stats(fixture.stats(), expected);
++                    TEST_ASSERT(latencies.size() == (sample ? cycles * 3 * 7 : size_t{0}));
++                    if (have_checksum) TEST_ASSERT(checksum == expected_checksum);
++                    else { expected_checksum = checksum; have_checksum = true; }
++                }
++            }
++        }
++    }
++}
++
++void test_sampling_append_and_verification_independence() {
++    Fixture sampled(2, 5, false, true);
++    Fixture verified(2, 5, true, true);
++    std::vector<uint64_t> samples{12345};
++    const uint64_t sampled_checksum = sampled.run(true, &samples);
++    const uint64_t verified_checksum = verified.run(false, nullptr);
++    sampled.stop();
++    verified.stop();
++    TEST_ASSERT(sampled_checksum == verified_checksum);
++    TEST_ASSERT(samples.size() == 43 && samples.front() == 12345);
++    assert_stats(sampled.stats(), verified.stats());
++    // No assertion about elapsed wall time: clocks and machines vary.
++}
++
++void test_zero_overflow_and_single_use() {
++    expect_exception<std::invalid_argument>([] { Fixture invalid(0, 1, true); });
++    expect_exception<std::invalid_argument>([] { Fixture invalid(1, 0, true); });
++    const size_t maximum = std::numeric_limits<size_t>::max();
++    expect_exception<std::overflow_error>([&] { Fixture invalid(maximum, 1, true); });
++    expect_exception<std::overflow_error>([&] { Fixture invalid(maximum / 24, 1, true); });
++    // This passes the command-count check but overflows the byte budget.
++    expect_exception<std::overflow_error>([&] { Fixture invalid(maximum / 1284 + 1, 1, true); });
++    {
++        Fixture fixture(1, maximum, true);
++        std::vector<uint64_t> samples;
++        fixture.run(true, &samples);
++        TEST_ASSERT(samples.size() == 21);
++        fixture.stop();
++        expect_exception<std::logic_error>([&] { fixture.run(false, nullptr); });
++    }
++    {
++        Fixture fixture(1, 1, true);
++        fixture.run(false, nullptr);
++        expect_exception<std::logic_error>([&] { fixture.run(false, nullptr); });
++        fixture.stop();
++    }
++    {
++        Fixture unused(1, 1, true, true);
++        unused.stop();
++        unused.stop();
++        expect_exception<std::logic_error>([&] { unused.run(false, nullptr); });
++    }
++    {
++        Fixture failed(1, 1, true, true);
++        expect_exception<std::invalid_argument>([&] { failed.run(true, nullptr); });
++        expect_exception<std::logic_error>([&] { failed.run(false, nullptr); });
++        expect_exception<std::runtime_error>([&] { failed.stop(); });
++    }
++    // Destruction without stop must quiesce both owned worker threads.
++    { Fixture abandoned(1, 1, true, true); }
++}
++} // namespace
++
++int main() {
++    try {
++        test_matrix_and_visible_projection();
++        test_sampling_append_and_verification_independence();
++        test_zero_overflow_and_single_use();
++        std::cout << "Public feed benchmark fixture tests passed\n";
++        return 0;
++    } catch (const std::exception& error) {
++        std::cerr << "Public feed benchmark fixture tests failed: " << error.what() << '\n';
++        return 1;
++    }
++}

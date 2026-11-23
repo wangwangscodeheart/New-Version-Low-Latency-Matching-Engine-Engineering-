@@ -1,0 +1,47 @@
+﻿{
+    "schema_version":  2,
+    "captured_at_utc":  "2026-11-20T11:19:45.4793994Z",
+    "git_commit":  "b889136644264e61ff9b8106330283330d7cb7a4",
+    "tracked_worktree_clean":  false,
+    "current_worktree_dirty":  true,
+    "tracked_changed_files":  [
+                                  " M CMakeLists.txt",
+                                  " M README.md",
+                                  " M README_V2.md",
+                                  " M benchmarks/v2_perf.cpp",
+                                  " M docs/BENCHMARK.md",
+                                  " M docs/CURRENT_LIMITATIONS.md",
+                                  " M docs/M2_PUBLIC_FEED.md",
+                                  " M docs/TESTING.md",
+                                  " M docs/VALIDATION.md",
+                                  " M scripts/run_benchmark_windows.ps1"
+                              ],
+    "untracked_files":  [
+                            "?? benchmarks/public_feed_benchmark.hpp",
+                            "?? data/sources/m3_candidate_review.json",
+                            "?? docs/validation/2026-11-20-public-feed-benchmark/asan-build-and-ctest.txt",
+                            "?? docs/validation/2026-11-20-public-feed-benchmark/fixture-and-stress.txt",
+                            "?? docs/validation/2026-11-20-public-feed-benchmark/release-build-and-ctest.txt",
+                            "?? tests/public_feed_benchmark_tests.cpp"
+                        ],
+    "executable":  "build/public-feed-bench-release/matching_engine_v2_benchmarks.exe",
+    "executable_sha256":  "615d825b3bf22a574b8f18723f0cfbc1bd8ee7ee5af7b7724ded252393b9ae19",
+    "invocation_working_directory":  "D:\\Low-Latency-Matching-Engine-Engineering",
+    "benchmark_working_directories":  [
+                                          "build/benchmark_work/run_01_7bb4f89f0bc9410bb20a8702f8f54c0d",
+                                          "build/benchmark_work/run_02_f076e95354664b92868272bcc6c58690",
+                                          "build/benchmark_work/run_03_4d4e3e66396643f0bd0adabe0ede292d"
+                                      ],
+    "benchmark_working_directory_policy":  "unique_private_directory_per_run_under_build_retained",
+    "operating_system":  "Microsoft Windows 10.0.26300 ",
+    "os_version":  "Microsoft Windows NT 10.0.26300.0",
+    "cpu":  "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_processors":  24,
+    "power_plan":  "电源方案 GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (平衡)",
+    "affinity_frozen":  false,
+    "power_plan_frozen":  false,
+    "cpu_frequency_frozen":  false,
+    "cpu_or_os_settings_changed":  false,
+    "raw_output_environment":  "MATCHING_ENGINE_RAW_OUTPUT=1 (restored after capture)",
+    "requested_runs":  3
+}

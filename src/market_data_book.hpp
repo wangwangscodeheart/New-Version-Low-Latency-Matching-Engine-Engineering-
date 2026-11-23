@@ -7,6 +7,7 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <stdexcept>
 
 struct MarketDataOrder { Price price; Quantity remaining; Side side; };
@@ -86,6 +87,103 @@ public:
             found->second.remaining.get() - trade.quantity.get());
         if (found->second.remaining.get() == 0) orders_.erase(found);
         return true;
+    }
+    // Native public-feed lifecycle operations. These mutate the reconstructed
+    // visible book only; they are not commands to the private matching engine.
+    // The existing simulated FeedPayload contract remains unchanged.
+    bool add_order(uint64_t order_id, Price price, Quantity remaining, Side side) {
+        return apply(FeedAddOrder{order_id, price, remaining, side});
+    }
+    bool erase_order(uint64_t order_id) {
+        return apply(FeedCancelOrder{order_id});
+    }
+    bool reduce_order(uint64_t order_id, Quantity reduction) noexcept {
+        if (order_id == 0 || reduction.get() == 0) return false;
+        const auto found = orders_.find(order_id);
+        if (found == orders_.end() || reduction.get() > found->second.remaining.get()) return false;
+        auto& side_levels = levels(found->second.side);
+        const auto level = side_levels.find(found->second.price.get());
+        if (level == side_levels.end() || level->second < reduction.get()) return false;
+        // Native X/E/C reduce at the stored resting price. An execution price
+        // carried by C must not move the order or select a different level.
+        level->second -= reduction.get();
+        if (level->second == 0) side_levels.erase(level);
+        found->second.remaining = Quantity(found->second.remaining.get() - reduction.get());
+        if (found->second.remaining.get() == 0) orders_.erase(found);
+        return true;
+    }
+    bool replace_order(uint64_t old_id, uint64_t new_id, Price new_price, Quantity new_remaining) {
+        if (old_id == 0 || new_id == 0 || old_id == new_id ||
+            new_price.get() <= 0 || new_remaining.get() == 0) return false;
+        const auto found = orders_.find(old_id);
+        if (found == orders_.end() || orders_.find(new_id) != orders_.end()) return false;
+        // Keep a value copy: inserting the new node may rehash orders_ and
+        // invalidate its iterators. Stock is implicit in this per-symbol book;
+        // replacement inherits the old side and specifies a new TOTAL size.
+        const MarketDataOrder old = found->second;
+        auto& side_levels = levels(old.side);
+        const auto old_level = side_levels.find(old.price.get());
+        if (old_level == side_levels.end() || old_level->second < old.remaining.get()) return false;
+        auto target = side_levels.find(new_price.get());
+        const bool same_price = old.price == new_price;
+        const uint64_t retained_at_target = same_price ? old_level->second - old.remaining.get() :
+            (target == side_levels.end() ? uint64_t{0} : target->second);
+        if (new_remaining.get() > std::numeric_limits<uint64_t>::max() - retained_at_target) return false;
+
+        // Stage both allocating operations before changing any existing order
+        // or quantity. Roll back a newly allocated empty level if node/bucket
+        // allocation fails. Map iterators survive insertion; old order removal
+        // uses its key rather than the potentially invalidated iterator.
+        const bool new_level = target == side_levels.end();
+        if (new_level) target = side_levels.emplace(new_price.get(), 0).first;
+        try {
+            const auto inserted = orders_.emplace(new_id,
+                MarketDataOrder{new_price, new_remaining, old.side});
+            if (!inserted.second) {
+                if (new_level) side_levels.erase(target);
+                return false;
+            }
+        } catch (...) {
+            if (new_level) side_levels.erase(target);
+            throw;
+        }
+        target->second = retained_at_target + new_remaining.get();
+        if (!same_price) {
+            old_level->second -= old.remaining.get();
+            if (old_level->second == 0) side_levels.erase(old_level);
+        }
+        orders_.erase(old_id);
+        return true;
+    }
+    // Borrowed until the next mutation. No mutable order/aggregate access is
+    // exposed to adapters, so identities and level quantities stay coherent.
+    const MarketDataOrder* find_order(uint64_t order_id) const noexcept {
+        const auto found = orders_.find(order_id);
+        return found == orders_.end() ? nullptr : &found->second;
+    }
+    std::optional<Price> best_bid() const noexcept {
+        if (bids_.empty()) return std::nullopt;
+        return Price(bids_.rbegin()->first);
+    }
+    std::optional<Price> best_ask() const noexcept {
+        if (asks_.empty()) return std::nullopt;
+        return Price(asks_.begin()->first);
+    }
+    // Cold verification path: reconstruct aggregates independently from orders.
+    // It may allocate/throw, and is not a per-event hot-path latency promise.
+    bool check_invariants() const {
+        std::map<int64_t, uint64_t> expected_bids;
+        std::map<int64_t, uint64_t> expected_asks;
+        for (const auto& entry : orders_) {
+            const auto& order = entry.second;
+            if (entry.first == 0 || order.price.get() <= 0 || order.remaining.get() == 0 ||
+                (order.side != Side::BUY && order.side != Side::SELL)) return false;
+            auto& expected = order.side == Side::BUY ? expected_bids : expected_asks;
+            auto& aggregate = expected[order.price.get()];
+            if (order.remaining.get() > std::numeric_limits<uint64_t>::max() - aggregate) return false;
+            aggregate += order.remaining.get();
+        }
+        return bids_ == expected_bids && asks_ == expected_asks;
     }
     bool apply(const FeedPayload& payload) {
         return std::visit([this](const auto& value) { return apply(value); }, payload);

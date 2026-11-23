@@ -8,6 +8,12 @@
 
 ## 当前定位
 
+2026-11-23第五批：离线检查器增加单遍原始源SHA-256、可选预期摘要比较及显式启用的流式gzip完整性检查（默认无zlib依赖）。全部尾部/物理EOF通过后才完成，晚到错误整体STALE；不等于来源认证。没有真实市场数据或M3整体验收，见[第五批说明](docs/M3_ITCH_INPUT_INTEGRITY.md)。
+
+2026-11-22第四批：新增可选时间范围/系统阶段/成交报告关联检查和本地`matching_engine_itch_inspect`入口，默认CLI启用这些检查并要求明确本地使用声明。旧重建API默认行为保留，不能混称所有入口已严格化；真实数据及独立参考仍未通过门禁。详见[第四批说明](docs/M3_ITCH_REPORT_VALIDATION.md)。
+
+2026-11-22：M3已用自造数据接通原始BinaryFILE、22种历史ITCH消息、日内路由、独立可见簿和最新元数据状态。未知类型仍拒绝；真实文件未下载，完整业务语义、独立参考及真实交易日尚未验收，不能宣称完整ITCH或Nasdaq撮合复现。详见[第二批可见簿](docs/M3_NATIVE_REBUILD.md)与[第三批元数据](docs/M3_ITCH_METADATA.md)。
+
 当前仓库是一个用于量化开发学习的 C++17 交易基础设施项目。V1 提供单品种、单写者、进程内运行的确定性限价订单簿与撮合核心；V2 保留该核心，在外层增加多品种路由、统一事件、Journal、Audit、Replay、异步日志、行情校验、简化二进制 feed handler、容量指标、盘前风控和监控。它适合：
 
 - 学习交易所撮合的价格优先和同价 FIFO；
@@ -17,6 +23,10 @@
 - 作为量化开发实习项目继续拆解和扩展。
 
 它不是可以直接管理真实资金的交易所生产系统。当前没有真实交易所网络接口、账户资金与持仓系统、完整盘前风控、生产级 WAL、高可用复制或并行撮合分片。
+
+2026-11-21：M3主线明确为Nasdaq原始TotalView-ITCH 5.0，计划验证日为2020-01-30。
+新增BinaryFILE流式读取与核心消息的类型化解码，测试字节全部自行合成；尚未下载真实样本、实现原生行情簿重建或完成M3验收。
+这条接收端链路不把ITCH事件送入MatchingEngine，V1核心和M2模拟公开行情保持原样。设计、历史布局依据、授权门禁与下一批范围见[M3说明](docs/M3_NASDAQ_ITCH.md)。
 
 ## Version 1 与 Version 2
 
@@ -169,13 +179,14 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 | Market Snapshot Test 可执行文件 | 8组多品种恢复/故障测试，覆盖generation非复用、legacy碰撞、占位及提交前失败 |
 | Demo Integration | 构建订单簿、跨档成交、撤单和 Command Replay |
 | V1 + V2 Release CTest | 20/20 通过（2026-08-07 本机复验） |
-| MSVC Release CTest | 27/27 通过（2026-11-19，`c690dfd` 后工作区增量版本） |
-| MSVC ASan RelWithDebInfo CTest | 27/27 通过（2026-11-19，同一工作区版本；分配故障程序的ASan覆盖限制见下文） |
-| Linux Release / UBSan / TSan | 本机无 Linux 工具链，尚未执行；以未来真实 runner 日志为准 |
+| MSVC Release CTest | 28/28 通过（2026-11-20，`b889136`后合成Benchmark增量工作区） |
+| MSVC ASan RelWithDebInfo CTest | 28/28 通过（2026-11-20，同一增量；分配故障程序的ASan覆盖限制见下文） |
+| Linux Release / ASan+UBSan | GitHub runner 均27/27通过（2026-11-20，`b889136`） |
+| Linux TSan | 异步组件子集4/4通过；不是完整撮合系统的多线程验收 |
 
 2026-11-19最新增量已接通Journal接受后公开投影→编码→有界整批队列→独立本地簿，并在原V2 Demo演示；新增提交/消费失效屏障，最终27项CTest及额外100万命令差分通过，见[M2闭环](docs/M2_PUBLIC_FEED.md)。这是进程内模拟、使用合成订单，不是交易所真实行情；不承诺自动重传、撮合回滚、断电持久化或全部V2.1完成。此前[M1第十批](docs/M1_BATCH_10.md)及性能/日志限制保留，历史证据见[VALIDATION](docs/VALIDATION.md)。
 
-`.github/workflows/ci.yml`配置了Linux Release、ASan+UBSan、异步组件与CommandJournal的TSan及benchmark smoke。共享CI基准仅检查运行。本节27/27指本机MSVC Release/ASan，不代表Linux runner通过。
+`.github/workflows/ci.yml`的本次[真实runner结果](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/44668927537)已通过Linux Release、ASan+UBSan、TSan子集和benchmark smoke；手动差分压力任务未触发。共享CI基准仅检查运行，不作为正式性能证据。历史结果和覆盖限制见[VALIDATION](docs/VALIDATION.md)。
 
 ## 性能结论：怎样理解“30 ns”
 
@@ -193,12 +204,18 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 
 之后的架构 Sprint 增加了 Command/Event 分离、Sequence gate、完整 Replay 验证和 Snapshot。为了遵守“停止追纳秒、先把结构讲清楚”的目标，没有在最终提交 `9e43b8e` 上重新执行同口径性能矩阵。因此上表是可追溯的性能阶段结果，不冒充最终架构版本的新测数据。
 
+新公开行情链路尚无正式性能证据。`benchmarks/v2_perf.cpp`中的`full_v2`是历史场景名，不包含PublicFeedPublisher、编码后的整批队列、Decoder和独立本地簿消费。发布器的映射、deque及动态字节缓冲、消费者的解码暂存和本地簿容器仍可能分配；不能据此宣称整条链路零分配或仍达到旧纳秒成绩。分阶段测量要求见[BENCHMARK](docs/BENCHMARK.md)。
+
+现已另增三个合成工程场景：Journal+公开链路逐命令消费、含Monitor/Logger的逐命令消费、每16条命令批次消费；已有3进程原始输出、消费完成分位数及队列高水位，见[工程基线](docs/BENCHMARK.md)。它们不属于原`full_v2`，负载也不同；未完成分配统计、独立分层及受控/真实数据验收，不据此关闭M5。上表28项为本机增量结果，Linux 27项CI仍属于`b889136`，未冒充新工作区已在runner复验。
+
 ## 当前明确没有实现
+
+已实现的是**进程内模拟行情发布**：撮合生成公开Add/Cancel/Trade，经编码、有界整批队列和解码更新独立本地簿。以下仍未实现：
 
 - Market、FOK、Replace 和自成交保护（IOC 与 Post Only 已实现）；
 - 账户资金、持仓、交易时段、手续费和完整风控；
 - 多线程撮合分片和 NUMA 部署；
-- 真实交易所网络协议、组播订阅、重传通道和行情发布；
+- 真实交易所协议接入、组播收发、网络重传和生产行情发布；
 - 带校验和、版本头、fsync 策略和 fail-stop 语义的生产级 WAL；
 - 生产级二进制 WAL、高可用复制与完整断电恢复；
 - 生产级故障注入、网络分区和进程崩溃测试；Reference Engine 与确定性 Differential Testing 已实现；
@@ -208,6 +225,10 @@ ctest --test-dir build-asan -C RelWithDebInfo --output-on-failure
 CSV 的 `save_log/load_log` 只用于 `EngineEvent` 的可读诊断往返，不是 Replay 输入，也不是持久化恢复协议。
 
 V2 已实现可重放的 CSV Journal，但只保证正常关闭时排空与 flush；它不具备断电一致性、每批 fsync 或生产级 WAL 语义。V2 的合成行情也只用于确定性测试，不是真实交易所数据。
+
+多品种目前仍由同一调用线程路由，异步Journal/Logger不等于并行撮合。`PreTradeRisk`是可绕过的上游教学包装器，不属于交易所撮合核心，也没有完整账户核算；Monitor逐事件加mutex，只有平均/最大处理延迟，尚无运行时分位数直方图。缺口后的STALE/停止是安全边界，不代表已有自动快照补齐、重传或会话恢复。
+
+后续按**M3真实公开数据 → M4恢复重同步 → M5新链路性能 → M6风控与可观测性**推进；每阶段独立验收，不立即引入无锁队列或多线程分片。范围与门禁见[M2收口及后续顺序](docs/M2_PUBLIC_FEED.md)。
 
 ## 主要目录
 

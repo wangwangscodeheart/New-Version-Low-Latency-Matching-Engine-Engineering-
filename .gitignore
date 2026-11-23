@@ -17,6 +17,13 @@ Thumbs.db
 # Log files
 *.log
 
+# Licensed/raw market data belongs outside the public source tree. This is a
+# guardrail, not a substitute for reviewing staged paths before every push.
+data/local/
+data/private/
+*.NASDAQ_ITCH50
+*.NASDAQ_ITCH50.gz
+
 # CMake files
 CMakeCache.txt
 CMakeFiles/

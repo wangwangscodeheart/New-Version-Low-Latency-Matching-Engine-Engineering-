@@ -30,6 +30,18 @@ option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
 option(ENABLE_TSAN "Enable ThreadSanitizer (GCC/Clang)" OFF)
 option(BENCHMARK_SMOKE "Use a small workload for CI benchmark smoke tests" OFF)
+option(ENABLE_ZLIB_INPUT "Enable optional streaming gzip input using installed zlib" OFF)
+
+# No dependency is downloaded by the project. The default build keeps the
+# existing dependency footprint; explicit ON requires an available zlib package.
+add_library(matching_engine_verified_input INTERFACE)
+if(ENABLE_ZLIB_INPUT)
+    find_package(ZLIB MODULE REQUIRED)
+    target_compile_definitions(matching_engine_verified_input INTERFACE MATCHING_ENGINE_HAS_ZLIB=1)
+    target_link_libraries(matching_engine_verified_input INTERFACE ZLIB::ZLIB)
+else()
+    target_compile_definitions(matching_engine_verified_input INTERFACE MATCHING_ENGINE_HAS_ZLIB=0)
+endif()
 
 # Compilation Options
 if(MSVC)
@@ -91,6 +103,11 @@ target_link_libraries(matching_engine_v2_demo PRIVATE Threads::Threads)
 add_executable(matching_engine_market_data_generator
     src/market_data_generator_main.cpp
 )
+
+add_executable(matching_engine_itch_inspect
+    src/itch_inspect_main.cpp
+)
+target_link_libraries(matching_engine_itch_inspect PRIVATE matching_engine_verified_input)
 
 # ============================================================================
 # Unit Tests
@@ -191,6 +208,58 @@ add_executable(matching_engine_feed_encoder_tests
     tests/feed_encoder_tests.cpp
 )
 
+add_executable(matching_engine_itch_binary_reader_tests
+    tests/itch_binary_reader_tests.cpp
+)
+
+add_executable(matching_engine_itch50_decoder_tests
+    tests/itch50_decoder_tests.cpp
+)
+
+add_executable(matching_engine_market_data_book_native_tests
+    tests/market_data_book_native_tests.cpp
+)
+
+add_executable(matching_engine_itch_book_rebuilder_tests
+    tests/itch_book_rebuilder_tests.cpp
+)
+
+add_executable(matching_engine_itch50_metadata_decoder_tests
+    tests/itch50_metadata_decoder_tests.cpp
+)
+
+add_executable(matching_engine_itch_metadata_session_tests
+    tests/itch_metadata_session_tests.cpp
+)
+
+add_executable(matching_engine_itch_trade_ledger_tests
+    tests/itch_trade_ledger_tests.cpp
+)
+
+add_executable(matching_engine_itch_session_validation_tests
+    tests/itch_session_validation_tests.cpp
+)
+
+add_executable(matching_engine_itch_report_session_tests
+    tests/itch_report_session_tests.cpp
+)
+
+add_executable(matching_engine_itch_inspect_tests
+    tests/itch_inspect_tests.cpp
+)
+target_link_libraries(matching_engine_itch_inspect_tests PRIVATE matching_engine_verified_input)
+
+add_executable(matching_engine_sha256_tests tests/sha256_tests.cpp)
+add_executable(matching_engine_streaming_gzip_tests tests/streaming_gzip_tests.cpp)
+add_executable(matching_engine_itch_verified_input_tests tests/itch_verified_input_tests.cpp)
+target_link_libraries(matching_engine_streaming_gzip_tests PRIVATE matching_engine_verified_input)
+target_link_libraries(matching_engine_itch_verified_input_tests PRIVATE matching_engine_verified_input)
+
+# Executable-local allocation fault injection; never linked into other targets.
+add_executable(matching_engine_native_allocation_tests
+    tests/market_data_book_native_allocation_tests.cpp
+)
+
 add_executable(matching_engine_public_feed_tests
     tests/public_feed_publisher_tests.cpp
 )
@@ -199,6 +268,12 @@ target_link_libraries(matching_engine_public_feed_tests PRIVATE Threads::Threads
 add_executable(matching_engine_committed_handoff_tests
     tests/committed_handoff_tests.cpp
 )
+
+add_executable(matching_engine_public_feed_benchmark_tests
+    tests/public_feed_benchmark_tests.cpp
+)
+target_include_directories(matching_engine_public_feed_benchmark_tests PRIVATE ${CMAKE_SOURCE_DIR}/benchmarks)
+target_link_libraries(matching_engine_public_feed_benchmark_tests PRIVATE Threads::Threads)
 
 add_executable(matching_engine_capacity_metrics_tests
     tests/capacity_metrics_tests.cpp
@@ -267,8 +342,24 @@ if(BUILD_TESTING)
     add_test(NAME matching_engine_market_data_generator COMMAND matching_engine_market_data_generator_tests)
     add_test(NAME matching_engine_feed_gateway COMMAND matching_engine_feed_gateway_tests)
     add_test(NAME matching_engine_feed_encoder COMMAND matching_engine_feed_encoder_tests)
+    add_test(NAME matching_engine_itch_binary_reader COMMAND matching_engine_itch_binary_reader_tests)
+    add_test(NAME matching_engine_itch50_decoder COMMAND matching_engine_itch50_decoder_tests)
+    add_test(NAME matching_engine_market_data_book_native COMMAND matching_engine_market_data_book_native_tests)
+    add_test(NAME matching_engine_itch_book_rebuilder COMMAND matching_engine_itch_book_rebuilder_tests)
+    add_test(NAME matching_engine_itch50_metadata_decoder COMMAND matching_engine_itch50_metadata_decoder_tests)
+    add_test(NAME matching_engine_itch_metadata_session COMMAND matching_engine_itch_metadata_session_tests)
+    add_test(NAME matching_engine_itch_trade_ledger COMMAND matching_engine_itch_trade_ledger_tests)
+    add_test(NAME matching_engine_itch_session_validation COMMAND matching_engine_itch_session_validation_tests)
+    add_test(NAME matching_engine_itch_report_session COMMAND matching_engine_itch_report_session_tests)
+    add_test(NAME matching_engine_itch_inspect COMMAND matching_engine_itch_inspect_tests)
+    add_test(NAME matching_engine_itch_inspect_help COMMAND matching_engine_itch_inspect --help)
+    add_test(NAME matching_engine_sha256 COMMAND matching_engine_sha256_tests)
+    add_test(NAME matching_engine_streaming_gzip COMMAND matching_engine_streaming_gzip_tests)
+    add_test(NAME matching_engine_itch_verified_input COMMAND matching_engine_itch_verified_input_tests)
+    add_test(NAME matching_engine_native_allocation COMMAND matching_engine_native_allocation_tests)
     add_test(NAME matching_engine_public_feed COMMAND matching_engine_public_feed_tests)
     add_test(NAME matching_engine_committed_handoff COMMAND matching_engine_committed_handoff_tests)
+    add_test(NAME matching_engine_public_feed_benchmark COMMAND matching_engine_public_feed_benchmark_tests)
     add_test(NAME matching_engine_capacity_metrics COMMAND matching_engine_capacity_metrics_tests)
     add_test(NAME matching_engine_risk_engine COMMAND matching_engine_risk_engine_tests)
     add_test(NAME matching_engine_order_types COMMAND matching_engine_order_type_tests)
@@ -302,6 +393,7 @@ install(TARGETS
     matching_engine_demo
     matching_engine_v2_demo
     matching_engine_market_data_generator
+    matching_engine_itch_inspect
     matching_engine_unit_tests
     matching_engine_property_tests
     matching_engine_snapshot_tests
@@ -318,8 +410,23 @@ install(TARGETS
     matching_engine_allocation_failure_tests
     matching_engine_order_pool_tests
     matching_engine_feed_encoder_tests
+    matching_engine_itch_binary_reader_tests
+    matching_engine_itch50_decoder_tests
+    matching_engine_market_data_book_native_tests
+    matching_engine_itch_book_rebuilder_tests
+    matching_engine_itch50_metadata_decoder_tests
+    matching_engine_itch_metadata_session_tests
+    matching_engine_itch_trade_ledger_tests
+    matching_engine_itch_session_validation_tests
+    matching_engine_itch_report_session_tests
+    matching_engine_itch_inspect_tests
+    matching_engine_sha256_tests
+    matching_engine_streaming_gzip_tests
+    matching_engine_itch_verified_input_tests
+    matching_engine_native_allocation_tests
     matching_engine_public_feed_tests
     matching_engine_committed_handoff_tests
+    matching_engine_public_feed_benchmark_tests
     matching_engine_market_data_generator_tests
     matching_engine_benchmarks
     matching_engine_v2_benchmarks
