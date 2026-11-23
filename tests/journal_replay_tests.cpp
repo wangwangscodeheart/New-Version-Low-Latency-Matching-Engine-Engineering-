@@ -1,6 +1,7 @@
 #include "audit_log.hpp"
 #include "journal.hpp"
 #include "replay_v2.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -227,7 +228,8 @@ void test_journal_roundtrip_and_replay() {
     TEST_ASSERT(journal.records()[5].type == JournalRecordType::TRADE);
     TEST_ASSERT(journal.records()[7].type == JournalRecordType::CANCEL);
 
-    const auto path = std::filesystem::temp_directory_path() / "matching_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("journal_replay");
+    const auto path = directory.file("matching_v2.journal.csv");
     journal.save(path.string());
     const std::vector<JournalRecord> loaded = Journal::load(path.string());
     std::filesystem::remove(path);
@@ -356,7 +358,8 @@ void test_audit_rejection_lifecycle() {
 }
 
 void test_corrupt_journal_rejected() {
-    const auto path = std::filesystem::temp_directory_path() / "bad_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("journal_corrupt");
+    const auto path = directory.file("bad_v2.journal.csv");
     {
         std::ofstream file(path);
         file << "sequence,timestamp,type,symbol,command_sequence,order_id,side,price,quantity,passive_id,aggressive_id\n";

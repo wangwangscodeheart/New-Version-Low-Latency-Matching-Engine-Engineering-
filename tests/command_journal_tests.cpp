@@ -1,6 +1,7 @@
 #include "async_journal.hpp"
 #include "command_journal.hpp"
 #include "replay_v2.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -120,9 +121,9 @@ void test_observer_failure_aborts_only_uncommitted_groups() {
 }
 
 struct TempFile {
+    matching_engine_test::TemporaryTestDirectory directory;
     std::filesystem::path path;
-    explicit TempFile(const char* name) : path(std::filesystem::temp_directory_path() / name) {}
-    ~TempFile() { std::error_code ignored; std::filesystem::remove(path, ignored); }
+    explicit TempFile(const char* name) : directory("command_journal"), path(directory.file(name)) {}
 };
 
 void test_real_writer_rejects_too_small_budget_without_mutation() {

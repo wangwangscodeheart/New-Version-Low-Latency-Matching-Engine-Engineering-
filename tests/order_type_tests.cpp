@@ -3,6 +3,7 @@
 #include "reference_engine.hpp"
 #include "replay.hpp"
 #include "replay_v2.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -224,8 +225,8 @@ void test_new_rejection_reasons_diagnostic_roundtrip() {
             OrderId(3), RejectReason::INVALID_SIDE),
         OrderRejectedEvent(CommandSequence(4), EventIndex(0), CommandType::NEW_ORDER,
             OrderId(4), RejectReason::INVALID_TIME_IN_FORCE)};
-    const auto path = std::filesystem::temp_directory_path() /
-        "matching_engine_m1_reject_reasons.csv";
+    matching_engine_test::TemporaryTestDirectory directory("order_type_diagnostics");
+    const auto path = directory.file("matching_engine_m1_reject_reasons.csv");
     ReplayEngine::save_log(events, path.string());
     const auto restored = ReplayEngine::load_log(path.string());
     std::error_code ignored;

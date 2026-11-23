@@ -8,23 +8,48 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zlib: ["OFF", "ON"]
     steps:
       - uses: actions/checkout@v4
+      - name: Install optional gzip dependency
+        if: matrix.zlib == 'ON'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y zlib1g-dev
       - name: Configure Release
-        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: >-
+          cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DENABLE_ZLIB_INPUT=${{ matrix.zlib }}
       - name: Build
         run: cmake --build build/release
       - name: Test
         run: ctest --test-dir build/release --output-on-failure
+      - name: Record enabled or disabled integrity coverage
+        run: >-
+          ctest --test-dir build/release --output-on-failure --verbose
+          -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"
 
   address-undefined-sanitizers:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zlib: ["OFF", "ON"]
     steps:
       - uses: actions/checkout@v4
+      - name: Install optional gzip dependency
+        if: matrix.zlib == 'ON'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y zlib1g-dev
       - name: Configure ASan and UBSan
         run: >-
           cmake -S . -B build/asan-ubsan -G Ninja
           -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DENABLE_UBSAN=ON
+          -DENABLE_ZLIB_INPUT=${{ matrix.zlib }}
       - name: Build
         run: cmake --build build/asan-ubsan
       - name: Test
@@ -32,6 +57,13 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: ctest --test-dir build/asan-ubsan --output-on-failure
+      - name: Record enabled or disabled integrity coverage
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: >-
+          ctest --test-dir build/asan-ubsan --output-on-failure --verbose
+          -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"
 
   thread-sanitizer:
     runs-on: ubuntu-latest

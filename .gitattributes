@@ -2,3 +2,8 @@
 benchmarks/results/** -text -diff
 docs/validation/**/source_changes.patch -text -diff
 docs/validation/**/risk_changes.patch -text -diff
+# Captured CI/strict output retains original whitespace and checkout bytes.
+# These evidence files are inspected as raw logs, not reformatted as source.
+docs/validation/**/previous-*.txt -text -diff
+docs/validation/**/ci-*.txt -text -diff
+docs/validation/**/strict-test-isolation.txt -text -diff

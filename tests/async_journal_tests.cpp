@@ -1,6 +1,7 @@
 #include "async_journal.hpp"
 #include "replay_v2.hpp"
 #include "trading_engine.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -14,7 +15,8 @@
     } while (false)
 
 void test_async_journal_drain_and_replay() {
-    const auto path = std::filesystem::temp_directory_path() / "async_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("async_journal_drain");
+    const auto path = directory.file("async_v2.journal.csv");
     MarketManager source_markets(32);
     EventDispatcher source_dispatcher;
     AsyncJournalWriter writer(path.string(), 64);
@@ -47,7 +49,8 @@ void test_async_journal_drain_and_replay() {
 }
 
 void test_queue_overflow_is_terminal_and_visible() {
-    const auto path = std::filesystem::temp_directory_path() / "overflow_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("async_journal_overflow");
+    const auto path = directory.file("overflow_v2.journal.csv");
     MarketManager markets(20'000);
     EventDispatcher dispatcher;
     AsyncJournalWriter writer(path.string(), 1);
@@ -76,7 +79,8 @@ void test_queue_overflow_is_terminal_and_visible() {
 }
 
 void test_incomplete_tail_recovery_only() {
-    const auto path = std::filesystem::temp_directory_path() / "truncated_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("async_journal_tail");
+    const auto path = directory.file("truncated_v2.journal.csv");
     {
         std::ofstream file(path);
         write_journal_header(file);
@@ -99,7 +103,8 @@ void test_incomplete_tail_recovery_only() {
 }
 
 void test_middle_corruption_is_never_ignored() {
-    const auto path = std::filesystem::temp_directory_path() / "middle_bad_v2.journal.csv";
+    matching_engine_test::TemporaryTestDirectory directory("async_journal_corrupt");
+    const auto path = directory.file("middle_bad_v2.journal.csv");
     {
         std::ofstream file(path);
         write_journal_header(file);

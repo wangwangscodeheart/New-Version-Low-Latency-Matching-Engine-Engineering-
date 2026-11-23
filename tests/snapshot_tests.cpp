@@ -1,6 +1,7 @@
 #include "../src/orderbook.hpp"
 #include "../src/snapshot_recovery.hpp"
 #include "../src/snapshot_file.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -179,10 +180,11 @@ void test_invalid_snapshots_are_atomic() {
 }
 
 void test_disk_snapshot_roundtrip_and_corruption_detection() {
-    const auto directory = std::filesystem::temp_directory_path();
-    const auto path = directory / "matching_engine.snapshot";
-    const auto truncated_path = directory / "matching_engine_truncated.snapshot";
-    const auto corrupted_path = directory / "matching_engine_corrupted.snapshot";
+    matching_engine_test::TemporaryTestDirectory directory("snapshot");
+    const auto path = directory.file("matching_engine.snapshot");
+    const auto truncated_path = directory.file("matching_engine_truncated.snapshot");
+    const auto corrupted_path = directory.file("matching_engine_corrupted.snapshot");
+    (void)directory.file("matching_engine.snapshot.tmp");
     const OrderBookSnapshot snapshot = populated_snapshot();
 
     SnapshotFile::save_atomic(path, 777, snapshot);

@@ -1,6 +1,7 @@
 #include "../src/orderbook.hpp"
 #include "../src/replay.hpp"
 #include "../src/limit_level_pool.hpp"
+#include "temporary_test_directory.hpp"
 #include <iostream>
 #include <cassert>
 #include <variant>
@@ -598,7 +599,8 @@ private:
 
     static void test_disk_log_roundtrip() {
         std::cout << "Test 18: Disk Log Roundtrip... ";
-        const auto path = std::filesystem::temp_directory_path() / "matching_engine_roundtrip.csv";
+        matching_engine_test::TemporaryTestDirectory directory("unit_roundtrip");
+        const auto path = directory.file("matching_engine_roundtrip.csv");
         OrderBook original(32);
         const std::vector<Command> commands{
             NewOrderCommand(CommandSequence(1), OrderId(99), Side::BUY, Price(1000001), Quantity(10)),
@@ -624,7 +626,8 @@ private:
 
     static void test_rejects_corrupt_log() {
         std::cout << "Test 19: Corrupt Log Rejection... ";
-        const auto path = std::filesystem::temp_directory_path() / "matching_engine_corrupt.csv";
+        matching_engine_test::TemporaryTestDirectory directory("unit_corrupt");
+        const auto path = directory.file("matching_engine_corrupt.csv");
         {
             std::ofstream file(path);
             file << "NEW_ORDER,1,1,HOLD,1000000,10\n";

@@ -1,5 +1,17 @@
 # 当前验证记录
 
+## 2026-11-23：M3第六批CI覆盖与旧夹具隔离
+
+本轮仅改`.github/workflows/ci.yml`和测试设施，不改生产或CMake。Release及ASan+UBSan增加显式OFF/ON矩阵、仅ON安装系统zlib、全量后verbose记录五项完整性测试；严格GCC警告、TSan子集、Benchmark smoke及手动差分门禁保留。测试侧给八份旧程序增加原子预留的RAII目录和登记子文件清理，业务断言不删；数量仍43，辅助类不宣称敌对文件系统安全或全项目统一非递归清理。见[第六批范围](M3_CI_AND_TEST_ISOLATION.md)。
+
+三套既有MSVC构建各重编译/链接16步，未设置每配置隔离TEMP，三个CTest调用并行运行后分别43/43：默认OFF Release9.99s、ON Release5.59s、ON ASan14.38s；不是全新92步编译或性能对比。八个受影响程序分别`/O2 /W4 /WX`编译并执行通过。[本机原始输出与命令](validation/2026-11-23-m3-ci-and-isolation/README.md)保留。
+
+[共享临时根探针](validation/2026-11-23-m3-ci-and-isolation/parallel_fixture_probe.ps1)启动三配置×八程序×两份共48个独立进程，子进程共享TEMP/TMP/TMPDIR、各自工作目录。[最终输出](validation/2026-11-23-m3-ci-and-isolation/parallel-shared-temp-final-probe.txt)全部exit0且共享根残留0。首次未进入MSVC环境时32个Release通过、16个ASan报`-1073741515`（缺运行时DLL，测试未执行）；[失败输出](validation/2026-11-23-m3-ci-and-isolation/parallel-shared-temp-probe.txt)保留，随后通过VsDevCmd启动同一脚本/源码成功，不修改机器PATH/执行策略。这不是撮合核心并发、强杀恢复或性能证据。
+
+前一代码提交`05f003b404b4ccdff8db8b559440842b0492d834`的[真实GitHub run45181504978](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45181504978)已全部完成：Ubuntu26.04.1/GNU15.2.0，Release43/43（0.82s）、ASan+UBSan43/43（28.02s）、TSan异步子集4/4（0.79s），Benchmark smoke成功，手动10M差分因push事件跳过。四份解码后完整job日志归档，不把smoke当正式性能；GCC原有`-march=native`相关warning和checkout Node版本提示保留。**该run默认OFF，没有gzip ON正向执行**，不把它冒充本轮矩阵或夹具新源码通过。新矩阵在本节首次采集时尚未发布/运行，发布后的结果在同目录按准确代码提交单独归档。
+
+源码身份清单包含前114项重算及新测试辅助头/探针脚本，共116项构建/验证输入。第三方zlib内部未插桩、两项替换new/delete故障程序的限制、无真实市场文件/独立参考/网络恢复/原生性能和M3未整体验收的边界均保留；四个未接线统计工具不纳入本次发布。旧批“没有新Linux结果”为当时事实，本节不重写旧证据。
+
 ## 2026-11-23：M3第五批单遍源SHA-256与可选gzip完整性
 
 新增固定块SHA、默认关闭的zlib适配和VerifiedInputReader，接到既有离线CLI；不改V1撮合或M2发布。单次打开/读取原始流，同时hash与可选解压，物理EOF/全部member CRC和ISIZE/可选expected摘要/BinaryFILE/会话检查成功才完成；晚到错误整体STALE，连预先消费一个前缀字节也拒绝接续认证。不是来源/日期认证或文件原子快照；所有输入为自造，无原始市场记录。见[范围与用法](M3_ITCH_INPUT_INTEGRITY.md)。

@@ -1,0 +1,51 @@
+Active code page: 65001
+async_journal_tests.cpp
+Async journal tests passed
+journal_replay_tests.cpp
+audit export: stream_failed=1 error_reported=1
+Audit CSV golden passed: 9 lifecycle records, owned/borrowed, empty header
+Audit write failures passed: 12 cases; failed sink retained; healthy re-export/continued lifecycle
+Audit flush failures passed: 4 cases; complete bytes do not imply successful export
+Audit filename failures passed: directory/missing parent, subsequent export succeeds
+Journal, audit and replay tests passed
+market_data_generator_tests.cpp
+command_journal_tests.cpp
+Command journal tests passed
+market_data_tests.cpp
+Market data tests passed
+snapshot_tests.cpp
+All snapshot tests passed
+unit_tests.cpp
+╔════════════════════════════════════════════════════════════╗
+║              UNIT TEST SUITE                               ║
+╚════════════════════════════════════════════════════════════╝
+
+Running Matching Engine Test Suite...
+
+Test 1: Simple Fill... Passed
+Test 2: Partial Fill... Passed
+Test 3: Multi-Level Sweep... Passed
+Test 4: Cancel Order... Passed
+Test 5: Price-Time Priority... Passed
+Test 6: Invariants... Passed
+Test 7: Replay Determinism... Passed
+Test 8: Empty Book Edge Case... Passed
+Test 9: Crossed Order Prevention... Passed
+Test 10: Input Validation... Passed
+Test 11: Duplicate Order ID... Passed
+Test 12: Command/EngineEvent Sequences... Passed
+Test: Deterministic Command Sequence... Passed
+Test 12: Pool Exhaustion... Passed
+Test 13: Price Ladder Fallback... Passed
+Test 14: High-Frequency Cancel/Reuse... Passed
+Test 15: Event Reserve Configuration... Passed
+Test 16: Limit-Level Pool Lifecycle... Passed
+Test 17: Instrument Rules... Passed
+Test 18: Disk Log Roundtrip... Passed
+Test 19: Corrupt Log Rejection... Passed
+
+✅ All tests passed!
+order_type_tests.cpp
+Order type tests passed
+
+

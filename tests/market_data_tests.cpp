@@ -1,5 +1,6 @@
 #include "market_data_loader.hpp"
 #include "monitor.hpp"
+#include "temporary_test_directory.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -33,7 +34,8 @@ void test_exact_decimal_parser() {
 }
 
 void test_loader_validator_and_event_flow() {
-    const auto path = std::filesystem::temp_directory_path() / "market_data_v2.csv";
+    matching_engine_test::TemporaryTestDirectory directory("market_data");
+    const auto path = directory.file("market_data_v2.csv");
     {
         std::ofstream file(path);
         file << "timestamp,symbol,price,volume,bid,ask\n";
