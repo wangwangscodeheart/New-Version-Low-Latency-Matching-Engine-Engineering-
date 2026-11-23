@@ -8,7 +8,7 @@
 
 ## 当前定位
 
-2026-11-23第六批：补可选gzip的Linux OFF/ON CI矩阵，并隔离八份旧测试的临时文件；不改生产撮合/接入算法。第五批`05f003b`已取得实际Linux默认构建43/43及ASan+UBSan43/43，不能当作gzip开启证据；本轮按提交记录矩阵结果，见[第六批说明](docs/M3_CI_AND_TEST_ISOLATION.md)。
+2026-11-23第六批：补可选gzip的Linux OFF/ON CI矩阵，并隔离八份旧测试的临时文件；不改生产撮合/接入算法。源码提交`6183893`的Release OFF/ON、ASan+UBSan OFF/ON已各43/43，正向gzip分支实际执行；TSan仍仅异步子集，smoke不是性能验收。完整证据及纯文档归档的提交边界见[第六批说明](docs/M3_CI_AND_TEST_ISOLATION.md)。
 
 2026-11-23第五批：离线检查器增加单遍原始源SHA-256、可选预期摘要比较及显式启用的流式gzip完整性检查（默认无zlib依赖）。全部尾部/物理EOF通过后才完成，晚到错误整体STALE；不等于来源认证。没有真实市场数据或M3整体验收，见[第五批说明](docs/M3_ITCH_INPUT_INTEGRITY.md)。
 

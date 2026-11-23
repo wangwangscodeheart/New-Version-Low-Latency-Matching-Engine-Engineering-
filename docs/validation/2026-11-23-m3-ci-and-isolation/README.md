@@ -28,6 +28,41 @@ new fixture helper. New workflow includes OFF/ON Release and ASan+UBSan; its
 first publication/runner outcome is pending at this capture, and any later
 outcome must be identified by its own commit/run, not overwritten above.
 
+## Completed new matrix: code commit6183893
+
+[Run45183239078](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078)
+completed successfully for618389322b4a38749257a85fd13af98dbbe6039b,
+push event, attempt1. [Selected API status fields](ci-6183893-status.json) and
+six complete decoded job logs are retained. This is actual runner execution,
+not the pending expectation described in the preceding historical capture.
+ci-evidence-checksums.sha256 identifies all16 captured text-output files in
+this directory, excluding the source identity list. These are repository
+capture-byte hashes, not provider ZIP signatures, source authentication or
+hashes of Markdown/API JSON. Staged blobs were compared to unfiltered local
+file IDs to rule out commit-time byte conversion.
+
+| Mode/job | Full CTest | Additional verbose integrity tests | Log |
+|---|---|---|---|
+| Release OFF |43/43,0.86s|5/5,0.02s; gzip disabled guards|ci-6183893-release-off.txt|
+| Release ON |43/43,0.86s|5/5,0.03s; seven positive gzip groups|ci-6183893-release-on.txt|
+| ASan+UBSan OFF |43/43,14.09s|5/5,0.19s; gzip disabled guards|ci-6183893-asan-ubsan-off.txt|
+| ASan+UBSan ON |43/43,28.49s|5/5,0.92s; seven positive gzip groups|ci-6183893-asan-ubsan-on.txt|
+| TSan async subset |4/4,0.52s|no claim for matching core|ci-6183893-tsan.txt|
+| Benchmark smoke |success|not controlled performance evidence|ci-6183893-benchmark-smoke.txt|
+
+Manual10M differential-stress job137722149629 was skipped on push, not passed.
+ON logs show system /usr/lib/x86_64-linux-gnu/libz.so version1.3.1,
+gzip_support=enabled, inspector/reader positive success, and gzip seven groups;
+OFF explicitly says enabled CRC/member tests NOT EXECUTED. Ubuntu26.04.1 and
+GNU15.2.0 remain the actual runner/toolchain. System zlib C library is not
+ASan/UBSan-instrumented by this project. Test durations are not benchmark data.
+
+The subsequent archival commit changes documentation/logs only and retains all
+116 recorded build/verification input identities. Its [skip ci] message avoids
+rerunning the identical source solely to archive its own preceding run, per
+[GitHub's documented skip behavior](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/skip-workflow-runs).
+It is not a new tested code commit and must not be advertised as another CI run.
+
 ## Current worktree actual Windows executions
 
 MSVC19.44.35228.0 x64, C++17, CMake4.4.2, Ninja. Reused fifth-batch build dirs,

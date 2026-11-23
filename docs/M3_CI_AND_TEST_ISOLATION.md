@@ -31,6 +31,8 @@
 
 已经完成的`05f003b`真实Linux结果与本轮工作区结果按提交区分，见[原始日志与说明](validation/2026-11-23-m3-ci-and-isolation/)和[验证记录](VALIDATION.md)。旧批默认OFF的43/43不冒充本轮ON结果，旧11月20日27项CI也不扩大到新代码。
 
+发布后代码提交`6183893`的真实Linux矩阵已完成：Release OFF/ON及ASan+UBSan OFF/ON四种模式各43/43，额外五项完整性测试各5/5，ON明确执行七组gzip正向测试；TSan子集4/4、smoke成功，手动10M差分跳过。系统zlib1.3.1未插桩；六份job日志按准确run/commit归档。后续只收集日志/同步文档的提交不改116项构建/验证输入，也不伪称又取得一轮源码CI。
+
 ```text
 cmake --build build/<configuration> --parallel 3
 ctest --test-dir build/<configuration> --output-on-failure

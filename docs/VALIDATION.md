@@ -2,6 +2,8 @@
 
 ## 2026-11-23：M3第六批CI覆盖与旧夹具隔离
 
+发布后补充：代码提交`618389322b4a38749257a85fd13af98dbbe6039b`的[真实run45183239078](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078)已完成且成功。Release OFF/ON均43/43（0.86s / 0.86s），ASan+UBSan OFF/ON均43/43（14.09s / 28.49s）；四种模式额外verbose五项均5/5，ON实际执行七组gzip正向测试、OFF明确只验证禁用拒绝。TSan子集4/4（0.52s）、Benchmark smoke成功；手动10M差分跳过，不计通过。系统zlib1.3.1未插桩、Ubuntu26.04.1/GNU15.2.0。六份完整job日志和[API状态快照](validation/2026-11-23-m3-ci-and-isolation/ci-6183893-status.json)已归档；收尾提交仅文档/日志、116项输入身份不变，以`[skip ci]`避免为归档重复执行相同源码，不假称收尾文档提交取得新一轮CI。下面“尚未发布”保留为首次本机采集时状态。
+
 本轮仅改`.github/workflows/ci.yml`和测试设施，不改生产或CMake。Release及ASan+UBSan增加显式OFF/ON矩阵、仅ON安装系统zlib、全量后verbose记录五项完整性测试；严格GCC警告、TSan子集、Benchmark smoke及手动差分门禁保留。测试侧给八份旧程序增加原子预留的RAII目录和登记子文件清理，业务断言不删；数量仍43，辅助类不宣称敌对文件系统安全或全项目统一非递归清理。见[第六批范围](M3_CI_AND_TEST_ISOLATION.md)。
 
 三套既有MSVC构建各重编译/链接16步，未设置每配置隔离TEMP，三个CTest调用并行运行后分别43/43：默认OFF Release9.99s、ON Release5.59s、ON ASan14.38s；不是全新92步编译或性能对比。八个受影响程序分别`/O2 /W4 /WX`编译并执行通过。[本机原始输出与命令](validation/2026-11-23-m3-ci-and-isolation/README.md)保留。

@@ -1,0 +1,390 @@
+﻿2026-11-23T13:22:19.3264481Z Current runner version: '2.338.2'
+2026-11-23T13:22:19.3293839Z ##[group]Runner Image Provisioner
+2026-11-23T13:22:19.3294771Z Hosted Compute Agent
+2026-11-23T13:22:19.3295341Z Version: 20261111.635
+2026-11-23T13:22:19.3296074Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-23T13:22:19.3296840Z Build Date: 2026-11-11T01:49:01Z
+2026-11-23T13:22:19.3297577Z Worker ID: {9a9551d3-c0b8-4e7e-99ed-9daf52e2add0}
+2026-11-23T13:22:19.3298315Z Region: westus
+2026-11-23T13:22:19.3298839Z Cloud: Azure
+2026-11-23T13:22:19.3299439Z ##[endgroup]
+2026-11-23T13:22:19.3301255Z ##[group]Operating System
+2026-11-23T13:22:19.3302029Z Ubuntu
+2026-11-23T13:22:19.3302603Z 26.04.1
+2026-11-23T13:22:19.3303109Z LTS
+2026-11-23T13:22:19.3303699Z ##[endgroup]
+2026-11-23T13:22:19.3304288Z ##[group]Runner Image
+2026-11-23T13:22:19.3304916Z Image: ubuntu-26.04
+2026-11-23T13:22:19.3305537Z Version: 20261116.202.1
+2026-11-23T13:22:19.3306866Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.202/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-23T13:22:19.3308711Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.202
+2026-11-23T13:22:19.3309758Z ##[endgroup]
+2026-11-23T13:22:19.3311217Z ##[group]GITHUB_TOKEN Permissions
+2026-11-23T13:22:19.3313849Z Contents: read
+2026-11-23T13:22:19.3314549Z Metadata: read
+2026-11-23T13:22:19.3315118Z Packages: read
+2026-11-23T13:22:19.3315766Z ##[endgroup]
+2026-11-23T13:22:19.3317981Z Secret source: Actions
+2026-11-23T13:22:19.3319432Z Cache mode: write
+2026-11-23T13:22:19.3320159Z Prepare workflow directory
+2026-11-23T13:22:19.3723719Z Prepare all required actions
+2026-11-23T13:22:19.3776837Z Getting action download info
+2026-11-23T13:22:19.7198780Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-23T13:22:19.9073074Z Complete job name: benchmark-smoke
+2026-11-23T13:22:20.0121037Z ##[group]Run actions/checkout@v4
+2026-11-23T13:22:20.0121995Z with:
+2026-11-23T13:22:20.0122742Z   repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:20.0127138Z   token: ***
+2026-11-23T13:22:20.0127581Z   ssh-strict: true
+2026-11-23T13:22:20.0128030Z   ssh-user: git
+2026-11-23T13:22:20.0128609Z   persist-credentials: true
+2026-11-23T13:22:20.0129113Z   clean: true
+2026-11-23T13:22:20.0129578Z   sparse-checkout-cone-mode: true
+2026-11-23T13:22:20.0130109Z   fetch-depth: 1
+2026-11-23T13:22:20.0130543Z   fetch-tags: false
+2026-11-23T13:22:20.0131133Z   show-progress: true
+2026-11-23T13:22:20.0131583Z   lfs: false
+2026-11-23T13:22:20.0132005Z   submodules: false
+2026-11-23T13:22:20.0132470Z   set-safe-directory: true
+2026-11-23T13:22:20.0132990Z   allow-unsafe-pr-checkout: false
+2026-11-23T13:22:20.0133813Z ##[endgroup]
+2026-11-23T13:22:20.3207352Z Syncing repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:20.3211072Z ##[group]Getting Git version info
+2026-11-23T13:22:20.3212578Z Working directory is '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-23T13:22:20.3215108Z [command]/usr/bin/git version
+2026-11-23T13:22:20.3215645Z git version 2.56.1
+2026-11-23T13:22:20.3242309Z ##[endgroup]
+2026-11-23T13:22:20.3256617Z Temporarily overriding HOME='/home/runner/work/_temp/7e3ad4c4-90d4-4de6-af73-078e08f954bc' before making global git config changes
+2026-11-23T13:22:20.3258942Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-23T13:22:20.3264089Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:20.3346918Z Deleting the contents of '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-23T13:22:20.3353429Z ##[group]Initializing the repository
+2026-11-23T13:22:20.3360043Z [command]/usr/bin/git init /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:20.3483918Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-23T13:22:20.3485770Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-23T13:22:20.3487474Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-23T13:22:20.3488787Z hint: call:
+2026-11-23T13:22:20.3489464Z hint:
+2026-11-23T13:22:20.3490328Z hint: 	git config --global init.defaultBranch <name>
+2026-11-23T13:22:20.3491739Z hint:
+2026-11-23T13:22:20.3492830Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-23T13:22:20.3494442Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-23T13:22:20.3495774Z hint:
+2026-11-23T13:22:20.3496779Z hint: 	git branch -m <name>
+2026-11-23T13:22:20.3497874Z hint:
+2026-11-23T13:22:20.3499089Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-23T13:22:20.3502147Z Initialized empty Git repository in /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/.git/
+2026-11-23T13:22:20.3513452Z [command]/usr/bin/git remote add origin https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:20.3579152Z ##[endgroup]
+2026-11-23T13:22:20.3580505Z ##[group]Disabling automatic garbage collection
+2026-11-23T13:22:20.3584046Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-23T13:22:20.3623780Z ##[endgroup]
+2026-11-23T13:22:20.3625151Z ##[group]Setting up auth
+2026-11-23T13:22:20.3635680Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-23T13:22:20.3688845Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-23T13:22:20.4272047Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-23T13:22:20.4314962Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-23T13:22:20.4634596Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-23T13:22:20.4675031Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-23T13:22:20.4963311Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-23T13:22:20.5005421Z ##[endgroup]
+2026-11-23T13:22:20.5014981Z ##[group]Fetching the repository
+2026-11-23T13:22:20.5017689Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +618389322b4a38749257a85fd13af98dbbe6039b:refs/remotes/origin/main
+2026-11-23T13:22:21.0052047Z From https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:21.0053418Z  * [new ref]         618389322b4a38749257a85fd13af98dbbe6039b -> origin/main
+2026-11-23T13:22:21.0057295Z ##[endgroup]
+2026-11-23T13:22:21.0058192Z ##[group]Determining the checkout info
+2026-11-23T13:22:21.0061331Z ##[endgroup]
+2026-11-23T13:22:21.0069093Z [command]/usr/bin/git sparse-checkout disable
+2026-11-23T13:22:21.0167706Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-23T13:22:21.0186234Z ##[group]Checking out the ref
+2026-11-23T13:22:21.0197464Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-23T13:22:21.0539950Z Switched to a new branch 'main'
+2026-11-23T13:22:21.0545613Z branch 'main' set up to track 'origin/main'.
+2026-11-23T13:22:21.0556134Z ##[endgroup]
+2026-11-23T13:22:21.0612092Z [command]/usr/bin/git log -1 --format=%H
+2026-11-23T13:22:21.0641220Z 618389322b4a38749257a85fd13af98dbbe6039b
+2026-11-23T13:22:21.0931886Z ##[group]Run cmake -S . -B build/benchmark -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBENCHMARK_SMOKE=ON
+2026-11-23T13:22:21.0936020Z [36;1mcmake -S . -B build/benchmark -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBENCHMARK_SMOKE=ON[0m
+2026-11-23T13:22:21.0977104Z shell: /usr/bin/bash -e {0}
+2026-11-23T13:22:21.0978400Z ##[endgroup]
+2026-11-23T13:22:22.2758741Z -- The CXX compiler identification is GNU 15.2.0
+2026-11-23T13:22:22.3722122Z -- Detecting CXX compiler ABI info
+2026-11-23T13:22:22.5878656Z -- Detecting CXX compiler ABI info - done
+2026-11-23T13:22:22.6128932Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+2026-11-23T13:22:22.6142261Z -- Detecting CXX compile features
+2026-11-23T13:22:22.6265045Z -- Detecting CXX compile features - done
+2026-11-23T13:22:22.7123898Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-11-23T13:22:22.8247831Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-11-23T13:22:22.8306601Z -- Found Threads: TRUE
+2026-11-23T13:22:22.8392030Z -- 
+2026-11-23T13:22:22.8393437Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-23T13:22:22.8394823Z --   Matching Engine Build Configuration
+2026-11-23T13:22:22.8396437Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-23T13:22:22.8397166Z --   Build type: Release
+2026-11-23T13:22:22.8397785Z --   C++ Standard: C++17
+2026-11-23T13:22:22.8398232Z --   Compiler: GNU
+2026-11-23T13:22:22.8398616Z -- 
+2026-11-23T13:22:22.8399020Z --   Targets:
+2026-11-23T13:22:22.8399554Z --     - matching_engine_demo           (Main demo)
+2026-11-23T13:22:22.8400254Z --     - matching_engine_v2_demo        (V2 infrastructure demo)
+2026-11-23T13:22:22.8401271Z --     - matching_engine_market_data_generator (synthetic CSV generator)
+2026-11-23T13:22:22.8404494Z --     - matching_engine_unit_tests     (Unit tests)
+2026-11-23T13:22:22.8405274Z --     - matching_engine_property_tests (Property tests)
+2026-11-23T13:22:22.8406143Z --     - matching_engine_snapshot_tests (Snapshot tests)
+2026-11-23T13:22:22.8406836Z --     - matching_engine_benchmarks     (Performance)
+2026-11-23T13:22:22.8407523Z --     - matching_engine_v2_benchmarks  (V2 routed event path)
+2026-11-23T13:22:22.8408429Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-23T13:22:22.8408878Z -- 
+2026-11-23T13:22:22.8409132Z -- Configuring done (1.2s)
+2026-11-23T13:22:22.8883946Z -- Generating done (0.0s)
+2026-11-23T13:22:22.8889036Z -- Build files have been written to: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/benchmark
+2026-11-23T13:22:22.9046945Z ##[group]Run cmake --build build/benchmark --target matching_engine_v2_benchmarks
+2026-11-23T13:22:22.9047557Z [36;1mcmake --build build/benchmark --target matching_engine_v2_benchmarks[0m
+2026-11-23T13:22:22.9082363Z shell: /usr/bin/bash -e {0}
+2026-11-23T13:22:22.9082659Z ##[endgroup]
+2026-11-23T13:22:32.7228443Z [1/2] Building CXX object CMakeFiles/matching_engine_v2_benchmarks.dir/benchmarks/v2_perf.cpp.o
+2026-11-23T13:22:32.7788053Z [2/2] Linking CXX executable matching_engine_v2_benchmarks
+2026-11-23T13:22:32.7838016Z ##[group]Run ./build/benchmark/matching_engine_v2_benchmarks
+2026-11-23T13:22:32.7838479Z [36;1m./build/benchmark/matching_engine_v2_benchmarks[0m
+2026-11-23T13:22:32.7871097Z shell: /usr/bin/bash -e {0}
+2026-11-23T13:22:32.7871371Z ##[endgroup]
+2026-11-23T13:22:32.8677084Z 
+2026-11-23T13:22:32.8677654Z ============================================================
+2026-11-23T13:22:32.8678238Z         V2 PERFORMANCE BENCHMARK
+2026-11-23T13:22:32.8678969Z         V2 多品种撮合引擎性能基准测试
+2026-11-23T13:22:32.8679410Z ============================================================
+2026-11-23T13:22:32.8679765Z 
+2026-11-23T13:22:32.8680015Z [Environment / 测试环境]
+2026-11-23T13:22:32.8757322Z   Git Commit        : 618389322b4a
+2026-11-23T13:22:32.8757936Z   OS                : Linux-7.0.0-1020-azure
+2026-11-23T13:22:32.8759020Z   Compiler          : GNU-15.2.0
+2026-11-23T13:22:32.8759526Z   Compiler Flags    : -O3 -DNDEBUG
+2026-11-23T13:22:32.8760010Z   Build Type        : Release
+2026-11-23T13:22:32.8760557Z   Legacy operations : 600
+2026-11-23T13:22:32.8761307Z   Public operations : 600
+2026-11-23T13:22:32.8762046Z   Public workload   : synthetic_mixed_visible_v1 (3 symbols, no external data)
+2026-11-23T13:22:32.8762839Z   Batch fixtures/process : 5
+2026-11-23T13:22:32.8763342Z   Sampling Clock    : steady_clock
+2026-11-23T13:22:32.8763700Z 
+2026-11-23T13:22:32.8764060Z   Empty clock pair P50 / P99 / Max (ns): 30 / 31 / 100 (reported, NOT subtracted)
+2026-11-23T13:22:32.8764541Z 
+2026-11-23T13:22:32.8764672Z ============================================================
+2026-11-23T13:22:32.8765172Z  PERFORMANCE RESULTS / 性能测试结果
+2026-11-23T13:22:32.8765669Z ============================================================
+2026-11-23T13:22:32.8765936Z 
+2026-11-23T13:22:32.8766104Z [1/10] Core Matching / 核心撮合路径
+2026-11-23T13:22:32.8766427Z ------------------------------------------------------------
+2026-11-23T13:22:32.8766754Z   Scenario / 场景
+2026-11-23T13:22:32.8766973Z     core_pre_resolved_instrument
+2026-11-23T13:22:32.8767261Z   Description / 说明
+2026-11-23T13:22:32.8767524Z     EN   : Pre-resolved instrument, core matching path
+2026-11-23T13:22:32.8767902Z     中文 : 已预解析交易品种，仅测试核心撮合路径
+2026-11-23T13:22:32.8768063Z 
+2026-11-23T13:22:32.8768237Z   Batch Median per Op / 批次中位单操作耗时 : 40.79 ns
+2026-11-23T13:22:32.8768638Z   Throughput / 吞吐量                      : 24.51 M ops/s
+2026-11-23T13:22:32.8768903Z 
+2026-11-23T13:22:32.8769038Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8769267Z     P50   : 80.00 ns
+2026-11-23T13:22:32.8769480Z     P99   : 90.00 ns
+2026-11-23T13:22:32.8769679Z     P99.9 : 551.00 ns
+2026-11-23T13:22:32.8769883Z     Max   : 551.00 ns
+2026-11-23T13:22:32.8770109Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8770304Z 
+2026-11-23T13:22:32.8770435Z [2/10] Routing / 多品种路由
+2026-11-23T13:22:32.8770693Z ------------------------------------------------------------
+2026-11-23T13:22:32.8771366Z   Scenario / 场景
+2026-11-23T13:22:32.8771596Z     core_plus_routing
+2026-11-23T13:22:32.8771858Z   Description / 说明
+2026-11-23T13:22:32.8772101Z     EN   : Core matching with symbol routing
+2026-11-23T13:22:32.8772409Z     中文 : 核心撮合 + 多品种路由
+2026-11-23T13:22:32.8772533Z 
+2026-11-23T13:22:32.8772692Z   Batch Median per Op / 批次中位单操作耗时 : 56.52 ns
+2026-11-23T13:22:32.8773062Z   Throughput / 吞吐量                      : 17.69 M ops/s
+2026-11-23T13:22:32.8773284Z 
+2026-11-23T13:22:32.8773410Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8773637Z     P50   : 90.00 ns
+2026-11-23T13:22:32.8773840Z     P99   : 120.00 ns
+2026-11-23T13:22:32.8774042Z     P99.9 : 221.00 ns
+2026-11-23T13:22:32.8774269Z     Max   : 221.00 ns
+2026-11-23T13:22:32.8774491Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8774696Z 
+2026-11-23T13:22:32.8774836Z [3/10] Event Dispatcher / 事件分发
+2026-11-23T13:22:32.8775150Z ------------------------------------------------------------
+2026-11-23T13:22:32.8775474Z   Scenario / 场景
+2026-11-23T13:22:32.8775675Z     dispatcher
+2026-11-23T13:22:32.8775899Z   Description / 说明
+2026-11-23T13:22:32.8776421Z     EN   : Trading engine with synchronous event dispatch
+2026-11-23T13:22:32.8776786Z     中文 : 交易引擎 + 同步事件分发
+2026-11-23T13:22:32.8776924Z 
+2026-11-23T13:22:32.8777077Z   Batch Median per Op / 批次中位单操作耗时 : 170.17 ns
+2026-11-23T13:22:32.8777437Z   Throughput / 吞吐量                      : 5.88 M ops/s
+2026-11-23T13:22:32.8777651Z 
+2026-11-23T13:22:32.8777779Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8778003Z     P50   : 181.00 ns
+2026-11-23T13:22:32.8778207Z     P99   : 211.00 ns
+2026-11-23T13:22:32.8778407Z     P99.9 : 411.00 ns
+2026-11-23T13:22:32.8778604Z     Max   : 411.00 ns
+2026-11-23T13:22:32.8778825Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8779013Z 
+2026-11-23T13:22:32.8779124Z [4/10] Monitor / 监控
+2026-11-23T13:22:32.8779521Z ------------------------------------------------------------
+2026-11-23T13:22:32.8779843Z   Scenario / 场景
+2026-11-23T13:22:32.8780046Z     dispatcher_monitor
+2026-11-23T13:22:32.8780284Z   Description / 说明
+2026-11-23T13:22:32.8780537Z     EN   : Dispatcher with monitoring enabled
+2026-11-23T13:22:32.8780837Z     中文 : 事件分发 + 监控
+2026-11-23T13:22:32.8782205Z 
+2026-11-23T13:22:32.8782424Z   Batch Median per Op / 批次中位单操作耗时 : 206.62 ns
+2026-11-23T13:22:32.8782823Z   Throughput / 吞吐量                      : 4.84 M ops/s
+2026-11-23T13:22:32.8783052Z 
+2026-11-23T13:22:32.8783179Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8783411Z     P50   : 220.00 ns
+2026-11-23T13:22:32.8783616Z     P99   : 250.00 ns
+2026-11-23T13:22:32.8783809Z     P99.9 : 341.00 ns
+2026-11-23T13:22:32.8784003Z     Max   : 341.00 ns
+2026-11-23T13:22:32.8784222Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8784408Z 
+2026-11-23T13:22:32.8784534Z [5/10] Async Logger / 异步日志
+2026-11-23T13:22:32.8784800Z ------------------------------------------------------------
+2026-11-23T13:22:32.8785131Z   Scenario / 场景
+2026-11-23T13:22:32.8785339Z     dispatcher_async_logger
+2026-11-23T13:22:32.8785594Z   Description / 说明
+2026-11-23T13:22:32.8785841Z     EN   : Dispatcher with asynchronous logging
+2026-11-23T13:22:32.8786151Z     中文 : 事件分发 + 异步日志
+2026-11-23T13:22:32.8786282Z 
+2026-11-23T13:22:32.8786435Z   Batch Median per Op / 批次中位单操作耗时 : 846.93 ns
+2026-11-23T13:22:32.8786791Z   Throughput / 吞吐量                      : 1.18 M ops/s
+2026-11-23T13:22:32.8787015Z 
+2026-11-23T13:22:32.8787142Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8787367Z     P50   : 551.00 ns
+2026-11-23T13:22:32.8787567Z     P99   : 2.96 us
+2026-11-23T13:22:32.8787773Z     P99.9 : 14.57 us
+2026-11-23T13:22:32.8787971Z     Max   : 14.57 us
+2026-11-23T13:22:32.8788257Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8788568Z 
+2026-11-23T13:22:32.8788712Z [6/10] Async Journal / 异步 Journal
+2026-11-23T13:22:32.8789001Z ------------------------------------------------------------
+2026-11-23T13:22:32.8789337Z   Scenario / 场景
+2026-11-23T13:22:32.8789548Z     dispatcher_async_journal
+2026-11-23T13:22:32.8789804Z   Description / 说明
+2026-11-23T13:22:32.8790048Z     EN   : Dispatcher with asynchronous journal
+2026-11-23T13:22:32.8790363Z     中文 : 事件分发 + 异步 Journal
+2026-11-23T13:22:32.8790505Z 
+2026-11-23T13:22:32.8790655Z   Batch Median per Op / 批次中位单操作耗时 : 581.52 ns
+2026-11-23T13:22:32.8791351Z   Throughput / 吞吐量                      : 1.72 M ops/s
+2026-11-23T13:22:32.8791707Z 
+2026-11-23T13:22:32.8791913Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8792279Z     P50   : 481.00 ns
+2026-11-23T13:22:32.8792602Z     P99   : 1.84 us
+2026-11-23T13:22:32.8792907Z     P99.9 : 5.89 us
+2026-11-23T13:22:32.8793218Z     Max   : 5.89 us
+2026-11-23T13:22:32.8793540Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8793809Z 
+2026-11-23T13:22:32.8794041Z [7/10] Legacy Full V2 / 原 V2 组合路径
+2026-11-23T13:22:32.8794478Z ------------------------------------------------------------
+2026-11-23T13:22:32.8795049Z   Scenario / 场景
+2026-11-23T13:22:32.8795421Z     full_v2
+2026-11-23T13:22:32.8795796Z   Description / 说明
+2026-11-23T13:22:32.8796199Z     EN   : Monitor + async logger + async journal
+2026-11-23T13:22:32.8797068Z     中文 : 监控 + 异步日志 + 异步 Journal
+2026-11-23T13:22:32.8797391Z 
+2026-11-23T13:22:32.8797722Z   Batch Median per Op / 批次中位单操作耗时 : 1.70 us
+2026-11-23T13:22:32.8798422Z   Throughput / 吞吐量                      : 587.33 K ops/s
+2026-11-23T13:22:32.8798828Z 
+2026-11-23T13:22:32.8799086Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8799519Z     P50   : 1.11 us
+2026-11-23T13:22:32.8799889Z     P99   : 12.90 us
+2026-11-23T13:22:32.8800253Z     P99.9 : 36.59 us
+2026-11-23T13:22:32.8800599Z     Max   : 36.59 us
+2026-11-23T13:22:32.8801189Z   Commands / latency samples : 600 / 600
+2026-11-23T13:22:32.8801519Z 
+2026-11-23T13:22:32.8801759Z [8/10] Journal + Public Feed / 日志接受与模拟行情闭环
+2026-11-23T13:22:32.8802086Z ------------------------------------------------------------
+2026-11-23T13:22:32.8802619Z   Scenario / 场景
+2026-11-23T13:22:32.8802840Z     journal_public_feed_sync
+2026-11-23T13:22:32.8803104Z   Description / 说明
+2026-11-23T13:22:32.8803564Z     EN   : Mixed synthetic orders, async journal acceptance, public projection and local apply; drain per command
+2026-11-23T13:22:32.8804362Z     中文 : 混合合成订单，Journal接受到公开行情消费；每命令drain，不含durable
+2026-11-23T13:22:32.8804590Z 
+2026-11-23T13:22:32.8804762Z   Batch Median per Op / 批次中位单操作耗时 : 995.57 ns
+2026-11-23T13:22:32.8805136Z   Throughput / 吞吐量                      : 1.00 M ops/s
+2026-11-23T13:22:32.8805346Z 
+2026-11-23T13:22:32.8805475Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8805702Z     P50   : 841.00 ns
+2026-11-23T13:22:32.8805902Z     P99   : 2.25 us
+2026-11-23T13:22:32.8806091Z     P99.9 : 6.21 us
+2026-11-23T13:22:32.8806282Z     Max   : 6.21 us
+2026-11-23T13:22:32.8806496Z   Commands / latency samples : 600 / 525
+2026-11-23T13:22:32.8806791Z   Public messages / wire bytes : 675 / 32100
+2026-11-23T13:22:32.8807113Z   Peak pending batches / messages / bytes : 1 / 2 / 112
+2026-11-23T13:22:32.8807446Z   Visible / no-visible commands : 525 / 75
+2026-11-23T13:22:32.8807734Z   Drain interval (commands) : 1
+2026-11-23T13:22:32.8808179Z   Boundary : submit to covering drain return, visible commands only; async acceptance, NOT durable
+2026-11-23T13:22:32.8808739Z   Allocation counts : NOT MEASURED; queues/maps/byte buffers may allocate
+2026-11-23T13:22:32.8809040Z 
+2026-11-23T13:22:32.8809191Z [9/10] Full V2 + Public Feed / 原组合加模拟行情闭环
+2026-11-23T13:22:32.8809508Z ------------------------------------------------------------
+2026-11-23T13:22:32.8809835Z   Scenario / 场景
+2026-11-23T13:22:32.8810050Z     full_v2_public_feed_sync
+2026-11-23T13:22:32.8810303Z   Description / 说明
+2026-11-23T13:22:32.8810703Z     EN   : Mixed synthetic orders with Monitor, Logger, Journal and local feed apply; drain per command
+2026-11-23T13:22:32.8811637Z     中文 : 相同混合合成负载，加Monitor/Logger；每命令drain，不含durable
+2026-11-23T13:22:32.8811861Z 
+2026-11-23T13:22:32.8812020Z   Batch Median per Op / 批次中位单操作耗时 : 4.38 us
+2026-11-23T13:22:32.8812412Z   Throughput / 吞吐量                      : 228.48 K ops/s
+2026-11-23T13:22:32.8812634Z 
+2026-11-23T13:22:32.8812761Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8812998Z     P50   : 1.78 us
+2026-11-23T13:22:32.8813202Z     P99   : 19.93 us
+2026-11-23T13:22:32.8813401Z     P99.9 : 48.00 us
+2026-11-23T13:22:32.8813596Z     Max   : 48.00 us
+2026-11-23T13:22:32.8813811Z   Commands / latency samples : 600 / 525
+2026-11-23T13:22:32.8814101Z   Public messages / wire bytes : 675 / 32100
+2026-11-23T13:22:32.8814418Z   Peak pending batches / messages / bytes : 1 / 2 / 112
+2026-11-23T13:22:32.8814733Z   Visible / no-visible commands : 525 / 75
+2026-11-23T13:22:32.8815006Z   Drain interval (commands) : 1
+2026-11-23T13:22:32.8815436Z   Boundary : submit to covering drain return, visible commands only; async acceptance, NOT durable
+2026-11-23T13:22:32.8815989Z   Allocation counts : NOT MEASURED; queues/maps/byte buffers may allocate
+2026-11-23T13:22:32.8816450Z 
+2026-11-23T13:22:32.8816604Z [10/10] Full V2 + Burst Feed / 原组合加串行批次消费
+2026-11-23T13:22:32.8816905Z ------------------------------------------------------------
+2026-11-23T13:22:32.8817228Z   Scenario / 场景
+2026-11-23T13:22:32.8817551Z     full_v2_public_feed_burst16
+2026-11-23T13:22:32.8817820Z   Description / 说明
+2026-11-23T13:22:32.8818215Z     EN   : Same mixed synthetic orders; drain every 16 commands, latency ends at covering drain return
+2026-11-23T13:22:32.8819136Z     中文 : 相同混合合成负载，每16命令消费；可见命令计时至覆盖批次drain返回
+2026-11-23T13:22:32.8819356Z 
+2026-11-23T13:22:32.8819522Z   Batch Median per Op / 批次中位单操作耗时 : 3.22 us
+2026-11-23T13:22:32.8819878Z   Throughput / 吞吐量                      : 310.08 K ops/s
+2026-11-23T13:22:32.8820094Z 
+2026-11-23T13:22:32.8820217Z   Sampled Latency / 单操作采样延迟
+2026-11-23T13:22:32.8820446Z     P50   : 22.80 us
+2026-11-23T13:22:32.8820641Z     P99   : 77.21 us
+2026-11-23T13:22:32.8821038Z     P99.9 : 86.10 us
+2026-11-23T13:22:32.8821340Z     Max   : 86.10 us
+2026-11-23T13:22:32.8821574Z   Commands / latency samples : 600 / 525
+2026-11-23T13:22:32.8821859Z   Public messages / wire bytes : 675 / 32100
+2026-11-23T13:22:32.8822182Z   Peak pending batches / messages / bytes : 14 / 18 / 856
+2026-11-23T13:22:32.8822517Z   Visible / no-visible commands : 525 / 75
+2026-11-23T13:22:32.8822795Z   Drain interval (commands) : 16
+2026-11-23T13:22:32.8823225Z   Boundary : submit to covering drain return, visible commands only; async acceptance, NOT durable
+2026-11-23T13:22:32.8823773Z   Allocation counts : NOT MEASURED; queues/maps/byte buffers may allocate
+2026-11-23T13:22:32.8824060Z 
+2026-11-23T13:22:32.8942712Z Post job cleanup.
+2026-11-23T13:22:32.9850032Z [command]/usr/bin/git version
+2026-11-23T13:22:32.9899881Z git version 2.56.1
+2026-11-23T13:22:32.9945810Z Temporarily overriding HOME='/home/runner/work/_temp/165c98a5-8510-4609-ae30-ff3b11f4034f' before making global git config changes
+2026-11-23T13:22:32.9947475Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-23T13:22:32.9952603Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-23T13:22:32.9996732Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-23T13:22:33.0035690Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-23T13:22:33.0353278Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-23T13:22:33.0381616Z http.https://github.com/.extraheader
+2026-11-23T13:22:33.0394841Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-23T13:22:33.0442827Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-23T13:22:33.0808804Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-23T13:22:33.0844863Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-23T13:22:33.1333805Z Cleaning up orphan processes
+2026-11-23T13:22:33.1734015Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

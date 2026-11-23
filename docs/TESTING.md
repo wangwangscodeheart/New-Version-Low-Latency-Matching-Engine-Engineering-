@@ -1,5 +1,7 @@
 # 当前测试体系（V2）
 
+第六批发布后：`6183893`真实Linux矩阵已完成，Release OFF/ON与ASan+UBSan OFF/ON四种模式均43/43，额外完整性五项各5/5；ON七组gzip正向测试实际执行，OFF不冒充正向覆盖。TSan仍仅异步子集4/4，Benchmark smoke成功，手动10M差分跳过。源码提交与后续纯文档归档分开，系统zlib不含本项目sanitizer插桩，见[验证记录](VALIDATION.md)。
+
 2026-11-23第六批：仅改八份旧测试夹具与CI，新增原子预留/登记清理辅助类，CTest仍43项。本机三配置在不分离每配置TEMP时并行复验均43/43；八程序`/W4 /WX`通过；三配置×八程序×两份共48个独立进程共享同一个专用临时根，全部exit0且无夹具残留。首次直接启动ASan因未进入MSVC环境有16个进程报缺DLL（未执行测试）；原输出保留，修正启动环境后48/48，不改源码规避。该证据不是并行撮合或性能测试。`05f003b`实际Linux默认OFF已取得43/43、ASan+UBSan43/43、TSan子集4/4；新增ON/OFF矩阵按后续提交分别记录，见[第六批](M3_CI_AND_TEST_ISOLATION.md)。
 
 2026-11-23第五批：新增SHA、可选gzip和单遍输入协调器三个CTest，保留原40项并扩展CLI测试。最终默认无zlib Release、启用zlib Release、启用zlib ASan均43/43；新三个测试及CLI以`/W4 /WX`独立编译执行通过（gzip相关分别ON/OFF）。默认构建只执行禁用拒绝测试，不能冒称CRC测试通过。覆盖原始hash域、独立向量、拼接/可选头/截断/CRC/ISIZE、限额、晚到IO/吞异常重入、预先消费前缀不能冒充fresh、输出失败；七种实际CLI退出已验证，输入全为自造。两次并行配置复验中旧固定临时文件冲突的失败原始输出保留；最终为各配置隔离TEMP/TMP后结果。zlib C静态库未插桩，两项new/delete替换程序原有限制保留，其余41项无该替换；没有真实文件、新Linux/UBSan/TSan或性能验收，见[第五批说明](M3_ITCH_INPUT_INTEGRITY.md)。

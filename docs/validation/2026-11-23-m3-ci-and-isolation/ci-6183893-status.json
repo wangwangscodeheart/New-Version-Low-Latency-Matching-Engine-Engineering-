@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "observation_date": "2026-11-23",
+  "timezone": "Asia/Tokyo",
+  "source": "GitHub Actions REST API normalized selected fields, not synthesized test output",
+  "workflow": {
+    "id": 45183239078,
+    "name": "C++ CI",
+    "event": "push",
+    "head_sha": "618389322b4a38749257a85fd13af98dbbe6039b",
+    "status": "completed",
+    "conclusion": "success",
+    "run_attempt": 1,
+    "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078"
+  },
+  "jobs": [
+    {
+      "id": 137722146823,
+      "name": "release (OFF)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722146823",
+      "started_at": "2026-11-23T13:22:17Z",
+      "completed_at": "2026-11-23T13:23:25Z"
+    },
+    {
+      "id": 137722147182,
+      "name": "address-undefined-sanitizers (ON)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722147182",
+      "started_at": "2026-11-23T13:22:17Z",
+      "completed_at": "2026-11-23T13:24:35Z"
+    },
+    {
+      "id": 137722147243,
+      "name": "thread-sanitizer",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722147243",
+      "started_at": "2026-11-23T13:22:17Z",
+      "completed_at": "2026-11-23T13:22:31Z"
+    },
+    {
+      "id": 137722147244,
+      "name": "benchmark-smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722147244",
+      "started_at": "2026-11-23T13:22:18Z",
+      "completed_at": "2026-11-23T13:22:35Z"
+    },
+    {
+      "id": 137722147294,
+      "name": "address-undefined-sanitizers (OFF)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722147294",
+      "started_at": "2026-11-23T13:22:17Z",
+      "completed_at": "2026-11-23T13:23:55Z"
+    },
+    {
+      "id": 137722147345,
+      "name": "release (ON)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722147345",
+      "started_at": "2026-11-23T13:22:17Z",
+      "completed_at": "2026-11-23T13:23:18Z"
+    },
+    {
+      "id": 137722149629,
+      "name": "differential-stress",
+      "status": "completed",
+      "conclusion": "skipped",
+      "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078/job/137722149629",
+      "started_at": "2026-11-23T13:22:15Z",
+      "completed_at": "2026-11-23T13:22:14Z"
+    }
+  ]
+}

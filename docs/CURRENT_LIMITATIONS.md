@@ -19,6 +19,6 @@
 - Journal已有v2完整组与标准接线的进程内预留/接受，旧CSV/attach保留兼容；仍无CRC、fsync/durable水位、复制或高可用，不能称生产级WAL。记录槽预算不是总堆字节配额，磁盘满/掉电未实际注入。
 - 多品种快照现拒绝generation复用并保留占位/孤儿文件，没有自动GC或磁盘预算。重试不能伪造Journal截点；提交后刷新异常也不保证回滚。快照截点与durable prefix绑定、强杀/断电及并发保存仍无完整保证，见[M1第八批](M1_BATCH_08.md)。
 - CI 文件只有在 GitHub runner 实际执行后才构成流水线证据；Gitee 不会自动运行 GitHub Actions。
-- 2026-11-23的`05f003b`已取得Linux默认OFF Release43/43、ASan+UBSan43/43、异步组件TSan子集4/4及benchmark smoke的真实CI证据；该次没有执行gzip ON正向路径。后续OFF/ON矩阵结果按提交单独记录，见[第六批](M3_CI_AND_TEST_ISOLATION.md)与[VALIDATION](VALIDATION.md)。这些结果不覆盖强杀/断电、完整核心并发或新公开链路正式性能。
+- 2026-11-23代码提交`6183893`的Linux Release OFF/ON及ASan+UBSan OFF/ON均43/43，ON已实际执行gzip正向测试；异步TSan子集4/4、Benchmark smoke通过，手动10M差分跳过。系统zlib本体未插桩，后续纯文档归档不是新的源码CI。此前`05f003b`默认OFF结果仍独立保留，见[第六批](M3_CI_AND_TEST_ISOLATION.md)与[VALIDATION](VALIDATION.md)。这些结果不覆盖强杀/断电、完整核心并发或新公开链路正式性能。
 - 历史 26.7 ns 仅代表旧提交的窄热点微基准，不代表当前 V2 端到端延迟。
 
