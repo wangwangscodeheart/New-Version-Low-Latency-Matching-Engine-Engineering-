@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "observation_date": "2026-11-24",
+  "timezone": "Asia/Tokyo",
+  "source": "Normalized authenticated GitHub jobs API outcomes; workflow completion/head separately observed through public run API; canonical links assembled from verified IDs",
+  "workflow": {
+    "id": 45384009352,
+    "head_sha": "bef3124f3daec8cd430e0343fc670ec99c40bf6d",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45384009352"
+  },
+  "jobs": [
+    {
+      "id": 138410093366,
+      "run_id": 45384009352,
+      "name": "benchmark-smoke",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410093723,
+      "run_id": 45384009352,
+      "name": "allocation-instrumentation",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410093741,
+      "run_id": 45384009352,
+      "name": "thread-sanitizer",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410093797,
+      "run_id": 45384009352,
+      "name": "address-undefined-sanitizers (ON)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410094204,
+      "run_id": 45384009352,
+      "name": "address-undefined-sanitizers (OFF)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410094597,
+      "run_id": 45384009352,
+      "name": "release (ON)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 138410096334,
+      "run_id": 45384009352,
+      "name": "differential-stress",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 138410096645,
+      "run_id": 45384009352,
+      "name": "release (OFF)",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

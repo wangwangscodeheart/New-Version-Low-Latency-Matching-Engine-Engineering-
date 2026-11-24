@@ -1,0 +1,426 @@
+﻿2026-11-24T11:25:20.2805823Z Current runner version: '2.338.2'
+2026-11-24T11:25:20.2833200Z ##[group]Runner Image Provisioner
+2026-11-24T11:25:20.2834164Z Hosted Compute Agent
+2026-11-24T11:25:20.2834763Z Version: 20261111.635
+2026-11-24T11:25:20.2835489Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-24T11:25:20.2836270Z Build Date: 2026-11-11T01:49:01Z
+2026-11-24T11:25:20.2836942Z Worker ID: {60f7037d-738e-40de-ab33-6b6c97e38294}
+2026-11-24T11:25:20.2837731Z Region: eastus
+2026-11-24T11:25:20.2838311Z Cloud: Azure
+2026-11-24T11:25:20.2839381Z ##[endgroup]
+2026-11-24T11:25:20.2842215Z ##[group]Operating System
+2026-11-24T11:25:20.2842925Z Ubuntu
+2026-11-24T11:25:20.2843502Z 26.04.1
+2026-11-24T11:25:20.2844018Z LTS
+2026-11-24T11:25:20.2844655Z ##[endgroup]
+2026-11-24T11:25:20.2845246Z ##[group]Runner Image
+2026-11-24T11:25:20.2845817Z Image: ubuntu-26.04
+2026-11-24T11:25:20.2846867Z Version: 20261116.202.1
+2026-11-24T11:25:20.2848156Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.202/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-24T11:25:20.2850327Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.202
+2026-11-24T11:25:20.2851308Z ##[endgroup]
+2026-11-24T11:25:20.2852565Z ##[group]GITHUB_TOKEN Permissions
+2026-11-24T11:25:20.2855165Z Contents: read
+2026-11-24T11:25:20.2855848Z Metadata: read
+2026-11-24T11:25:20.2856457Z Packages: read
+2026-11-24T11:25:20.2857090Z ##[endgroup]
+2026-11-24T11:25:20.2859819Z Secret source: Actions
+2026-11-24T11:25:20.2860939Z Cache mode: write
+2026-11-24T11:25:20.2861770Z Prepare workflow directory
+2026-11-24T11:25:20.3204878Z Prepare all required actions
+2026-11-24T11:25:20.3253294Z Getting action download info
+2026-11-24T11:25:20.4836879Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-24T11:25:20.8303830Z Complete job name: address-undefined-sanitizers (OFF)
+2026-11-24T11:25:20.9271959Z ##[group]Run actions/checkout@v4
+2026-11-24T11:25:20.9272936Z with:
+2026-11-24T11:25:20.9273779Z   repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:20.9278388Z   token: ***
+2026-11-24T11:25:20.9279041Z   ssh-strict: true
+2026-11-24T11:25:20.9279545Z   ssh-user: git
+2026-11-24T11:25:20.9280045Z   persist-credentials: true
+2026-11-24T11:25:20.9280592Z   clean: true
+2026-11-24T11:25:20.9281080Z   sparse-checkout-cone-mode: true
+2026-11-24T11:25:20.9281660Z   fetch-depth: 1
+2026-11-24T11:25:20.9282138Z   fetch-tags: false
+2026-11-24T11:25:20.9282623Z   show-progress: true
+2026-11-24T11:25:20.9283116Z   lfs: false
+2026-11-24T11:25:20.9283580Z   submodules: false
+2026-11-24T11:25:20.9284087Z   set-safe-directory: true
+2026-11-24T11:25:20.9284653Z   allow-unsafe-pr-checkout: false
+2026-11-24T11:25:20.9285512Z ##[endgroup]
+2026-11-24T11:25:21.2350230Z Syncing repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.2354588Z ##[group]Getting Git version info
+2026-11-24T11:25:21.2358070Z Working directory is '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:21.2363418Z [command]/usr/bin/git version
+2026-11-24T11:25:21.2378799Z git version 2.56.1
+2026-11-24T11:25:21.2410646Z ##[endgroup]
+2026-11-24T11:25:21.2421346Z Temporarily overriding HOME='/home/runner/work/_temp/95d129fe-4c2d-4ece-9406-fe0e1b6f40bc' before making global git config changes
+2026-11-24T11:25:21.2426507Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:21.2433956Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.2513301Z Deleting the contents of '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:21.2518235Z ##[group]Initializing the repository
+2026-11-24T11:25:21.2522854Z [command]/usr/bin/git init /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.2659161Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-24T11:25:21.2663416Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-24T11:25:21.2667444Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-24T11:25:21.2670952Z hint: call:
+2026-11-24T11:25:21.2672768Z hint:
+2026-11-24T11:25:21.2675040Z hint: 	git config --global init.defaultBranch <name>
+2026-11-24T11:25:21.2677672Z hint:
+2026-11-24T11:25:21.2680305Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-24T11:25:21.2684236Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-24T11:25:21.2687471Z hint:
+2026-11-24T11:25:21.2690024Z hint: 	git branch -m <name>
+2026-11-24T11:25:21.2719140Z hint:
+2026-11-24T11:25:21.2721688Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-24T11:25:21.2726249Z Initialized empty Git repository in /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/.git/
+2026-11-24T11:25:21.2733598Z [command]/usr/bin/git remote add origin https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.2760839Z ##[endgroup]
+2026-11-24T11:25:21.2763907Z ##[group]Disabling automatic garbage collection
+2026-11-24T11:25:21.2766692Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-24T11:25:21.2807489Z ##[endgroup]
+2026-11-24T11:25:21.2811857Z ##[group]Setting up auth
+2026-11-24T11:25:21.2815181Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:21.2856448Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:21.3486695Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:21.3524940Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:21.3815758Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:21.3858258Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:21.4151476Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-24T11:25:21.4198463Z ##[endgroup]
+2026-11-24T11:25:21.4201163Z ##[group]Fetching the repository
+2026-11-24T11:25:21.4217244Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +bef3124f3daec8cd430e0343fc670ec99c40bf6d:refs/remotes/origin/main
+2026-11-24T11:25:21.7756616Z From https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.7774423Z  * [new ref]         bef3124f3daec8cd430e0343fc670ec99c40bf6d -> origin/main
+2026-11-24T11:25:21.7781808Z ##[endgroup]
+2026-11-24T11:25:21.7784702Z ##[group]Determining the checkout info
+2026-11-24T11:25:21.7786882Z ##[endgroup]
+2026-11-24T11:25:21.7788184Z [command]/usr/bin/git sparse-checkout disable
+2026-11-24T11:25:21.7847509Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-24T11:25:21.7882155Z ##[group]Checking out the ref
+2026-11-24T11:25:21.7885548Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-24T11:25:21.8262596Z Switched to a new branch 'main'
+2026-11-24T11:25:21.8268823Z branch 'main' set up to track 'origin/main'.
+2026-11-24T11:25:21.8279904Z ##[endgroup]
+2026-11-24T11:25:21.8331585Z [command]/usr/bin/git log -1 --format=%H
+2026-11-24T11:25:21.8357711Z bef3124f3daec8cd430e0343fc670ec99c40bf6d
+2026-11-24T11:25:21.8688139Z ##[group]Run cmake -S . -B build/asan-ubsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DENABLE_UBSAN=ON -DENABLE_ZLIB_INPUT=OFF
+2026-11-24T11:25:21.8692260Z [36;1mcmake -S . -B build/asan-ubsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_ASAN=ON -DENABLE_UBSAN=ON -DENABLE_ZLIB_INPUT=OFF[0m
+2026-11-24T11:25:21.8733139Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:21.8734235Z ##[endgroup]
+2026-11-24T11:25:22.7415874Z -- The CXX compiler identification is GNU 15.2.0
+2026-11-24T11:25:22.8090726Z -- Detecting CXX compiler ABI info
+2026-11-24T11:25:22.9562366Z -- Detecting CXX compiler ABI info - done
+2026-11-24T11:25:22.9908799Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+2026-11-24T11:25:22.9919380Z -- Detecting CXX compile features
+2026-11-24T11:25:23.0025620Z -- Detecting CXX compile features - done
+2026-11-24T11:25:23.0673006Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-11-24T11:25:23.1767082Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-11-24T11:25:23.1817438Z -- Found Threads: TRUE
+2026-11-24T11:25:23.2156216Z -- 
+2026-11-24T11:25:23.2157255Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:23.2157867Z --   Matching Engine Build Configuration
+2026-11-24T11:25:23.2159093Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:23.2159655Z --   Build type: Debug
+2026-11-24T11:25:23.2160075Z --   C++ Standard: C++17
+2026-11-24T11:25:23.2160516Z --   Compiler: GNU
+2026-11-24T11:25:23.2160887Z -- 
+2026-11-24T11:25:23.2161199Z --   Targets:
+2026-11-24T11:25:23.2161621Z --     - matching_engine_demo           (Main demo)
+2026-11-24T11:25:23.2162263Z --     - matching_engine_v2_demo        (V2 infrastructure demo)
+2026-11-24T11:25:23.2163022Z --     - matching_engine_market_data_generator (synthetic CSV generator)
+2026-11-24T11:25:23.2163759Z --     - matching_engine_unit_tests     (Unit tests)
+2026-11-24T11:25:23.2165532Z --     - matching_engine_property_tests (Property tests)
+2026-11-24T11:25:23.2166419Z --     - matching_engine_snapshot_tests (Snapshot tests)
+2026-11-24T11:25:23.2167231Z --     - matching_engine_benchmarks     (Performance)
+2026-11-24T11:25:23.2168064Z --     - matching_engine_v2_benchmarks  (V2 routed event path)
+2026-11-24T11:25:23.2169353Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:23.2169982Z -- 
+2026-11-24T11:25:23.2170388Z -- Configuring done (0.9s)
+2026-11-24T11:25:23.2614605Z -- Generating done (0.0s)
+2026-11-24T11:25:23.2619425Z -- Build files have been written to: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:25:23.2756315Z ##[group]Run cmake --build build/asan-ubsan
+2026-11-24T11:25:23.2756724Z [36;1mcmake --build build/asan-ubsan[0m
+2026-11-24T11:25:23.2789474Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:23.2789743Z ##[endgroup]
+2026-11-24T11:25:26.0800210Z [1/92] Building CXX object CMakeFiles/matching_engine_market_data_generator.dir/src/market_data_generator_main.cpp.o
+2026-11-24T11:25:31.4970365Z [2/92] Building CXX object CMakeFiles/matching_engine_property_tests.dir/tests/property_tests.cpp.o
+2026-11-24T11:25:32.1630178Z [3/92] Building CXX object CMakeFiles/matching_engine_demo.dir/src/main.cpp.o
+2026-11-24T11:25:35.1590154Z [4/92] Building CXX object CMakeFiles/matching_engine_itch_inspect.dir/src/itch_inspect_main.cpp.o
+2026-11-24T11:25:35.6390135Z [5/92] Building CXX object CMakeFiles/matching_engine_unit_tests.dir/tests/unit_tests.cpp.o
+2026-11-24T11:25:37.4150898Z [6/92] Building CXX object CMakeFiles/matching_engine_differential_tests.dir/tests/differential_tests.cpp.o
+2026-11-24T11:25:41.2542847Z [7/92] Building CXX object CMakeFiles/matching_engine_market_manager_tests.dir/tests/market_manager_tests.cpp.o
+2026-11-24T11:25:42.1390005Z [8/92] Building CXX object CMakeFiles/matching_engine_snapshot_tests.dir/tests/snapshot_tests.cpp.o
+2026-11-24T11:25:49.5610912Z [9/92] Building CXX object CMakeFiles/matching_engine_market_snapshot_tests.dir/tests/market_snapshot_tests.cpp.o
+2026-11-24T11:25:51.9151072Z [10/92] Building CXX object CMakeFiles/matching_engine_event_delivery_integration_tests.dir/tests/event_delivery_integration_tests.cpp.o
+2026-11-24T11:25:52.7690083Z [11/92] Building CXX object CMakeFiles/matching_engine_event_system_tests.dir/tests/event_system_tests.cpp.o
+2026-11-24T11:25:55.5450182Z [12/92] Building CXX object CMakeFiles/matching_engine_journal_replay_tests.dir/tests/journal_replay_tests.cpp.o
+2026-11-24T11:25:57.7179908Z [13/92] Building CXX object CMakeFiles/matching_engine_v2_demo.dir/src/v2_main.cpp.o
+2026-11-24T11:25:57.9994078Z [14/92] Building CXX object CMakeFiles/matching_engine_async_logger_tests.dir/tests/async_logger_tests.cpp.o
+2026-11-24T11:25:59.8710319Z [15/92] Building CXX object CMakeFiles/matching_engine_strategy_tests.dir/tests/strategy_tests.cpp.o
+2026-11-24T11:26:01.3710121Z [16/92] Building CXX object CMakeFiles/matching_engine_market_data_tests.dir/tests/market_data_tests.cpp.o
+2026-11-24T11:26:05.9023384Z [17/92] Building CXX object CMakeFiles/matching_engine_monitor_tests.dir/tests/monitor_tests.cpp.o
+2026-11-24T11:26:07.4406117Z [18/92] Building CXX object CMakeFiles/matching_engine_order_pool_tests.dir/tests/order_pool_tests.cpp.o
+2026-11-24T11:26:09.9850282Z [19/92] Building CXX object CMakeFiles/matching_engine_market_data_generator_tests.dir/tests/market_data_generator_tests.cpp.o
+2026-11-24T11:26:12.0559999Z [20/92] Building CXX object CMakeFiles/matching_engine_feed_gateway_tests.dir/tests/feed_gateway_tests.cpp.o
+2026-11-24T11:26:14.3640137Z [21/92] Building CXX object CMakeFiles/matching_engine_async_journal_tests.dir/tests/async_journal_tests.cpp.o
+2026-11-24T11:26:15.6109973Z [22/92] Building CXX object CMakeFiles/matching_engine_itch_binary_reader_tests.dir/tests/itch_binary_reader_tests.cpp.o
+2026-11-24T11:26:15.6169738Z [23/92] Building CXX object CMakeFiles/matching_engine_allocation_failure_tests.dir/tests/allocation_failure_tests.cpp.o
+2026-11-24T11:26:16.1819996Z [24/92] Building CXX object CMakeFiles/matching_engine_command_journal_tests.dir/tests/command_journal_tests.cpp.o
+2026-11-24T11:26:18.6459985Z [25/92] Building CXX object CMakeFiles/matching_engine_itch50_decoder_tests.dir/tests/itch50_decoder_tests.cpp.o
+2026-11-24T11:26:19.6745400Z [26/92] Building CXX object CMakeFiles/matching_engine_market_data_book_native_tests.dir/tests/market_data_book_native_tests.cpp.o
+2026-11-24T11:26:21.1820140Z [27/92] Building CXX object CMakeFiles/matching_engine_feed_encoder_tests.dir/tests/feed_encoder_tests.cpp.o
+2026-11-24T11:26:21.2040718Z [28/92] Building CXX object CMakeFiles/matching_engine_itch_session_validation_tests.dir/tests/itch_session_validation_tests.cpp.o
+2026-11-24T11:26:21.2930280Z [29/92] Building CXX object CMakeFiles/matching_engine_itch_trade_ledger_tests.dir/tests/itch_trade_ledger_tests.cpp.o
+2026-11-24T11:26:22.4900308Z [30/92] Building CXX object CMakeFiles/matching_engine_itch50_metadata_decoder_tests.dir/tests/itch50_metadata_decoder_tests.cpp.o
+2026-11-24T11:26:23.2212198Z [31/92] Building CXX object CMakeFiles/matching_engine_sha256_tests.dir/tests/sha256_tests.cpp.o
+2026-11-24T11:26:23.8425221Z [32/92] Building CXX object CMakeFiles/matching_engine_streaming_gzip_tests.dir/tests/streaming_gzip_tests.cpp.o
+2026-11-24T11:26:28.6429989Z [33/92] Building CXX object CMakeFiles/matching_engine_itch_book_rebuilder_tests.dir/tests/itch_book_rebuilder_tests.cpp.o
+2026-11-24T11:26:29.9440056Z [34/92] Building CXX object CMakeFiles/matching_engine_itch_metadata_session_tests.dir/tests/itch_metadata_session_tests.cpp.o
+2026-11-24T11:26:32.8570270Z [35/92] Building CXX object CMakeFiles/matching_engine_itch_report_session_tests.dir/tests/itch_report_session_tests.cpp.o
+2026-11-24T11:26:35.1780371Z [36/92] Building CXX object CMakeFiles/matching_engine_itch_inspect_tests.dir/tests/itch_inspect_tests.cpp.o
+2026-11-24T11:26:37.7837180Z [37/92] Building CXX object CMakeFiles/matching_engine_native_allocation_tests.dir/tests/market_data_book_native_allocation_tests.cpp.o
+2026-11-24T11:26:38.0833683Z [38/92] Building CXX object CMakeFiles/matching_engine_itch_verified_input_tests.dir/tests/itch_verified_input_tests.cpp.o
+2026-11-24T11:26:41.1280053Z [39/92] Building CXX object CMakeFiles/matching_engine_capacity_metrics_tests.dir/tests/capacity_metrics_tests.cpp.o
+2026-11-24T11:26:41.5570068Z [40/92] Building CXX object CMakeFiles/matching_engine_committed_handoff_tests.dir/tests/committed_handoff_tests.cpp.o
+2026-11-24T11:26:48.9670055Z [41/92] Building CXX object CMakeFiles/matching_engine_risk_engine_tests.dir/tests/risk_engine_tests.cpp.o
+2026-11-24T11:26:49.2410072Z [42/92] Building CXX object CMakeFiles/matching_engine_benchmarks.dir/benchmarks/perf.cpp.o
+2026-11-24T11:26:49.3312156Z [43/92] Linking CXX executable matching_engine_demo
+2026-11-24T11:26:49.5349885Z [44/92] Linking CXX executable matching_engine_market_data_generator
+2026-11-24T11:26:49.8299614Z [45/92] Linking CXX executable matching_engine_v2_demo
+2026-11-24T11:26:49.8509743Z [46/92] Linking CXX executable matching_engine_itch_inspect
+2026-11-24T11:26:49.9869573Z [47/92] Linking CXX executable matching_engine_property_tests
+2026-11-24T11:26:50.1589575Z [48/92] Linking CXX executable matching_engine_differential_tests
+2026-11-24T11:26:50.2429620Z [49/92] Linking CXX executable matching_engine_unit_tests
+2026-11-24T11:26:50.3917595Z [50/92] Linking CXX executable matching_engine_snapshot_tests
+2026-11-24T11:26:50.6839608Z [51/92] Linking CXX executable matching_engine_market_manager_tests
+2026-11-24T11:26:50.7129757Z [52/92] Linking CXX executable matching_engine_market_snapshot_tests
+2026-11-24T11:26:50.9059783Z [53/92] Linking CXX executable matching_engine_event_system_tests
+2026-11-24T11:26:51.1509733Z [54/92] Linking CXX executable matching_engine_event_delivery_integration_tests
+2026-11-24T11:26:51.3578916Z [55/92] Linking CXX executable matching_engine_journal_replay_tests
+2026-11-24T11:26:51.4399290Z [56/92] Linking CXX executable matching_engine_async_logger_tests
+2026-11-24T11:26:51.5987612Z [57/92] Linking CXX executable matching_engine_monitor_tests
+2026-11-24T11:26:51.7099764Z [58/92] Linking CXX executable matching_engine_market_data_tests
+2026-11-24T11:26:51.9409810Z [59/92] Linking CXX executable matching_engine_async_journal_tests
+2026-11-24T11:26:51.9897240Z [60/92] Linking CXX executable matching_engine_strategy_tests
+2026-11-24T11:26:52.1710029Z [61/92] Building CXX object CMakeFiles/matching_engine_public_feed_tests.dir/tests/public_feed_publisher_tests.cpp.o
+2026-11-24T11:26:52.3079811Z [62/92] Linking CXX executable matching_engine_order_pool_tests
+2026-11-24T11:26:52.4279744Z [63/92] Linking CXX executable matching_engine_command_journal_tests
+2026-11-24T11:26:52.5011334Z [64/92] Linking CXX executable matching_engine_market_data_generator_tests
+2026-11-24T11:26:52.5059512Z [65/92] Linking CXX executable matching_engine_allocation_failure_tests
+2026-11-24T11:26:52.6559615Z [66/92] Linking CXX executable matching_engine_feed_gateway_tests
+2026-11-24T11:26:52.7218949Z [67/92] Linking CXX executable matching_engine_itch_binary_reader_tests
+2026-11-24T11:26:52.8339740Z [68/92] Linking CXX executable matching_engine_itch50_decoder_tests
+2026-11-24T11:26:52.8909787Z [69/92] Linking CXX executable matching_engine_feed_encoder_tests
+2026-11-24T11:26:52.9190247Z [70/92] Linking CXX executable matching_engine_market_data_book_native_tests
+2026-11-24T11:26:53.1364303Z [71/92] Linking CXX executable matching_engine_itch_book_rebuilder_tests
+2026-11-24T11:26:53.2069755Z [72/92] Linking CXX executable matching_engine_itch50_metadata_decoder_tests
+2026-11-24T11:26:53.3389212Z [73/92] Linking CXX executable matching_engine_itch_trade_ledger_tests
+2026-11-24T11:26:53.3456587Z [74/92] Linking CXX executable matching_engine_itch_session_validation_tests
+2026-11-24T11:26:53.4377465Z [75/92] Linking CXX executable matching_engine_itch_metadata_session_tests
+2026-11-24T11:26:53.5369559Z [76/92] Linking CXX executable matching_engine_sha256_tests
+2026-11-24T11:26:53.6959608Z [77/92] Linking CXX executable matching_engine_streaming_gzip_tests
+2026-11-24T11:26:53.7349854Z [78/92] Linking CXX executable matching_engine_itch_report_session_tests
+2026-11-24T11:26:53.7802535Z [79/92] Linking CXX executable matching_engine_itch_inspect_tests
+2026-11-24T11:26:54.0799584Z [80/92] Linking CXX executable matching_engine_native_allocation_tests
+2026-11-24T11:26:54.1139697Z [81/92] Linking CXX executable matching_engine_itch_verified_input_tests
+2026-11-24T11:26:54.1321251Z [82/92] Linking CXX executable matching_engine_public_feed_tests
+2026-11-24T11:26:54.2878385Z [83/92] Linking CXX executable matching_engine_committed_handoff_tests
+2026-11-24T11:26:54.3755438Z [84/92] Linking CXX executable matching_engine_capacity_metrics_tests
+2026-11-24T11:26:54.4569753Z [85/92] Linking CXX executable matching_engine_risk_engine_tests
+2026-11-24T11:26:54.5141824Z [86/92] Linking CXX executable matching_engine_benchmarks
+2026-11-24T11:26:56.2239638Z [87/92] Building CXX object CMakeFiles/matching_engine_order_type_tests.dir/tests/order_type_tests.cpp.o
+2026-11-24T11:26:56.4712348Z [88/92] Linking CXX executable matching_engine_order_type_tests
+2026-11-24T11:26:56.9282825Z [89/92] Building CXX object CMakeFiles/matching_engine_public_feed_benchmark_tests.dir/tests/public_feed_benchmark_tests.cpp.o
+2026-11-24T11:26:57.1358296Z [90/92] Linking CXX executable matching_engine_public_feed_benchmark_tests
+2026-11-24T11:27:02.6794853Z [91/92] Building CXX object CMakeFiles/matching_engine_v2_benchmarks.dir/benchmarks/v2_perf.cpp.o
+2026-11-24T11:27:02.9010410Z [92/92] Linking CXX executable matching_engine_v2_benchmarks
+2026-11-24T11:27:02.9067355Z ##[group]Run ctest --test-dir build/asan-ubsan --output-on-failure
+2026-11-24T11:27:02.9067887Z [36;1mctest --test-dir build/asan-ubsan --output-on-failure[0m
+2026-11-24T11:27:02.9099696Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:27:02.9099948Z env:
+2026-11-24T11:27:02.9100176Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-11-24T11:27:02.9100533Z   UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+2026-11-24T11:27:02.9100826Z ##[endgroup]
+2026-11-24T11:27:03.3267124Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:03.3671186Z       Start  1: matching_engine_unit
+2026-11-24T11:27:11.9528751Z  1/43 Test  #1: matching_engine_unit ......................   Passed    8.59 sec
+2026-11-24T11:27:11.9591781Z       Start  2: matching_engine_properties
+2026-11-24T11:27:13.8947204Z  2/43 Test  #2: matching_engine_properties ................   Passed    1.94 sec
+2026-11-24T11:27:13.8950427Z       Start  3: matching_engine_differential
+2026-11-24T11:27:27.5627757Z  3/43 Test  #3: matching_engine_differential ..............   Passed   13.67 sec
+2026-11-24T11:27:27.5630093Z       Start  4: matching_engine_snapshot
+2026-11-24T11:27:27.5959866Z  4/43 Test  #4: matching_engine_snapshot ..................   Passed    0.03 sec
+2026-11-24T11:27:27.5962942Z       Start  5: matching_engine_market_snapshot
+2026-11-24T11:27:27.6983417Z  5/43 Test  #5: matching_engine_market_snapshot ...........   Passed    0.10 sec
+2026-11-24T11:27:27.6985661Z       Start  6: matching_engine_market_manager
+2026-11-24T11:27:27.7208017Z  6/43 Test  #6: matching_engine_market_manager ............   Passed    0.02 sec
+2026-11-24T11:27:27.7210381Z       Start  7: matching_engine_event_system
+2026-11-24T11:27:27.7566409Z  7/43 Test  #7: matching_engine_event_system ..............   Passed    0.04 sec
+2026-11-24T11:27:27.7568263Z       Start  8: matching_engine_event_delivery
+2026-11-24T11:27:27.8001064Z  8/43 Test  #8: matching_engine_event_delivery ............   Passed    0.04 sec
+2026-11-24T11:27:27.8002521Z       Start  9: matching_engine_journal_replay
+2026-11-24T11:27:27.8590352Z  9/43 Test  #9: matching_engine_journal_replay ............   Passed    0.06 sec
+2026-11-24T11:27:27.8593613Z       Start 10: matching_engine_async_logger
+2026-11-24T11:27:27.8882087Z 10/43 Test #10: matching_engine_async_logger ..............   Passed    0.03 sec
+2026-11-24T11:27:27.8884090Z       Start 11: matching_engine_monitor
+2026-11-24T11:27:27.9196884Z 11/43 Test #11: matching_engine_monitor ...................   Passed    0.03 sec
+2026-11-24T11:27:27.9198820Z       Start 12: matching_engine_market_data
+2026-11-24T11:27:27.9398441Z 12/43 Test #12: matching_engine_market_data ...............   Passed    0.02 sec
+2026-11-24T11:27:27.9400741Z       Start 13: matching_engine_strategy
+2026-11-24T11:27:27.9637064Z 13/43 Test #13: matching_engine_strategy ..................   Passed    0.02 sec
+2026-11-24T11:27:27.9639244Z       Start 14: matching_engine_async_journal
+2026-11-24T11:27:28.0720520Z 14/43 Test #14: matching_engine_async_journal .............   Passed    0.11 sec
+2026-11-24T11:27:28.0723765Z       Start 15: matching_engine_command_journal
+2026-11-24T11:27:28.1164772Z 15/43 Test #15: matching_engine_command_journal ...........   Passed    0.04 sec
+2026-11-24T11:27:28.1169523Z       Start 16: matching_engine_allocation_failure
+2026-11-24T11:27:28.1510063Z 16/43 Test #16: matching_engine_allocation_failure ........   Passed    0.03 sec
+2026-11-24T11:27:28.1512733Z       Start 17: matching_engine_order_pool
+2026-11-24T11:27:28.1753705Z 17/43 Test #17: matching_engine_order_pool ................   Passed    0.02 sec
+2026-11-24T11:27:28.1770742Z       Start 18: matching_engine_market_data_generator
+2026-11-24T11:27:28.2060159Z 18/43 Test #18: matching_engine_market_data_generator .....   Passed    0.03 sec
+2026-11-24T11:27:28.2061532Z       Start 19: matching_engine_feed_gateway
+2026-11-24T11:27:28.2274272Z 19/43 Test #19: matching_engine_feed_gateway ..............   Passed    0.02 sec
+2026-11-24T11:27:28.2275518Z       Start 20: matching_engine_feed_encoder
+2026-11-24T11:27:28.2530372Z 20/43 Test #20: matching_engine_feed_encoder ..............   Passed    0.03 sec
+2026-11-24T11:27:28.2532405Z       Start 21: matching_engine_itch_binary_reader
+2026-11-24T11:27:28.3251683Z 21/43 Test #21: matching_engine_itch_binary_reader ........   Passed    0.07 sec
+2026-11-24T11:27:28.3253352Z       Start 22: matching_engine_itch50_decoder
+2026-11-24T11:27:28.3862281Z 22/43 Test #22: matching_engine_itch50_decoder ............   Passed    0.06 sec
+2026-11-24T11:27:28.3864720Z       Start 23: matching_engine_market_data_book_native
+2026-11-24T11:27:28.4433951Z 23/43 Test #23: matching_engine_market_data_book_native ...   Passed    0.06 sec
+2026-11-24T11:27:28.4436455Z       Start 24: matching_engine_itch_book_rebuilder
+2026-11-24T11:27:28.7844473Z 24/43 Test #24: matching_engine_itch_book_rebuilder .......   Passed    0.34 sec
+2026-11-24T11:27:28.7846530Z       Start 25: matching_engine_itch50_metadata_decoder
+2026-11-24T11:27:28.8218753Z 25/43 Test #25: matching_engine_itch50_metadata_decoder ...   Passed    0.04 sec
+2026-11-24T11:27:28.8220946Z       Start 26: matching_engine_itch_metadata_session
+2026-11-24T11:27:29.5494484Z 26/43 Test #26: matching_engine_itch_metadata_session .....   Passed    0.73 sec
+2026-11-24T11:27:29.5496554Z       Start 27: matching_engine_itch_trade_ledger
+2026-11-24T11:27:29.5715928Z 27/43 Test #27: matching_engine_itch_trade_ledger .........   Passed    0.02 sec
+2026-11-24T11:27:29.5717770Z       Start 28: matching_engine_itch_session_validation
+2026-11-24T11:27:29.5856432Z 28/43 Test #28: matching_engine_itch_session_validation ...   Passed    0.01 sec
+2026-11-24T11:27:29.5866368Z       Start 29: matching_engine_itch_report_session
+2026-11-24T11:27:29.7572935Z 29/43 Test #29: matching_engine_itch_report_session .......   Passed    0.17 sec
+2026-11-24T11:27:29.7575156Z       Start 30: matching_engine_itch_inspect
+2026-11-24T11:27:29.7924291Z 30/43 Test #30: matching_engine_itch_inspect ..............   Passed    0.03 sec
+2026-11-24T11:27:29.7934772Z       Start 31: matching_engine_itch_inspect_help
+2026-11-24T11:27:29.8065921Z 31/43 Test #31: matching_engine_itch_inspect_help .........   Passed    0.01 sec
+2026-11-24T11:27:29.8068320Z       Start 32: matching_engine_sha256
+2026-11-24T11:27:30.0052015Z 32/43 Test #32: matching_engine_sha256 ....................   Passed    0.20 sec
+2026-11-24T11:27:30.0053992Z       Start 33: matching_engine_streaming_gzip
+2026-11-24T11:27:30.0178929Z 33/43 Test #33: matching_engine_streaming_gzip ............   Passed    0.01 sec
+2026-11-24T11:27:30.0181571Z       Start 34: matching_engine_itch_verified_input
+2026-11-24T11:27:30.0697829Z 34/43 Test #34: matching_engine_itch_verified_input .......   Passed    0.05 sec
+2026-11-24T11:27:30.0700026Z       Start 35: matching_engine_native_allocation
+2026-11-24T11:27:30.1070215Z 35/43 Test #35: matching_engine_native_allocation .........   Passed    0.04 sec
+2026-11-24T11:27:30.1071325Z       Start 36: matching_engine_public_feed
+2026-11-24T11:27:30.1526920Z 36/43 Test #36: matching_engine_public_feed ...............   Passed    0.05 sec
+2026-11-24T11:27:30.1529590Z       Start 37: matching_engine_committed_handoff
+2026-11-24T11:27:30.1957190Z 37/43 Test #37: matching_engine_committed_handoff .........   Passed    0.04 sec
+2026-11-24T11:27:30.1959685Z       Start 38: matching_engine_public_feed_benchmark
+2026-11-24T11:27:30.8223596Z 38/43 Test #38: matching_engine_public_feed_benchmark .....   Passed    0.63 sec
+2026-11-24T11:27:30.8225631Z       Start 39: matching_engine_capacity_metrics
+2026-11-24T11:27:30.8374659Z 39/43 Test #39: matching_engine_capacity_metrics ..........   Passed    0.01 sec
+2026-11-24T11:27:30.8376192Z       Start 40: matching_engine_risk_engine
+2026-11-24T11:27:30.9609867Z 40/43 Test #40: matching_engine_risk_engine ...............   Passed    0.12 sec
+2026-11-24T11:27:30.9612443Z       Start 41: matching_engine_order_types
+2026-11-24T11:27:31.1348913Z 41/43 Test #41: matching_engine_order_types ...............   Passed    0.17 sec
+2026-11-24T11:27:31.1350599Z       Start 42: matching_engine_demo_integration
+2026-11-24T11:27:31.1641379Z 42/43 Test #42: matching_engine_demo_integration ..........   Passed    0.03 sec
+2026-11-24T11:27:31.1643963Z       Start 43: matching_engine_v2_demo_integration
+2026-11-24T11:27:31.2064363Z 43/43 Test #43: matching_engine_v2_demo_integration .......   Passed    0.04 sec
+2026-11-24T11:27:31.2068985Z 
+2026-11-24T11:27:31.2069191Z 100% tests passed out of 43
+2026-11-24T11:27:31.2069463Z 
+2026-11-24T11:27:31.2069611Z Total Test time (real) =  27.88 sec
+2026-11-24T11:27:31.2373143Z ##[group]Run ctest --test-dir build/asan-ubsan --output-on-failure --verbose -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"
+2026-11-24T11:27:31.2374402Z [36;1mctest --test-dir build/asan-ubsan --output-on-failure --verbose -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"[0m
+2026-11-24T11:27:31.2406436Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:27:31.2406686Z env:
+2026-11-24T11:27:31.2406913Z   ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+2026-11-24T11:27:31.2407265Z   UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+2026-11-24T11:27:31.2407563Z ##[endgroup]
+2026-11-24T11:27:31.2476849Z UpdateCTestConfiguration  from :/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/DartConfiguration.tcl
+2026-11-24T11:27:31.2479643Z Parse Config file:/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/DartConfiguration.tcl
+2026-11-24T11:27:31.2482093Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.2483438Z Constructing a list of tests
+2026-11-24T11:27:31.2491036Z Done constructing a list of tests
+2026-11-24T11:27:31.2491538Z Updating test list for fixtures
+2026-11-24T11:27:31.2492015Z Added 0 tests to meet fixture requirements
+2026-11-24T11:27:31.2492693Z Checking test dependency graph...
+2026-11-24T11:27:31.2493020Z Checking test dependency graph end
+2026-11-24T11:27:31.2494139Z test 30
+2026-11-24T11:27:31.2494754Z     Start 30: matching_engine_itch_inspect
+2026-11-24T11:27:31.2495102Z 
+2026-11-24T11:27:31.2496459Z 30: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/matching_engine_itch_inspect_tests
+2026-11-24T11:27:31.2497985Z 30: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.2499129Z 30: Test timeout computed to be: 1500
+2026-11-24T11:27:31.2792053Z 30: Offline ITCH inspector tests passed (gzip disabled; compressed success tests NOT EXECUTED; synthetic temporary files only).
+2026-11-24T11:27:31.2793452Z 1/5 Test #30: matching_engine_itch_inspect ..........   Passed    0.03 sec
+2026-11-24T11:27:31.2794573Z test 31
+2026-11-24T11:27:31.2794961Z     Start 31: matching_engine_itch_inspect_help
+2026-11-24T11:27:31.2795331Z 
+2026-11-24T11:27:31.2796851Z 31: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/matching_engine_itch_inspect "--help"
+2026-11-24T11:27:31.2799314Z 31: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.2800419Z 31: Test timeout computed to be: 1500
+2026-11-24T11:27:31.2882988Z 31: Usage: matching_engine_itch_inspect --input FILE --date YYYY-MM-DD
+2026-11-24T11:27:31.2883752Z 31:        --authorized-local-use [--max-reports N]
+2026-11-24T11:27:31.2884431Z 31:        [--reject-time-regressions] [--allow-missing-system-phases]
+2026-11-24T11:27:31.2885159Z 31:        [--compression auto|none|gzip] [--expected-sha256 HEX]
+2026-11-24T11:27:31.2885909Z 31:        [--max-input-bytes N] [--max-decoded-bytes N] [--max-gzip-members N]
+2026-11-24T11:27:31.2886501Z 31: Single-pass source SHA-256; no downloads or extracted output files.
+2026-11-24T11:27:31.2886924Z 31: gzip_support=disabled
+2026-11-24T11:27:31.2887261Z 31: Date is caller-supplied; authorization flag does not grant rights.
+2026-11-24T11:27:31.2966282Z 2/5 Test #31: matching_engine_itch_inspect_help .....   Passed    0.02 sec
+2026-11-24T11:27:31.2968745Z test 32
+2026-11-24T11:27:31.2969479Z     Start 32: matching_engine_sha256
+2026-11-24T11:27:31.2969803Z 
+2026-11-24T11:27:31.2970982Z 32: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/matching_engine_sha256_tests
+2026-11-24T11:27:31.2973018Z 32: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.2973887Z 32: Test timeout computed to be: 1500
+2026-11-24T11:27:31.4829468Z 32: Streaming SHA-256 tests passed (RFC6234 KATs and synthetic byte boundaries only).
+2026-11-24T11:27:31.4846511Z 3/5 Test #32: matching_engine_sha256 ................   Passed    0.19 sec
+2026-11-24T11:27:31.4848958Z test 33
+2026-11-24T11:27:31.4849577Z     Start 33: matching_engine_streaming_gzip
+2026-11-24T11:27:31.4849957Z 
+2026-11-24T11:27:31.4851156Z 33: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/matching_engine_streaming_gzip_tests
+2026-11-24T11:27:31.4853541Z 33: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.4854616Z 33: Test timeout computed to be: 1500
+2026-11-24T11:27:31.4962644Z 33: Streaming gzip disabled-build guard passed; enabled CRC/member tests NOT EXECUTED.
+2026-11-24T11:27:31.4975165Z 4/5 Test #33: matching_engine_streaming_gzip ........   Passed    0.01 sec
+2026-11-24T11:27:31.4977678Z test 34
+2026-11-24T11:27:31.4978308Z     Start 34: matching_engine_itch_verified_input
+2026-11-24T11:27:31.4979170Z 
+2026-11-24T11:27:31.4980424Z 34: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan/matching_engine_itch_verified_input_tests
+2026-11-24T11:27:31.4982828Z 34: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/asan-ubsan
+2026-11-24T11:27:31.4984150Z 34: Test timeout computed to be: 1500
+2026-11-24T11:27:31.5609177Z 34: Verified ITCH source input tests passed (synthetic only; raw SHA, gzip disabled/rejection only).
+2026-11-24T11:27:31.5650791Z 5/5 Test #34: matching_engine_itch_verified_input ...   Passed    0.07 sec
+2026-11-24T11:27:31.5669051Z 
+2026-11-24T11:27:31.5681990Z The following tests passed:
+2026-11-24T11:27:31.5682423Z 	matching_engine_itch_inspect
+2026-11-24T11:27:31.5682735Z 	matching_engine_itch_inspect_help
+2026-11-24T11:27:31.5683058Z 	matching_engine_sha256
+2026-11-24T11:27:31.5683337Z 	matching_engine_streaming_gzip
+2026-11-24T11:27:31.5683794Z 	matching_engine_itch_verified_input
+2026-11-24T11:27:31.5684112Z 
+2026-11-24T11:27:31.5684457Z 100% tests passed out of 5
+2026-11-24T11:27:31.5684745Z 
+2026-11-24T11:27:31.5684927Z Total Test time (real) =   0.32 sec
+2026-11-24T11:27:31.5801658Z Post job cleanup.
+2026-11-24T11:27:31.6703366Z [command]/usr/bin/git version
+2026-11-24T11:27:31.6749373Z git version 2.56.1
+2026-11-24T11:27:31.6792055Z Temporarily overriding HOME='/home/runner/work/_temp/edd6fa98-44d7-40a0-b4e9-3c0c0e13e63a' before making global git config changes
+2026-11-24T11:27:31.6793438Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:27:31.6799429Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:27:31.6844660Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:27:31.6900249Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:27:31.7207835Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:27:31.7246696Z http.https://github.com/.extraheader
+2026-11-24T11:27:31.7259687Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-24T11:27:31.7300960Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:27:31.7633101Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:27:31.7678276Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:27:31.8145653Z Cleaning up orphan processes
+2026-11-24T11:27:31.8553618Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

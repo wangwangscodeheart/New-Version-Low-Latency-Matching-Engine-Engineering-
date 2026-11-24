@@ -2,6 +2,8 @@
 
 ## 2026-11-24：独立公开行情C++分配计数
 
+发布后补充：源码提交`bef3124f3daec8cd430e0343fc670ec99c40bf6d`的[真实run45384009352](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45384009352)已成功。新增非sanitizer allocation job为2/2（0.02s），GNU15.2.0执行原8组+24个失败/handler组合及三个25轮小场景；不是Linux45/45或正式计数基线。原Release OFF/ON均43/43（0.84s/0.90s），ASan+UBSan OFF/ON均43/43（27.88s/19.65s），四模式额外五项均5/5；TSan子集4/4（0.25s）、普通benchmark smoke成功，手动差分跳过。七份完整job日志和[状态](validation/2026-11-24-public-feed-allocations/ci-bef3124-status.json)已归档。新GitHub检出中8/8结果SHA及123/123源身份匹配；收尾仅日志/文档，[skip ci]不重跑相同源码，不冒称又一轮代码CI。下面“首次尚未发布”为历史采集状态。
+
 收尾原四个在途文件，新增独立companion，复用原三公开场景与stop状态对账，不修改`src/`、原`v2_perf.cpp`或`public_feed_benchmark.hpp`。仅两个可执行文件链接替换new/delete，默认OFF不添加目标或替换；独立Release可选45项，默认仍43。按setup/run/stop_and_validation/teardown计调用线程的成功hook及请求字节，输出与计数分离，不测时、不计worker/CRT/总堆/峰值。范围见[分配说明](PUBLIC_FEED_ALLOCATIONS.md)。
 
 MSVC19.44.35228.0/CMake4.4.2/Ninja：新目录98步构建、45/45（15.54s）；修正新增probe的Flags元数据取值顺序后仅重建其4步，最终45/45（5.68s）。原默认目录重配/更新benchmark构建身份，Release43/43（9.91s）、ASan gzip ON43/43（19.16s），没有把计数工具放进ASan。meter和companion独立`/O2 /W4 /WX`编译运行通过，原全工程D9025/C4702仍保留。

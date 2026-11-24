@@ -1,5 +1,7 @@
 # 当前测试体系（V2）
 
+2026-11-24发布后：`bef3124`的新增Linux独立计数工具2/2通过（非sanitizer、cycles25），原Release OFF/ON与ASan+UBSan OFF/ON均43/43，额外完整性五项各5/5，TSan仅子集4/4，普通smoke通过，手动差分跳过。Windows完整采集、Linux正确性小负载、原生sanitizer验证严格分开；七份job日志及检出后checksum结果见[本轮证据](validation/2026-11-24-public-feed-allocations/README.md)。
+
 2026-11-24：默认构建仍43项；显式`ENABLE_ALLOCATION_PROBE=ON`仅非sanitizer单配置Release增加meter与companion两项。本机全新98步45/45，补Flags元数据口径后最终45/45；默认Release43/43、默认ASan（gzip ON）43/43。meter保留8组并补24个确定性失败/handler组合，collector可复现14个协议夹具，四种不适当配置明确拒绝。独立工具不纳入普通ASan验证、不混入延迟基准；实际3进程计数和后续新Linux job结果按提交区分，见[本轮范围](PUBLIC_FEED_ALLOCATIONS.md)。
 
 第六批发布后：`6183893`真实Linux矩阵已完成，Release OFF/ON与ASan+UBSan OFF/ON四种模式均43/43，额外完整性五项各5/5；ON七组gzip正向测试实际执行，OFF不冒充正向覆盖。TSan仍仅异步子集4/4，Benchmark smoke成功，手动10M差分跳过。源码提交与后续纯文档归档分开，系统zlib不含本项目sanitizer插桩，见[验证记录](VALIDATION.md)。

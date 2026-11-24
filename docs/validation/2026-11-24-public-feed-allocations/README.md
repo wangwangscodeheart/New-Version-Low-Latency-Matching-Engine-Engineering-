@@ -88,6 +88,42 @@ the two small-load Release targets without sanitizers. Its runner status is
 pending at this capture; any later evidence must name the actual source commit
 and run. Prior6183893 CI covers the older43-test code, not these new hooks.
 
+## Completed publication follow-up: code commitbef3124
+
+[Actual run45384009352](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45384009352)
+completed successfully forbef3124f3daec8cd430e0343fc670ec99c40bf6d.
+[Job outcomes](ci-bef3124-status.json) and seven decoded complete job logs are
+archived, separately from the pre-publication expectation above.
+
+| Job | Actual checks | Log |
+|---|---|---|
+| Separate allocation instrumentation |2/2,0.02s; original8 groups+24 injected handler cases and all3companion scenarios|ci-bef3124-allocations.txt|
+| Release OFF |43/43,0.84s +5/5 verbose,0.02s|ci-bef3124-release-off.txt|
+| Release ON |43/43,0.90s +5/5 verbose,0.03s|ci-bef3124-release-on.txt|
+| ASan+UBSan OFF |43/43,27.88s +5/5 verbose,0.32s|ci-bef3124-asan-ubsan-off.txt|
+| ASan+UBSan ON |43/43,19.65s +5/5 verbose,0.59s|ci-bef3124-asan-ubsan-on.txt|
+| TSan async subset |4/4,0.25s|ci-bef3124-tsan.txt|
+| Normal benchmark smoke |success, not controlled timing evidence|ci-bef3124-benchmark-smoke.txt|
+
+The manual differential-stress job138410096334 was skipped, not passed.
+The allocation job uses GNU15.2.0 Release and cycles25/symbol:600 commands,
+675 messages,32100 wire bytes per scenario. It tests hook contracts and output
+invariants, not the60000-command Windows capture and not Linux performance.
+The replacement hook is intentionally absent from ASan/UBSan/TSan jobs.
+ON/OFF regression modes preserve positive gzip versus disabled-guard scope;
+system zlib remains uninstrumented by this project.
+
+A fresh GitHub clone under ignored build/archive-checkout-bef3124 checked all
+8 capture SHA-256 entries and123/123 source/index IDs. See
+[fresh-checkout-checksums.txt](fresh-checkout-checksums.txt). PowerShell wraps
+git's ordinary clone-progress stderr as a NativeCommandError record, but its
+native exit was checked and checksum validation succeeded; it is not a clone
+failure or permission change. No existing workspace was overwritten.
+
+The archival follow-up commit only adds logs/documentation, retaining all123
+recorded code/verification inputs; [skip ci] avoids rerunning identical source
+just to store this completed run. It is not another tested source commit.
+
 Real licensed equity source/reference, recovery, full-layer timing and M5
 acceptance remain open. No lock-free queues, parallel matching or risk/account
 features were added. New hook calls are not an OOM simulator in the real probe,

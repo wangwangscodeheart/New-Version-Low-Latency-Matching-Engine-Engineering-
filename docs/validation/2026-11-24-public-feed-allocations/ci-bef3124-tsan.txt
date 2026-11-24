@@ -1,0 +1,189 @@
+﻿2026-11-24T11:25:20.1909916Z Current runner version: '2.338.2'
+2026-11-24T11:25:20.1934994Z ##[group]Runner Image Provisioner
+2026-11-24T11:25:20.1935881Z Hosted Compute Agent
+2026-11-24T11:25:20.1936490Z Version: 20261111.635
+2026-11-24T11:25:20.1937152Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-24T11:25:20.1937892Z Build Date: 2026-11-11T01:49:01Z
+2026-11-24T11:25:20.1938615Z Worker ID: {28ab3191-cc7b-4935-9709-73fbb33f0790}
+2026-11-24T11:25:20.1939342Z Region: us-east-1
+2026-11-24T11:25:20.1939872Z Cloud: AWS
+2026-11-24T11:25:20.1940497Z ##[endgroup]
+2026-11-24T11:25:20.1941899Z ##[group]Operating System
+2026-11-24T11:25:20.1942567Z Ubuntu
+2026-11-24T11:25:20.1943081Z 26.04.1
+2026-11-24T11:25:20.1943894Z LTS
+2026-11-24T11:25:20.1944416Z ##[endgroup]
+2026-11-24T11:25:20.1944947Z ##[group]Runner Image
+2026-11-24T11:25:20.1945874Z Image: ubuntu-26.04
+2026-11-24T11:25:20.1946448Z Version: 20261116.88.1
+2026-11-24T11:25:20.1947796Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.88/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-24T11:25:20.1949359Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.88
+2026-11-24T11:25:20.1950369Z ##[endgroup]
+2026-11-24T11:25:20.1951601Z ##[group]GITHUB_TOKEN Permissions
+2026-11-24T11:25:20.1954371Z Contents: read
+2026-11-24T11:25:20.1954976Z Metadata: read
+2026-11-24T11:25:20.1955533Z Packages: read
+2026-11-24T11:25:20.1956109Z ##[endgroup]
+2026-11-24T11:25:20.1958331Z Secret source: Actions
+2026-11-24T11:25:20.1959276Z Cache mode: write
+2026-11-24T11:25:20.1960106Z Prepare workflow directory
+2026-11-24T11:25:20.2293085Z Prepare all required actions
+2026-11-24T11:25:20.2344353Z Getting action download info
+2026-11-24T11:25:20.3575241Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-24T11:25:21.8700191Z Complete job name: thread-sanitizer
+2026-11-24T11:25:21.9380833Z ##[group]Run actions/checkout@v4
+2026-11-24T11:25:21.9381639Z with:
+2026-11-24T11:25:21.9382304Z   repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.9386033Z   token: ***
+2026-11-24T11:25:21.9386483Z   ssh-strict: true
+2026-11-24T11:25:21.9386896Z   ssh-user: git
+2026-11-24T11:25:21.9387365Z   persist-credentials: true
+2026-11-24T11:25:21.9387823Z   clean: true
+2026-11-24T11:25:21.9388309Z   sparse-checkout-cone-mode: true
+2026-11-24T11:25:21.9388803Z   fetch-depth: 1
+2026-11-24T11:25:21.9389207Z   fetch-tags: false
+2026-11-24T11:25:21.9389654Z   show-progress: true
+2026-11-24T11:25:21.9390081Z   lfs: false
+2026-11-24T11:25:21.9390490Z   submodules: false
+2026-11-24T11:25:21.9390950Z   set-safe-directory: true
+2026-11-24T11:25:21.9391424Z   allow-unsafe-pr-checkout: false
+2026-11-24T11:25:21.9392126Z ##[endgroup]
+2026-11-24T11:25:24.9453646Z Syncing repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:24.9456154Z ##[group]Getting Git version info
+2026-11-24T11:25:24.9457132Z Working directory is '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:24.9458431Z [command]/usr/bin/git version
+2026-11-24T11:25:24.9459290Z git version 2.56.1
+2026-11-24T11:25:24.9472018Z ##[endgroup]
+2026-11-24T11:25:24.9482082Z Temporarily overriding HOME='/home/runner/work/_temp/015d7592-bb61-4038-b252-da6248aea15f' before making global git config changes
+2026-11-24T11:25:24.9483467Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:24.9486330Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:24.9957162Z Deleting the contents of '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:24.9962443Z ##[group]Initializing the repository
+2026-11-24T11:25:24.9963479Z [command]/usr/bin/git init /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:25.0664048Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-24T11:25:25.0664787Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-24T11:25:25.0665316Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-24T11:25:25.0665766Z hint: call:
+2026-11-24T11:25:25.0666041Z hint:
+2026-11-24T11:25:25.0666376Z hint: 	git config --global init.defaultBranch <name>
+2026-11-24T11:25:25.0666696Z hint:
+2026-11-24T11:25:25.0667112Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-24T11:25:25.0667598Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-24T11:25:25.0668040Z hint:
+2026-11-24T11:25:25.0668296Z hint: 	git branch -m <name>
+2026-11-24T11:25:25.0668559Z hint:
+2026-11-24T11:25:25.0668939Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-24T11:25:25.0683659Z Initialized empty Git repository in /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/.git/
+2026-11-24T11:25:25.0690680Z [command]/usr/bin/git remote add origin https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:25.0744280Z ##[endgroup]
+2026-11-24T11:25:25.0745071Z ##[group]Disabling automatic garbage collection
+2026-11-24T11:25:25.0746912Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-24T11:25:25.0766988Z ##[endgroup]
+2026-11-24T11:25:25.0767449Z ##[group]Setting up auth
+2026-11-24T11:25:25.0770936Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:25.0792806Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:25.4205378Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:25.4231393Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:25.4404668Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:25.4426040Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:25.4599279Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-24T11:25:25.4625380Z ##[endgroup]
+2026-11-24T11:25:25.4626199Z ##[group]Fetching the repository
+2026-11-24T11:25:25.4631532Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +bef3124f3daec8cd430e0343fc670ec99c40bf6d:refs/remotes/origin/main
+2026-11-24T11:25:25.8021125Z From https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:25.8023660Z  * [new ref]         bef3124f3daec8cd430e0343fc670ec99c40bf6d -> origin/main
+2026-11-24T11:25:25.8024932Z ##[endgroup]
+2026-11-24T11:25:25.8025432Z ##[group]Determining the checkout info
+2026-11-24T11:25:25.8027625Z ##[endgroup]
+2026-11-24T11:25:25.8032195Z [command]/usr/bin/git sparse-checkout disable
+2026-11-24T11:25:25.8076596Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-24T11:25:25.8100301Z ##[group]Checking out the ref
+2026-11-24T11:25:25.8103555Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-24T11:25:25.8333766Z Switched to a new branch 'main'
+2026-11-24T11:25:25.8338987Z branch 'main' set up to track 'origin/main'.
+2026-11-24T11:25:25.8344721Z ##[endgroup]
+2026-11-24T11:25:25.8383057Z [command]/usr/bin/git log -1 --format=%H
+2026-11-24T11:25:25.8399919Z bef3124f3daec8cd430e0343fc670ec99c40bf6d
+2026-11-24T11:25:25.8565716Z ##[group]Run cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON
+2026-11-24T11:25:25.8566336Z [36;1mcmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON[0m
+2026-11-24T11:25:25.8588415Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:25.8588688Z ##[endgroup]
+2026-11-24T11:25:29.6556616Z -- The CXX compiler identification is GNU 15.2.0
+2026-11-24T11:25:29.7402631Z -- Detecting CXX compiler ABI info
+2026-11-24T11:25:29.9292411Z -- Detecting CXX compiler ABI info - done
+2026-11-24T11:25:29.9847456Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+2026-11-24T11:25:29.9857242Z -- Detecting CXX compile features
+2026-11-24T11:25:29.9885741Z -- Detecting CXX compile features - done
+2026-11-24T11:25:30.0650523Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-11-24T11:25:30.5567343Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-11-24T11:25:30.5844038Z -- Found Threads: TRUE
+2026-11-24T11:25:30.6495067Z -- 
+2026-11-24T11:25:30.6496228Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.6496765Z --   Matching Engine Build Configuration
+2026-11-24T11:25:30.6497248Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.6497620Z --   Build type: Debug
+2026-11-24T11:25:30.6497921Z --   C++ Standard: C++17
+2026-11-24T11:25:30.6498264Z --   Compiler: GNU
+2026-11-24T11:25:30.6498594Z -- 
+2026-11-24T11:25:30.6498914Z --   Targets:
+2026-11-24T11:25:30.6499204Z --     - matching_engine_demo           (Main demo)
+2026-11-24T11:25:30.6499585Z --     - matching_engine_v2_demo        (V2 infrastructure demo)
+2026-11-24T11:25:30.6500046Z --     - matching_engine_market_data_generator (synthetic CSV generator)
+2026-11-24T11:25:30.6500474Z --     - matching_engine_unit_tests     (Unit tests)
+2026-11-24T11:25:30.6500844Z --     - matching_engine_property_tests (Property tests)
+2026-11-24T11:25:30.6501264Z --     - matching_engine_snapshot_tests (Snapshot tests)
+2026-11-24T11:25:30.6501641Z --     - matching_engine_benchmarks     (Performance)
+2026-11-24T11:25:30.6502040Z --     - matching_engine_v2_benchmarks  (V2 routed event path)
+2026-11-24T11:25:30.6502468Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.6502761Z -- 
+2026-11-24T11:25:30.6503034Z -- Configuring done (3.8s)
+2026-11-24T11:25:30.6816343Z -- Generating done (0.0s)
+2026-11-24T11:25:30.6819972Z -- Build files have been written to: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/tsan
+2026-11-24T11:25:30.6917194Z ##[group]Run cmake --build build/tsan --target matching_engine_async_logger_tests matching_engine_async_journal_tests matching_engine_command_journal_tests matching_engine_monitor_tests
+2026-11-24T11:25:30.6918205Z [36;1mcmake --build build/tsan --target matching_engine_async_logger_tests matching_engine_async_journal_tests matching_engine_command_journal_tests matching_engine_monitor_tests[0m
+2026-11-24T11:25:30.6937727Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:30.6938051Z ##[endgroup]
+2026-11-24T11:25:34.6424564Z [1/8] Building CXX object CMakeFiles/matching_engine_monitor_tests.dir/tests/monitor_tests.cpp.o
+2026-11-24T11:25:34.8000142Z [2/8] Building CXX object CMakeFiles/matching_engine_async_logger_tests.dir/tests/async_logger_tests.cpp.o
+2026-11-24T11:25:34.8182500Z [3/8] Building CXX object CMakeFiles/matching_engine_async_journal_tests.dir/tests/async_journal_tests.cpp.o
+2026-11-24T11:25:34.9547952Z [4/8] Building CXX object CMakeFiles/matching_engine_command_journal_tests.dir/tests/command_journal_tests.cpp.o
+2026-11-24T11:25:34.9734617Z [5/8] Linking CXX executable matching_engine_async_journal_tests
+2026-11-24T11:25:34.9754839Z [6/8] Linking CXX executable matching_engine_async_logger_tests
+2026-11-24T11:25:35.0719699Z [7/8] Linking CXX executable matching_engine_monitor_tests
+2026-11-24T11:25:35.1525244Z [8/8] Linking CXX executable matching_engine_command_journal_tests
+2026-11-24T11:25:35.1573624Z ##[group]Run ctest --test-dir build/tsan --output-on-failure -R "matching_engine_(async_logger|async_journal|command_journal|monitor)"
+2026-11-24T11:25:35.1574405Z [36;1mctest --test-dir build/tsan --output-on-failure -R "matching_engine_(async_logger|async_journal|command_journal|monitor)"[0m
+2026-11-24T11:25:35.1593496Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:35.1593812Z env:
+2026-11-24T11:25:35.1594035Z   TSAN_OPTIONS: halt_on_error=1
+2026-11-24T11:25:35.1594580Z ##[endgroup]
+2026-11-24T11:25:35.8977018Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/tsan
+2026-11-24T11:25:35.9394225Z     Start 10: matching_engine_async_logger
+2026-11-24T11:25:36.0092260Z 1/4 Test #10: matching_engine_async_logger ......   Passed    0.07 sec
+2026-11-24T11:25:36.0112408Z     Start 11: matching_engine_monitor
+2026-11-24T11:25:36.0349423Z 2/4 Test #11: matching_engine_monitor ...........   Passed    0.02 sec
+2026-11-24T11:25:36.0350415Z     Start 14: matching_engine_async_journal
+2026-11-24T11:25:36.1004653Z 3/4 Test #14: matching_engine_async_journal .....   Passed    0.07 sec
+2026-11-24T11:25:36.1005215Z     Start 15: matching_engine_command_journal
+2026-11-24T11:25:36.1451489Z 4/4 Test #15: matching_engine_command_journal ...   Passed    0.04 sec
+2026-11-24T11:25:36.1452955Z 
+2026-11-24T11:25:36.1453198Z 100% tests passed out of 4
+2026-11-24T11:25:36.1453386Z 
+2026-11-24T11:25:36.1453602Z Total Test time (real) =   0.25 sec
+2026-11-24T11:25:36.1826692Z Post job cleanup.
+2026-11-24T11:25:36.2453925Z [command]/usr/bin/git version
+2026-11-24T11:25:36.2482707Z git version 2.56.1
+2026-11-24T11:25:36.2506086Z Temporarily overriding HOME='/home/runner/work/_temp/4a1f8f55-7db4-495a-ae88-3f41e11fce8e' before making global git config changes
+2026-11-24T11:25:36.2507143Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:36.2509800Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:36.2536455Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:36.2559030Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:36.2749779Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:36.2764417Z http.https://github.com/.extraheader
+2026-11-24T11:25:36.2770696Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-24T11:25:36.2792700Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:36.2975820Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:36.2996966Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:36.3280910Z Cleaning up orphan processes
+2026-11-24T11:25:36.3542389Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

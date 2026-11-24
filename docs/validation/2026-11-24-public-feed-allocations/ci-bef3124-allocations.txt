@@ -1,0 +1,218 @@
+﻿2026-11-24T11:25:20.2860847Z Current runner version: '2.338.2'
+2026-11-24T11:25:20.2882831Z ##[group]Runner Image Provisioner
+2026-11-24T11:25:20.2883556Z Hosted Compute Agent
+2026-11-24T11:25:20.2884094Z Version: 20261111.635
+2026-11-24T11:25:20.2884666Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-24T11:25:20.2885284Z Build Date: 2026-11-11T01:49:01Z
+2026-11-24T11:25:20.2885900Z Worker ID: {bb2e5d04-cb78-4305-9da8-2b12b338b47a}
+2026-11-24T11:25:20.2886486Z Region: southcentralus
+2026-11-24T11:25:20.2886990Z Cloud: Azure
+2026-11-24T11:25:20.2887482Z ##[endgroup]
+2026-11-24T11:25:20.2888562Z ##[group]Operating System
+2026-11-24T11:25:20.2889124Z Ubuntu
+2026-11-24T11:25:20.2889557Z 26.04.1
+2026-11-24T11:25:20.2889971Z LTS
+2026-11-24T11:25:20.2890489Z ##[endgroup]
+2026-11-24T11:25:20.2890953Z ##[group]Runner Image
+2026-11-24T11:25:20.2891747Z Image: ubuntu-26.04
+2026-11-24T11:25:20.2892228Z Version: 20261116.202.1
+2026-11-24T11:25:20.2893322Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.202/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-24T11:25:20.2894616Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.202
+2026-11-24T11:25:20.2895435Z ##[endgroup]
+2026-11-24T11:25:20.2896397Z ##[group]GITHUB_TOKEN Permissions
+2026-11-24T11:25:20.2898130Z Contents: read
+2026-11-24T11:25:20.2898628Z Metadata: read
+2026-11-24T11:25:20.2899077Z Packages: read
+2026-11-24T11:25:20.2899593Z ##[endgroup]
+2026-11-24T11:25:20.2901879Z Secret source: Actions
+2026-11-24T11:25:20.2903085Z Cache mode: write
+2026-11-24T11:25:20.2903675Z Prepare workflow directory
+2026-11-24T11:25:20.3237522Z Prepare all required actions
+2026-11-24T11:25:20.3293959Z Getting action download info
+2026-11-24T11:25:20.5650027Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-24T11:25:20.7232832Z Complete job name: allocation-instrumentation
+2026-11-24T11:25:20.8072215Z ##[group]Run actions/checkout@v4
+2026-11-24T11:25:20.8072922Z with:
+2026-11-24T11:25:20.8073549Z   repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:20.8076751Z   token: ***
+2026-11-24T11:25:20.8077125Z   ssh-strict: true
+2026-11-24T11:25:20.8077501Z   ssh-user: git
+2026-11-24T11:25:20.8077871Z   persist-credentials: true
+2026-11-24T11:25:20.8078268Z   clean: true
+2026-11-24T11:25:20.8078636Z   sparse-checkout-cone-mode: true
+2026-11-24T11:25:20.8079065Z   fetch-depth: 1
+2026-11-24T11:25:20.8079412Z   fetch-tags: false
+2026-11-24T11:25:20.8079774Z   show-progress: true
+2026-11-24T11:25:20.8080137Z   lfs: false
+2026-11-24T11:25:20.8080479Z   submodules: false
+2026-11-24T11:25:20.8080846Z   set-safe-directory: true
+2026-11-24T11:25:20.8081385Z   allow-unsafe-pr-checkout: false
+2026-11-24T11:25:20.8081999Z ##[endgroup]
+2026-11-24T11:25:21.1696642Z Syncing repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.1699541Z ##[group]Getting Git version info
+2026-11-24T11:25:21.1701579Z Working directory is '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:21.1703576Z [command]/usr/bin/git version
+2026-11-24T11:25:21.1704183Z git version 2.56.1
+2026-11-24T11:25:21.1706307Z ##[endgroup]
+2026-11-24T11:25:21.1717888Z Temporarily overriding HOME='/home/runner/work/_temp/25b9f936-fcfa-4ff8-9234-84fb36e0405c' before making global git config changes
+2026-11-24T11:25:21.1719572Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:21.1723474Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.1779784Z Deleting the contents of '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:21.1789624Z ##[group]Initializing the repository
+2026-11-24T11:25:21.1792215Z [command]/usr/bin/git init /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.1865424Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-24T11:25:21.1867369Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-24T11:25:21.1869022Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-24T11:25:21.1870437Z hint: call:
+2026-11-24T11:25:21.1871535Z hint:
+2026-11-24T11:25:21.1872365Z hint: 	git config --global init.defaultBranch <name>
+2026-11-24T11:25:21.1873262Z hint:
+2026-11-24T11:25:21.1874094Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-24T11:25:21.1875422Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-24T11:25:21.1876555Z hint:
+2026-11-24T11:25:21.1877147Z hint: 	git branch -m <name>
+2026-11-24T11:25:21.1877810Z hint:
+2026-11-24T11:25:21.1878750Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-24T11:25:21.1880977Z Initialized empty Git repository in /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/.git/
+2026-11-24T11:25:21.1884948Z [command]/usr/bin/git remote add origin https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.1936202Z ##[endgroup]
+2026-11-24T11:25:21.1937344Z ##[group]Disabling automatic garbage collection
+2026-11-24T11:25:21.1939888Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-24T11:25:21.1972261Z ##[endgroup]
+2026-11-24T11:25:21.1973298Z ##[group]Setting up auth
+2026-11-24T11:25:21.1978132Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:21.2009300Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:21.2387120Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:21.2420499Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:21.2685677Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:21.2719081Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:21.2961029Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-24T11:25:21.2997841Z ##[endgroup]
+2026-11-24T11:25:21.2998653Z ##[group]Fetching the repository
+2026-11-24T11:25:21.3005534Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +bef3124f3daec8cd430e0343fc670ec99c40bf6d:refs/remotes/origin/main
+2026-11-24T11:25:21.8523230Z From https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:21.8525111Z  * [new ref]         bef3124f3daec8cd430e0343fc670ec99c40bf6d -> origin/main
+2026-11-24T11:25:21.8528211Z ##[endgroup]
+2026-11-24T11:25:21.8529425Z ##[group]Determining the checkout info
+2026-11-24T11:25:21.8530480Z ##[endgroup]
+2026-11-24T11:25:21.8534207Z [command]/usr/bin/git sparse-checkout disable
+2026-11-24T11:25:21.8580155Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-24T11:25:21.8607784Z ##[group]Checking out the ref
+2026-11-24T11:25:21.8612278Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-24T11:25:21.8906950Z Switched to a new branch 'main'
+2026-11-24T11:25:21.8909836Z branch 'main' set up to track 'origin/main'.
+2026-11-24T11:25:21.8919353Z ##[endgroup]
+2026-11-24T11:25:21.9070938Z [command]/usr/bin/git log -1 --format=%H
+2026-11-24T11:25:21.9095115Z bef3124f3daec8cd430e0343fc670ec99c40bf6d
+2026-11-24T11:25:21.9332426Z ##[group]Run cmake -S . -B build/allocations -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_ALLOCATION_PROBE=ON -DBENCHMARK_SMOKE=ON
+2026-11-24T11:25:21.9335519Z [36;1mcmake -S . -B build/allocations -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_ALLOCATION_PROBE=ON -DBENCHMARK_SMOKE=ON[0m
+2026-11-24T11:25:21.9371576Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:21.9372563Z ##[endgroup]
+2026-11-24T11:25:22.1926656Z -- The CXX compiler identification is GNU 15.2.0
+2026-11-24T11:25:22.2219957Z -- Detecting CXX compiler ABI info
+2026-11-24T11:25:22.2968069Z -- Detecting CXX compiler ABI info - done
+2026-11-24T11:25:22.3104843Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+2026-11-24T11:25:22.3109513Z -- Detecting CXX compile features
+2026-11-24T11:25:22.3135309Z -- Detecting CXX compile features - done
+2026-11-24T11:25:22.3392644Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-11-24T11:25:22.4172211Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-11-24T11:25:22.4186992Z -- Found Threads: TRUE
+2026-11-24T11:25:22.5346057Z -- 
+2026-11-24T11:25:22.5346803Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:22.5347163Z --   Matching Engine Build Configuration
+2026-11-24T11:25:22.5347655Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:22.5348115Z --   Build type: Release
+2026-11-24T11:25:22.5348462Z --   C++ Standard: C++17
+2026-11-24T11:25:22.5348796Z --   Compiler: GNU
+2026-11-24T11:25:22.5349001Z -- 
+2026-11-24T11:25:22.5349190Z --   Targets:
+2026-11-24T11:25:22.5349428Z --     - matching_engine_demo           (Main demo)
+2026-11-24T11:25:22.5349765Z --     - matching_engine_v2_demo        (V2 infrastructure demo)
+2026-11-24T11:25:22.5350153Z --     - matching_engine_market_data_generator (synthetic CSV generator)
+2026-11-24T11:25:22.5350553Z --     - matching_engine_unit_tests     (Unit tests)
+2026-11-24T11:25:22.5351000Z --     - matching_engine_property_tests (Property tests)
+2026-11-24T11:25:22.5351585Z --     - matching_engine_snapshot_tests (Snapshot tests)
+2026-11-24T11:25:22.5351913Z --     - matching_engine_benchmarks     (Performance)
+2026-11-24T11:25:22.5352241Z --     - matching_engine_v2_benchmarks  (V2 routed event path)
+2026-11-24T11:25:22.5352622Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:22.5352929Z -- 
+2026-11-24T11:25:22.5353145Z -- Configuring done (0.6s)
+2026-11-24T11:25:22.5718341Z -- Generating done (0.0s)
+2026-11-24T11:25:22.5722297Z -- Build files have been written to: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations
+2026-11-24T11:25:22.5815995Z ##[group]Run cmake --build build/allocations --target matching_engine_allocation_meter_tests matching_engine_public_feed_allocations
+2026-11-24T11:25:22.5816787Z [36;1mcmake --build build/allocations --target matching_engine_allocation_meter_tests matching_engine_public_feed_allocations[0m
+2026-11-24T11:25:22.5846944Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:22.5847208Z ##[endgroup]
+2026-11-24T11:25:22.8389894Z [1/6] Building CXX object CMakeFiles/matching_engine_allocation_meter_tests.dir/benchmarks/allocation_meter.cpp.o
+2026-11-24T11:25:22.8504124Z [2/6] Building CXX object CMakeFiles/matching_engine_public_feed_allocations.dir/benchmarks/allocation_meter.cpp.o
+2026-11-24T11:25:23.1302217Z [3/6] Building CXX object CMakeFiles/matching_engine_allocation_meter_tests.dir/tests/allocation_meter_tests.cpp.o
+2026-11-24T11:25:23.1750538Z [4/6] Linking CXX executable matching_engine_allocation_meter_tests
+2026-11-24T11:25:28.9648770Z [5/6] Building CXX object CMakeFiles/matching_engine_public_feed_allocations.dir/benchmarks/public_feed_allocations.cpp.o
+2026-11-24T11:25:29.0135616Z [6/6] Linking CXX executable matching_engine_public_feed_allocations
+2026-11-24T11:25:29.0179959Z ##[group]Run ctest --test-dir build/allocations --output-on-failure --verbose -R "^matching_engine_(allocation_meter|public_feed_allocations)$"
+2026-11-24T11:25:29.0180925Z [36;1mctest --test-dir build/allocations --output-on-failure --verbose -R "^matching_engine_(allocation_meter|public_feed_allocations)$"[0m
+2026-11-24T11:25:29.0212657Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:29.0212870Z ##[endgroup]
+2026-11-24T11:25:29.0428605Z UpdateCTestConfiguration  from :/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations/DartConfiguration.tcl
+2026-11-24T11:25:29.0429840Z Parse Config file:/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations/DartConfiguration.tcl
+2026-11-24T11:25:29.0470669Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations
+2026-11-24T11:25:29.0543422Z Constructing a list of tests
+2026-11-24T11:25:29.0543765Z Done constructing a list of tests
+2026-11-24T11:25:29.0544078Z Updating test list for fixtures
+2026-11-24T11:25:29.0544450Z Added 0 tests to meet fixture requirements
+2026-11-24T11:25:29.0544825Z Checking test dependency graph...
+2026-11-24T11:25:29.0545191Z Checking test dependency graph end
+2026-11-24T11:25:29.0545509Z test 1
+2026-11-24T11:25:29.0545772Z     Start 1: matching_engine_allocation_meter
+2026-11-24T11:25:29.0546081Z 
+2026-11-24T11:25:29.0546880Z 1: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations/matching_engine_allocation_meter_tests
+2026-11-24T11:25:29.0548343Z 1: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations
+2026-11-24T11:25:29.0549197Z 1: Test timeout computed to be: 1500
+2026-11-24T11:25:29.0549767Z 1: PASS allocation_meter_tests (8 original groups; 24 deterministic failure/handler cases)
+2026-11-24T11:25:29.0550401Z 1/2 Test #1: matching_engine_allocation_meter ..........   Passed    0.00 sec
+2026-11-24T11:25:29.0599236Z test 2
+2026-11-24T11:25:29.0599584Z     Start 2: matching_engine_public_feed_allocations
+2026-11-24T11:25:29.0599876Z 
+2026-11-24T11:25:29.0600754Z 2: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations/matching_engine_public_feed_allocations
+2026-11-24T11:25:29.0602287Z 2: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/allocations
+2026-11-24T11:25:29.0602928Z 2: Test timeout computed to be: 1500
+2026-11-24T11:25:29.0680561Z 2: METADATA_JSON,{"schema_version":1,"git_commit":"bef3124f3dae","compiler":"GNU-15.2.0","compiler_flags":"-O3 -DNDEBUG -march=native -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter","build_type":"Release","os":"Linux-7.0.0-1020-azure","measurement_scope":"successful_cpp_new_requests","compiler_flags_scope":"cmake_global_release_and_directory_options_excludes_definitions_and_includes","cxx_standard":17,"counter_scope":"successful_cpp_new_requests","thread_scope":"calling_thread_only","timing_reported":false,"workload":"synthetic_mixed_visible_v1","cycles_per_symbol":25,"scenarios":3,"phases":4,"setup_includes_fixture_owner":true,"worker_threads_excluded":true,"total_heap_not_measured":true,"latency_samples_collected":false,"workload_counters":"full_scenario_context_repeated_per_phase"}
+2026-11-24T11:25:29.0683576Z 2: ALLOCATION_CSV,scenario,phase,commands,public_messages,wire_bytes,allocation_calls,requested_bytes,aligned_calls,zero_size_calls,overflowed,thread_scope,counter_scope,timing_reported
+2026-11-24T11:25:29.0685255Z 2: ALLOCATION_CSV,journal_public_feed_sync,setup,600,675,32100,77,323430,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0686567Z 2: ALLOCATION_CSV,journal_public_feed_sync,run,600,675,32100,2238,281869,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0687442Z 2: ALLOCATION_CSV,journal_public_feed_sync,stop_and_validation,600,675,32100,0,0,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0688122Z 2: ALLOCATION_CSV,journal_public_feed_sync,teardown,600,675,32100,7,927,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0688782Z 2: ALLOCATION_CSV,full_v2_public_feed_sync,setup,600,675,32100,97,334265,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0689407Z 2: ALLOCATION_CSV,full_v2_public_feed_sync,run,600,675,32100,2888,562669,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0690070Z 2: ALLOCATION_CSV,full_v2_public_feed_sync,stop_and_validation,600,675,32100,4,488,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0690726Z 2: ALLOCATION_CSV,full_v2_public_feed_sync,teardown,600,675,32100,7,921,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0691556Z 2: ALLOCATION_CSV,full_v2_public_feed_burst16,setup,600,675,32100,97,334295,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0692221Z 2: ALLOCATION_CSV,full_v2_public_feed_burst16,run,600,675,32100,2888,562669,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0692894Z 2: ALLOCATION_CSV,full_v2_public_feed_burst16,stop_and_validation,600,675,32100,4,488,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0693612Z 2: ALLOCATION_CSV,full_v2_public_feed_burst16,teardown,600,675,32100,7,927,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+2026-11-24T11:25:29.0694137Z 2/2 Test #2: matching_engine_public_feed_allocations ...   Passed    0.01 sec
+2026-11-24T11:25:29.0694407Z 
+2026-11-24T11:25:29.0694493Z The following tests passed:
+2026-11-24T11:25:29.0694702Z 	matching_engine_allocation_meter
+2026-11-24T11:25:29.0694932Z 	matching_engine_public_feed_allocations
+2026-11-24T11:25:29.0695088Z 
+2026-11-24T11:25:29.0695163Z 100% tests passed out of 2
+2026-11-24T11:25:29.0695289Z 
+2026-11-24T11:25:29.0695374Z Total Test time (real) =   0.02 sec
+2026-11-24T11:25:29.0803379Z Post job cleanup.
+2026-11-24T11:25:29.1495098Z [command]/usr/bin/git version
+2026-11-24T11:25:29.1532891Z git version 2.56.1
+2026-11-24T11:25:29.1566612Z Temporarily overriding HOME='/home/runner/work/_temp/816fd825-f5d9-4487-b0d6-f1880f52d851' before making global git config changes
+2026-11-24T11:25:29.1567572Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:29.1571748Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:29.1609261Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:29.1640549Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:29.1915192Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:29.1938270Z http.https://github.com/.extraheader
+2026-11-24T11:25:29.1947553Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-24T11:25:29.1987773Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:29.2280875Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:29.2311045Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:29.2704024Z Cleaning up orphan processes
+2026-11-24T11:25:29.3062371Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

@@ -1,0 +1,512 @@
+﻿2026-11-24T11:25:21.5896687Z Current runner version: '2.338.2'
+2026-11-24T11:25:21.5915192Z ##[group]Runner Image Provisioner
+2026-11-24T11:25:21.5915893Z Hosted Compute Agent
+2026-11-24T11:25:21.5916345Z Version: 20261111.635
+2026-11-24T11:25:21.5916799Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-24T11:25:21.5917332Z Build Date: 2026-11-11T01:49:01Z
+2026-11-24T11:25:21.5917818Z Worker ID: {f761d67b-2a82-4ff1-a99e-d6c25ebf9f5e}
+2026-11-24T11:25:21.5918306Z Region: us-west-2
+2026-11-24T11:25:21.5918765Z Cloud: AWS
+2026-11-24T11:25:21.5919142Z ##[endgroup]
+2026-11-24T11:25:21.5920531Z ##[group]Operating System
+2026-11-24T11:25:21.5921017Z Ubuntu
+2026-11-24T11:25:21.5921378Z 26.04.1
+2026-11-24T11:25:21.5921779Z LTS
+2026-11-24T11:25:21.5922141Z ##[endgroup]
+2026-11-24T11:25:21.5922675Z ##[group]Runner Image
+2026-11-24T11:25:21.5923136Z Image: ubuntu-26.04
+2026-11-24T11:25:21.5923552Z Version: 20261116.88.1
+2026-11-24T11:25:21.5924529Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261116.88/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-24T11:25:21.5925651Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261116.88
+2026-11-24T11:25:21.5926336Z ##[endgroup]
+2026-11-24T11:25:21.5927378Z ##[group]GITHUB_TOKEN Permissions
+2026-11-24T11:25:21.5929086Z Contents: read
+2026-11-24T11:25:21.5929478Z Metadata: read
+2026-11-24T11:25:21.5930115Z Packages: read
+2026-11-24T11:25:21.5930529Z ##[endgroup]
+2026-11-24T11:25:21.5932084Z Secret source: Actions
+2026-11-24T11:25:21.5932747Z Cache mode: write
+2026-11-24T11:25:21.5933222Z Prepare workflow directory
+2026-11-24T11:25:21.6160930Z Prepare all required actions
+2026-11-24T11:25:21.6196664Z Getting action download info
+2026-11-24T11:25:21.9598199Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-24T11:25:23.0926853Z Complete job name: release (OFF)
+2026-11-24T11:25:23.1681911Z ##[group]Run actions/checkout@v4
+2026-11-24T11:25:23.1683558Z with:
+2026-11-24T11:25:23.1684955Z   repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:23.1693281Z   token: ***
+2026-11-24T11:25:23.1694149Z   ssh-strict: true
+2026-11-24T11:25:23.1694948Z   ssh-user: git
+2026-11-24T11:25:23.1695748Z   persist-credentials: true
+2026-11-24T11:25:23.1696665Z   clean: true
+2026-11-24T11:25:23.1697482Z   sparse-checkout-cone-mode: true
+2026-11-24T11:25:23.1698423Z   fetch-depth: 1
+2026-11-24T11:25:23.1699206Z   fetch-tags: false
+2026-11-24T11:25:23.1700226Z   show-progress: true
+2026-11-24T11:25:23.1701051Z   lfs: false
+2026-11-24T11:25:23.1701841Z   submodules: false
+2026-11-24T11:25:23.1702648Z   set-safe-directory: true
+2026-11-24T11:25:23.1703578Z   allow-unsafe-pr-checkout: false
+2026-11-24T11:25:23.1704709Z ##[endgroup]
+2026-11-24T11:25:25.8728948Z Syncing repository: wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:25.8730602Z ##[group]Getting Git version info
+2026-11-24T11:25:25.8731448Z Working directory is '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:25.8732590Z [command]/usr/bin/git version
+2026-11-24T11:25:25.8736639Z git version 2.56.1
+2026-11-24T11:25:25.8748324Z ##[endgroup]
+2026-11-24T11:25:25.8757681Z Temporarily overriding HOME='/home/runner/work/_temp/c5cf4855-1ecf-41e8-81f8-d3644ed16a53' before making global git config changes
+2026-11-24T11:25:25.8758546Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:25:25.8762664Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:25.9245658Z Deleting the contents of '/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-'
+2026-11-24T11:25:25.9247637Z ##[group]Initializing the repository
+2026-11-24T11:25:25.9252027Z [command]/usr/bin/git init /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:26.0058618Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-24T11:25:26.0059290Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-24T11:25:26.0060116Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-24T11:25:26.0060610Z hint: call:
+2026-11-24T11:25:26.0060861Z hint:
+2026-11-24T11:25:26.0061244Z hint: 	git config --global init.defaultBranch <name>
+2026-11-24T11:25:26.0061576Z hint:
+2026-11-24T11:25:26.0061965Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-24T11:25:26.0062446Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-24T11:25:26.0062890Z hint:
+2026-11-24T11:25:26.0063180Z hint: 	git branch -m <name>
+2026-11-24T11:25:26.0063461Z hint:
+2026-11-24T11:25:26.0063826Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-24T11:25:26.0087592Z Initialized empty Git repository in /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/.git/
+2026-11-24T11:25:26.0097622Z [command]/usr/bin/git remote add origin https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:26.0169597Z ##[endgroup]
+2026-11-24T11:25:26.0170557Z ##[group]Disabling automatic garbage collection
+2026-11-24T11:25:26.0173171Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-24T11:25:26.0195406Z ##[endgroup]
+2026-11-24T11:25:26.0195964Z ##[group]Setting up auth
+2026-11-24T11:25:26.0199576Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:25:26.0222033Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:25:26.4824713Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:25:26.4847165Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:25:26.5028319Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:25:26.5050828Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:25:26.5227146Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-24T11:25:26.5252575Z ##[endgroup]
+2026-11-24T11:25:26.5253119Z ##[group]Fetching the repository
+2026-11-24T11:25:26.5259343Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +bef3124f3daec8cd430e0343fc670ec99c40bf6d:refs/remotes/origin/main
+2026-11-24T11:25:27.1603269Z From https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:25:27.1604030Z  * [new ref]         bef3124f3daec8cd430e0343fc670ec99c40bf6d -> origin/main
+2026-11-24T11:25:27.1606042Z ##[endgroup]
+2026-11-24T11:25:27.1606834Z ##[group]Determining the checkout info
+2026-11-24T11:25:27.1612940Z ##[endgroup]
+2026-11-24T11:25:27.1614747Z [command]/usr/bin/git sparse-checkout disable
+2026-11-24T11:25:27.1669424Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-24T11:25:27.1689995Z ##[group]Checking out the ref
+2026-11-24T11:25:27.1692968Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-24T11:25:27.1943671Z Switched to a new branch 'main'
+2026-11-24T11:25:27.1953260Z branch 'main' set up to track 'origin/main'.
+2026-11-24T11:25:27.1959154Z ##[endgroup]
+2026-11-24T11:25:27.2004980Z [command]/usr/bin/git log -1 --format=%H
+2026-11-24T11:25:27.2021711Z bef3124f3daec8cd430e0343fc670ec99c40bf6d
+2026-11-24T11:25:27.2235313Z ##[group]Run cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_ZLIB_INPUT=OFF
+2026-11-24T11:25:27.2235909Z [36;1mcmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_ZLIB_INPUT=OFF[0m
+2026-11-24T11:25:27.2258415Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:27.2258772Z ##[endgroup]
+2026-11-24T11:25:30.2337491Z -- The CXX compiler identification is GNU 15.2.0
+2026-11-24T11:25:30.2578172Z -- Detecting CXX compiler ABI info
+2026-11-24T11:25:30.3351422Z -- Detecting CXX compiler ABI info - done
+2026-11-24T11:25:30.3934049Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+2026-11-24T11:25:30.3943748Z -- Detecting CXX compile features
+2026-11-24T11:25:30.3977920Z -- Detecting CXX compile features - done
+2026-11-24T11:25:30.4183024Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+2026-11-24T11:25:30.8586079Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+2026-11-24T11:25:30.8978421Z -- Found Threads: TRUE
+2026-11-24T11:25:30.9408915Z -- 
+2026-11-24T11:25:30.9410398Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.9410907Z --   Matching Engine Build Configuration
+2026-11-24T11:25:30.9411388Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.9411766Z --   Build type: Release
+2026-11-24T11:25:30.9412106Z --   C++ Standard: C++17
+2026-11-24T11:25:30.9412476Z --   Compiler: GNU
+2026-11-24T11:25:30.9412780Z -- 
+2026-11-24T11:25:30.9413019Z --   Targets:
+2026-11-24T11:25:30.9413336Z --     - matching_engine_demo           (Main demo)
+2026-11-24T11:25:30.9413791Z --     - matching_engine_v2_demo        (V2 infrastructure demo)
+2026-11-24T11:25:30.9414266Z --     - matching_engine_market_data_generator (synthetic CSV generator)
+2026-11-24T11:25:30.9414773Z --     - matching_engine_unit_tests     (Unit tests)
+2026-11-24T11:25:30.9415176Z --     - matching_engine_property_tests (Property tests)
+2026-11-24T11:25:30.9415634Z --     - matching_engine_snapshot_tests (Snapshot tests)
+2026-11-24T11:25:30.9416096Z --     - matching_engine_benchmarks     (Performance)
+2026-11-24T11:25:30.9416520Z --     - matching_engine_v2_benchmarks  (V2 routed event path)
+2026-11-24T11:25:30.9417040Z -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-11-24T11:25:30.9417339Z -- 
+2026-11-24T11:25:30.9417683Z -- Configuring done (3.3s)
+2026-11-24T11:25:30.9639581Z -- Generating done (0.0s)
+2026-11-24T11:25:30.9641934Z -- Build files have been written to: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:25:30.9742156Z ##[group]Run cmake --build build/release
+2026-11-24T11:25:30.9742485Z [36;1mcmake --build build/release[0m
+2026-11-24T11:25:30.9759921Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:25:30.9760272Z ##[endgroup]
+2026-11-24T11:25:33.1181119Z [1/92] Building CXX object CMakeFiles/matching_engine_market_data_generator.dir/src/market_data_generator_main.cpp.o
+2026-11-24T11:25:33.1212178Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:33.1271424Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:35.3461510Z [2/92] Building CXX object CMakeFiles/matching_engine_demo.dir/src/main.cpp.o
+2026-11-24T11:25:35.3463691Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:35.3492015Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:35.7411316Z [3/92] Building CXX object CMakeFiles/matching_engine_property_tests.dir/tests/property_tests.cpp.o
+2026-11-24T11:25:35.7441633Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:35.7471562Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:37.5051553Z [4/92] Building CXX object CMakeFiles/matching_engine_itch_inspect.dir/src/itch_inspect_main.cpp.o
+2026-11-24T11:25:37.5095788Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:37.5097605Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:37.7530417Z [5/92] Building CXX object CMakeFiles/matching_engine_unit_tests.dir/tests/unit_tests.cpp.o
+2026-11-24T11:25:37.7572444Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:37.7641711Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:38.0031665Z [6/92] Building CXX object CMakeFiles/matching_engine_differential_tests.dir/tests/differential_tests.cpp.o
+2026-11-24T11:25:38.0102730Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:38.0161413Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:40.7991558Z [7/92] Building CXX object CMakeFiles/matching_engine_market_manager_tests.dir/tests/market_manager_tests.cpp.o
+2026-11-24T11:25:40.7993699Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:40.7995667Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:42.3431602Z [8/92] Building CXX object CMakeFiles/matching_engine_snapshot_tests.dir/tests/snapshot_tests.cpp.o
+2026-11-24T11:25:42.3462159Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:42.3491650Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:44.5601647Z [9/92] Building CXX object CMakeFiles/matching_engine_market_snapshot_tests.dir/tests/market_snapshot_tests.cpp.o
+2026-11-24T11:25:44.5622687Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:44.5681723Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:44.7581712Z [10/92] Building CXX object CMakeFiles/matching_engine_event_system_tests.dir/tests/event_system_tests.cpp.o
+2026-11-24T11:25:44.7612550Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:44.7641446Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:47.3840162Z [11/92] Building CXX object CMakeFiles/matching_engine_event_delivery_integration_tests.dir/tests/event_delivery_integration_tests.cpp.o
+2026-11-24T11:25:47.3882081Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:47.3891777Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:48.5813263Z [12/92] Building CXX object CMakeFiles/matching_engine_v2_demo.dir/src/v2_main.cpp.o
+2026-11-24T11:25:48.5851796Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:48.5853718Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.4831186Z [13/92] Building CXX object CMakeFiles/matching_engine_journal_replay_tests.dir/tests/journal_replay_tests.cpp.o
+2026-11-24T11:25:49.4852881Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.4901639Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.5361545Z [14/92] Building CXX object CMakeFiles/matching_engine_market_data_tests.dir/tests/market_data_tests.cpp.o
+2026-11-24T11:25:49.5416085Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.5471470Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.8551455Z [15/92] Building CXX object CMakeFiles/matching_engine_async_logger_tests.dir/tests/async_logger_tests.cpp.o
+2026-11-24T11:25:49.8576373Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:49.8621256Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:50.9695964Z [16/92] Building CXX object CMakeFiles/matching_engine_monitor_tests.dir/tests/monitor_tests.cpp.o
+2026-11-24T11:25:50.9741788Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:50.9743310Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:52.2391177Z [17/92] Building CXX object CMakeFiles/matching_engine_strategy_tests.dir/tests/strategy_tests.cpp.o
+2026-11-24T11:25:52.2421745Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:52.2451582Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:52.9034810Z [18/92] Building CXX object CMakeFiles/matching_engine_order_pool_tests.dir/tests/order_pool_tests.cpp.o
+2026-11-24T11:25:52.9036806Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:52.9038455Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.3391739Z [19/92] Building CXX object CMakeFiles/matching_engine_feed_gateway_tests.dir/tests/feed_gateway_tests.cpp.o
+2026-11-24T11:25:56.3422098Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.3431868Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.7441715Z [20/92] Building CXX object CMakeFiles/matching_engine_allocation_failure_tests.dir/tests/allocation_failure_tests.cpp.o
+2026-11-24T11:25:56.7471568Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.7501358Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.9530425Z [21/92] Building CXX object CMakeFiles/matching_engine_async_journal_tests.dir/tests/async_journal_tests.cpp.o
+2026-11-24T11:25:56.9562103Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:56.9571841Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:57.3331526Z [22/92] Building CXX object CMakeFiles/matching_engine_market_data_generator_tests.dir/tests/market_data_generator_tests.cpp.o
+2026-11-24T11:25:57.3362056Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:57.3363711Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:58.0091490Z [23/92] Building CXX object CMakeFiles/matching_engine_command_journal_tests.dir/tests/command_journal_tests.cpp.o
+2026-11-24T11:25:58.0151775Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:58.0181287Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:59.7151856Z [24/92] Building CXX object CMakeFiles/matching_engine_itch_binary_reader_tests.dir/tests/itch_binary_reader_tests.cpp.o
+2026-11-24T11:25:59.7161948Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:25:59.7181974Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.0301440Z [25/92] Building CXX object CMakeFiles/matching_engine_itch50_metadata_decoder_tests.dir/tests/itch50_metadata_decoder_tests.cpp.o
+2026-11-24T11:26:00.0312842Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.0341791Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.1601376Z [26/92] Building CXX object CMakeFiles/matching_engine_itch50_decoder_tests.dir/tests/itch50_decoder_tests.cpp.o
+2026-11-24T11:26:00.1631759Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.1671310Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.5681318Z [27/92] Building CXX object CMakeFiles/matching_engine_market_data_book_native_tests.dir/tests/market_data_book_native_tests.cpp.o
+2026-11-24T11:26:00.5704676Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.5721553Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.6360615Z [28/92] Building CXX object CMakeFiles/matching_engine_feed_encoder_tests.dir/tests/feed_encoder_tests.cpp.o
+2026-11-24T11:26:00.6391615Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:00.6411662Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:01.0091420Z [29/92] Building CXX object CMakeFiles/matching_engine_itch_session_validation_tests.dir/tests/itch_session_validation_tests.cpp.o
+2026-11-24T11:26:01.0142477Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:01.0201477Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:01.6551610Z [30/92] Building CXX object CMakeFiles/matching_engine_itch_trade_ledger_tests.dir/tests/itch_trade_ledger_tests.cpp.o
+2026-11-24T11:26:01.6582210Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:01.6611624Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:02.4921120Z [31/92] Building CXX object CMakeFiles/matching_engine_streaming_gzip_tests.dir/tests/streaming_gzip_tests.cpp.o
+2026-11-24T11:26:02.4941881Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:02.4943508Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:02.9431688Z [32/92] Building CXX object CMakeFiles/matching_engine_sha256_tests.dir/tests/sha256_tests.cpp.o
+2026-11-24T11:26:02.9455121Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:02.9481715Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:06.4500961Z [33/92] Building CXX object CMakeFiles/matching_engine_itch_report_session_tests.dir/tests/itch_report_session_tests.cpp.o
+2026-11-24T11:26:06.4551899Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:06.4611602Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:06.7161594Z [34/92] Building CXX object CMakeFiles/matching_engine_itch_book_rebuilder_tests.dir/tests/itch_book_rebuilder_tests.cpp.o
+2026-11-24T11:26:06.7192521Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:06.7221865Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.1461646Z [35/92] Building CXX object CMakeFiles/matching_engine_itch_inspect_tests.dir/tests/itch_inspect_tests.cpp.o
+2026-11-24T11:26:09.1522088Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.1551767Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.4911270Z [36/92] Building CXX object CMakeFiles/matching_engine_itch_verified_input_tests.dir/tests/itch_verified_input_tests.cpp.o
+2026-11-24T11:26:09.4941851Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.4971375Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.5480860Z [37/92] Building CXX object CMakeFiles/matching_engine_itch_metadata_session_tests.dir/tests/itch_metadata_session_tests.cpp.o
+2026-11-24T11:26:09.5511346Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:09.5541148Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.2010025Z [38/92] Building CXX object CMakeFiles/matching_engine_native_allocation_tests.dir/tests/market_data_book_native_allocation_tests.cpp.o
+2026-11-24T11:26:11.2034578Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.2051378Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.7851432Z [39/92] Building CXX object CMakeFiles/matching_engine_committed_handoff_tests.dir/tests/committed_handoff_tests.cpp.o
+2026-11-24T11:26:11.7891714Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.7911573Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.8010845Z [40/92] Building CXX object CMakeFiles/matching_engine_capacity_metrics_tests.dir/tests/capacity_metrics_tests.cpp.o
+2026-11-24T11:26:11.8041396Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:11.8071372Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:16.0831539Z [41/92] Building CXX object CMakeFiles/matching_engine_risk_engine_tests.dir/tests/risk_engine_tests.cpp.o
+2026-11-24T11:26:16.0860530Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:16.0891872Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:16.0940865Z [42/92] Building CXX object CMakeFiles/matching_engine_benchmarks.dir/benchmarks/perf.cpp.o
+2026-11-24T11:26:16.0981122Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:16.1011233Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:16.1971024Z [43/92] Linking CXX executable matching_engine_demo
+2026-11-24T11:26:16.2347813Z [44/92] Linking CXX executable matching_engine_v2_demo
+2026-11-24T11:26:16.3021025Z [45/92] Linking CXX executable matching_engine_market_data_generator
+2026-11-24T11:26:16.3571091Z [46/92] Linking CXX executable matching_engine_itch_inspect
+2026-11-24T11:26:16.4685963Z [47/92] Linking CXX executable matching_engine_unit_tests
+2026-11-24T11:26:16.5160512Z [48/92] Linking CXX executable matching_engine_property_tests
+2026-11-24T11:26:16.5989187Z [49/92] Linking CXX executable matching_engine_differential_tests
+2026-11-24T11:26:16.6221003Z [50/92] Linking CXX executable matching_engine_snapshot_tests
+2026-11-24T11:26:16.6831409Z [51/92] Linking CXX executable matching_engine_market_snapshot_tests
+2026-11-24T11:26:16.7371403Z [52/92] Linking CXX executable matching_engine_market_manager_tests
+2026-11-24T11:26:16.8170947Z [53/92] Linking CXX executable matching_engine_event_system_tests
+2026-11-24T11:26:16.8721823Z [54/92] Linking CXX executable matching_engine_event_delivery_integration_tests
+2026-11-24T11:26:16.9585606Z [55/92] Linking CXX executable matching_engine_journal_replay_tests
+2026-11-24T11:26:16.9891195Z [56/92] Linking CXX executable matching_engine_async_logger_tests
+2026-11-24T11:26:17.0631289Z [57/92] Linking CXX executable matching_engine_monitor_tests
+2026-11-24T11:26:17.1191529Z [58/92] Linking CXX executable matching_engine_market_data_tests
+2026-11-24T11:26:17.2091260Z [59/92] Linking CXX executable matching_engine_strategy_tests
+2026-11-24T11:26:17.2891390Z [60/92] Linking CXX executable matching_engine_async_journal_tests
+2026-11-24T11:26:17.3771270Z [61/92] Linking CXX executable matching_engine_command_journal_tests
+2026-11-24T11:26:17.4261219Z [62/92] Linking CXX executable matching_engine_allocation_failure_tests
+2026-11-24T11:26:17.4911274Z [63/92] Linking CXX executable matching_engine_order_pool_tests
+2026-11-24T11:26:17.5181124Z [64/92] Linking CXX executable matching_engine_market_data_generator_tests
+2026-11-24T11:26:17.6131225Z [65/92] Linking CXX executable matching_engine_feed_gateway_tests
+2026-11-24T11:26:17.6270790Z [66/92] Linking CXX executable matching_engine_feed_encoder_tests
+2026-11-24T11:26:17.7331393Z [67/92] Linking CXX executable matching_engine_itch_binary_reader_tests
+2026-11-24T11:26:17.7461273Z [68/92] Linking CXX executable matching_engine_itch50_decoder_tests
+2026-11-24T11:26:17.8351239Z [69/92] Linking CXX executable matching_engine_itch_book_rebuilder_tests
+2026-11-24T11:26:17.8411149Z [70/92] Linking CXX executable matching_engine_market_data_book_native_tests
+2026-11-24T11:26:17.9484247Z [71/92] Linking CXX executable matching_engine_itch50_metadata_decoder_tests
+2026-11-24T11:26:17.9681238Z [72/92] Linking CXX executable matching_engine_itch_metadata_session_tests
+2026-11-24T11:26:18.0171296Z [73/92] Linking CXX executable matching_engine_itch_trade_ledger_tests
+2026-11-24T11:26:18.0422955Z [74/92] Linking CXX executable matching_engine_itch_session_validation_tests
+2026-11-24T11:26:18.0781516Z [75/92] Building CXX object CMakeFiles/matching_engine_public_feed_tests.dir/tests/public_feed_publisher_tests.cpp.o
+2026-11-24T11:26:18.0784042Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:18.0811728Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:18.1070899Z [76/92] Linking CXX executable matching_engine_itch_inspect_tests
+2026-11-24T11:26:18.1551149Z [77/92] Linking CXX executable matching_engine_streaming_gzip_tests
+2026-11-24T11:26:18.1898262Z [78/92] Linking CXX executable matching_engine_itch_report_session_tests
+2026-11-24T11:26:18.1914779Z [79/92] Linking CXX executable matching_engine_sha256_tests
+2026-11-24T11:26:18.2631095Z [80/92] Linking CXX executable matching_engine_public_feed_tests
+2026-11-24T11:26:18.2753434Z [81/92] Linking CXX executable matching_engine_itch_verified_input_tests
+2026-11-24T11:26:18.2922608Z [82/92] Linking CXX executable matching_engine_native_allocation_tests
+2026-11-24T11:26:18.3421229Z [83/92] Linking CXX executable matching_engine_capacity_metrics_tests
+2026-11-24T11:26:18.3811018Z [84/92] Linking CXX executable matching_engine_risk_engine_tests
+2026-11-24T11:26:18.3871012Z [85/92] Linking CXX executable matching_engine_committed_handoff_tests
+2026-11-24T11:26:18.4211072Z [86/92] Linking CXX executable matching_engine_benchmarks
+2026-11-24T11:26:19.6945487Z [87/92] Building CXX object CMakeFiles/matching_engine_order_type_tests.dir/tests/order_type_tests.cpp.o
+2026-11-24T11:26:19.6947262Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:19.6948902Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:19.7461878Z [88/92] Linking CXX executable matching_engine_order_type_tests
+2026-11-24T11:26:20.4879806Z [89/92] Building CXX object CMakeFiles/matching_engine_public_feed_benchmark_tests.dir/tests/public_feed_benchmark_tests.cpp.o
+2026-11-24T11:26:20.4882413Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:20.4884260Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:20.5407223Z [90/92] Linking CXX executable matching_engine_public_feed_benchmark_tests
+2026-11-24T11:26:22.3542099Z [91/92] Building CXX object CMakeFiles/matching_engine_v2_benchmarks.dir/benchmarks/v2_perf.cpp.o
+2026-11-24T11:26:22.3543531Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:22.3544534Z cc1plus: warning: ‘-mavx10.1’ is aliased to 512 bit since GCC14.3 and GCC15.1 while ‘-mavx10.1-256’ and ‘-mavx10.1-512’ will be deprecated in GCC 16 due to all machines 512 bit vector size supported
+2026-11-24T11:26:22.4115885Z [92/92] Linking CXX executable matching_engine_v2_benchmarks
+2026-11-24T11:26:22.4153414Z ##[group]Run ctest --test-dir build/release --output-on-failure
+2026-11-24T11:26:22.4153860Z [36;1mctest --test-dir build/release --output-on-failure[0m
+2026-11-24T11:26:22.4171344Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:26:22.4171619Z ##[endgroup]
+2026-11-24T11:26:22.8207389Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:22.8606715Z       Start  1: matching_engine_unit
+2026-11-24T11:26:23.2732134Z  1/43 Test  #1: matching_engine_unit ......................   Passed    0.41 sec
+2026-11-24T11:26:23.2760352Z       Start  2: matching_engine_properties
+2026-11-24T11:26:23.3021758Z  2/43 Test  #2: matching_engine_properties ................   Passed    0.03 sec
+2026-11-24T11:26:23.3022452Z       Start  3: matching_engine_differential
+2026-11-24T11:26:23.5323215Z  3/43 Test  #3: matching_engine_differential ..............   Passed    0.23 sec
+2026-11-24T11:26:23.5324389Z       Start  4: matching_engine_snapshot
+2026-11-24T11:26:23.5365544Z  4/43 Test  #4: matching_engine_snapshot ..................   Passed    0.00 sec
+2026-11-24T11:26:23.5366287Z       Start  5: matching_engine_market_snapshot
+2026-11-24T11:26:23.5519942Z  5/43 Test  #5: matching_engine_market_snapshot ...........   Passed    0.02 sec
+2026-11-24T11:26:23.5520582Z       Start  6: matching_engine_market_manager
+2026-11-24T11:26:23.5534922Z  6/43 Test  #6: matching_engine_market_manager ............   Passed    0.00 sec
+2026-11-24T11:26:23.5535468Z       Start  7: matching_engine_event_system
+2026-11-24T11:26:23.5550422Z  7/43 Test  #7: matching_engine_event_system ..............   Passed    0.00 sec
+2026-11-24T11:26:23.5551433Z       Start  8: matching_engine_event_delivery
+2026-11-24T11:26:23.5583191Z  8/43 Test  #8: matching_engine_event_delivery ............   Passed    0.00 sec
+2026-11-24T11:26:23.5583640Z       Start  9: matching_engine_journal_replay
+2026-11-24T11:26:23.5613979Z  9/43 Test  #9: matching_engine_journal_replay ............   Passed    0.00 sec
+2026-11-24T11:26:23.5614418Z       Start 10: matching_engine_async_logger
+2026-11-24T11:26:23.5636391Z 10/43 Test #10: matching_engine_async_logger ..............   Passed    0.00 sec
+2026-11-24T11:26:23.5637065Z       Start 11: matching_engine_monitor
+2026-11-24T11:26:23.5651725Z 11/43 Test #11: matching_engine_monitor ...................   Passed    0.00 sec
+2026-11-24T11:26:23.5652230Z       Start 12: matching_engine_market_data
+2026-11-24T11:26:23.5666391Z 12/43 Test #12: matching_engine_market_data ...............   Passed    0.00 sec
+2026-11-24T11:26:23.5667064Z       Start 13: matching_engine_strategy
+2026-11-24T11:26:23.5679239Z 13/43 Test #13: matching_engine_strategy ..................   Passed    0.00 sec
+2026-11-24T11:26:23.5679906Z       Start 14: matching_engine_async_journal
+2026-11-24T11:26:23.5737544Z 14/43 Test #14: matching_engine_async_journal .............   Passed    0.01 sec
+2026-11-24T11:26:23.5740700Z       Start 15: matching_engine_command_journal
+2026-11-24T11:26:23.5767875Z 15/43 Test #15: matching_engine_command_journal ...........   Passed    0.00 sec
+2026-11-24T11:26:23.5768723Z       Start 16: matching_engine_allocation_failure
+2026-11-24T11:26:23.5786367Z 16/43 Test #16: matching_engine_allocation_failure ........   Passed    0.00 sec
+2026-11-24T11:26:23.5787259Z       Start 17: matching_engine_order_pool
+2026-11-24T11:26:23.5800159Z 17/43 Test #17: matching_engine_order_pool ................   Passed    0.00 sec
+2026-11-24T11:26:23.5801364Z       Start 18: matching_engine_market_data_generator
+2026-11-24T11:26:23.5817580Z 18/43 Test #18: matching_engine_market_data_generator .....   Passed    0.00 sec
+2026-11-24T11:26:23.5818668Z       Start 19: matching_engine_feed_gateway
+2026-11-24T11:26:23.5830681Z 19/43 Test #19: matching_engine_feed_gateway ..............   Passed    0.00 sec
+2026-11-24T11:26:23.5831272Z       Start 20: matching_engine_feed_encoder
+2026-11-24T11:26:23.5844964Z 20/43 Test #20: matching_engine_feed_encoder ..............   Passed    0.00 sec
+2026-11-24T11:26:23.5845449Z       Start 21: matching_engine_itch_binary_reader
+2026-11-24T11:26:23.5880050Z 21/43 Test #21: matching_engine_itch_binary_reader ........   Passed    0.00 sec
+2026-11-24T11:26:23.5880547Z       Start 22: matching_engine_itch50_decoder
+2026-11-24T11:26:23.5907485Z 22/43 Test #22: matching_engine_itch50_decoder ............   Passed    0.00 sec
+2026-11-24T11:26:23.5908084Z       Start 23: matching_engine_market_data_book_native
+2026-11-24T11:26:23.5921295Z 23/43 Test #23: matching_engine_market_data_book_native ...   Passed    0.00 sec
+2026-11-24T11:26:23.5921752Z       Start 24: matching_engine_itch_book_rebuilder
+2026-11-24T11:26:23.5967031Z 24/43 Test #24: matching_engine_itch_book_rebuilder .......   Passed    0.00 sec
+2026-11-24T11:26:23.5967530Z       Start 25: matching_engine_itch50_metadata_decoder
+2026-11-24T11:26:23.5987449Z 25/43 Test #25: matching_engine_itch50_metadata_decoder ...   Passed    0.00 sec
+2026-11-24T11:26:23.5988591Z       Start 26: matching_engine_itch_metadata_session
+2026-11-24T11:26:23.6067944Z 26/43 Test #26: matching_engine_itch_metadata_session .....   Passed    0.01 sec
+2026-11-24T11:26:23.6068894Z       Start 27: matching_engine_itch_trade_ledger
+2026-11-24T11:26:23.6081681Z 27/43 Test #27: matching_engine_itch_trade_ledger .........   Passed    0.00 sec
+2026-11-24T11:26:23.6082596Z       Start 28: matching_engine_itch_session_validation
+2026-11-24T11:26:23.6094535Z 28/43 Test #28: matching_engine_itch_session_validation ...   Passed    0.00 sec
+2026-11-24T11:26:23.6095275Z       Start 29: matching_engine_itch_report_session
+2026-11-24T11:26:23.6123185Z 29/43 Test #29: matching_engine_itch_report_session .......   Passed    0.00 sec
+2026-11-24T11:26:23.6124158Z       Start 30: matching_engine_itch_inspect
+2026-11-24T11:26:23.6141394Z 30/43 Test #30: matching_engine_itch_inspect ..............   Passed    0.00 sec
+2026-11-24T11:26:23.6142264Z       Start 31: matching_engine_itch_inspect_help
+2026-11-24T11:26:23.6153668Z 31/43 Test #31: matching_engine_itch_inspect_help .........   Passed    0.00 sec
+2026-11-24T11:26:23.6154635Z       Start 32: matching_engine_sha256
+2026-11-24T11:26:23.6238337Z 32/43 Test #32: matching_engine_sha256 ....................   Passed    0.01 sec
+2026-11-24T11:26:23.6239096Z       Start 33: matching_engine_streaming_gzip
+2026-11-24T11:26:23.6250616Z 33/43 Test #33: matching_engine_streaming_gzip ............   Passed    0.00 sec
+2026-11-24T11:26:23.6251196Z       Start 34: matching_engine_itch_verified_input
+2026-11-24T11:26:23.6271196Z 34/43 Test #34: matching_engine_itch_verified_input .......   Passed    0.00 sec
+2026-11-24T11:26:23.6272043Z       Start 35: matching_engine_native_allocation
+2026-11-24T11:26:23.6287012Z 35/43 Test #35: matching_engine_native_allocation .........   Passed    0.00 sec
+2026-11-24T11:26:23.6288116Z       Start 36: matching_engine_public_feed
+2026-11-24T11:26:23.6305381Z 36/43 Test #36: matching_engine_public_feed ...............   Passed    0.00 sec
+2026-11-24T11:26:23.6306092Z       Start 37: matching_engine_committed_handoff
+2026-11-24T11:26:23.6321157Z 37/43 Test #37: matching_engine_committed_handoff .........   Passed    0.00 sec
+2026-11-24T11:26:23.6322028Z       Start 38: matching_engine_public_feed_benchmark
+2026-11-24T11:26:23.6485409Z 38/43 Test #38: matching_engine_public_feed_benchmark .....   Passed    0.02 sec
+2026-11-24T11:26:23.6486169Z       Start 39: matching_engine_capacity_metrics
+2026-11-24T11:26:23.6497887Z 39/43 Test #39: matching_engine_capacity_metrics ..........   Passed    0.00 sec
+2026-11-24T11:26:23.6498777Z       Start 40: matching_engine_risk_engine
+2026-11-24T11:26:23.6519295Z 40/43 Test #40: matching_engine_risk_engine ...............   Passed    0.00 sec
+2026-11-24T11:26:23.6520611Z       Start 41: matching_engine_order_types
+2026-11-24T11:26:23.6553579Z 41/43 Test #41: matching_engine_order_types ...............   Passed    0.00 sec
+2026-11-24T11:26:23.6554477Z       Start 42: matching_engine_demo_integration
+2026-11-24T11:26:23.6568451Z 42/43 Test #42: matching_engine_demo_integration ..........   Passed    0.00 sec
+2026-11-24T11:26:23.6569519Z       Start 43: matching_engine_v2_demo_integration
+2026-11-24T11:26:23.6591275Z 43/43 Test #43: matching_engine_v2_demo_integration .......   Passed    0.00 sec
+2026-11-24T11:26:23.6593654Z 
+2026-11-24T11:26:23.6593875Z 100% tests passed out of 43
+2026-11-24T11:26:23.6594057Z 
+2026-11-24T11:26:23.6594212Z Total Test time (real) =   0.84 sec
+2026-11-24T11:26:23.6674412Z ##[group]Run ctest --test-dir build/release --output-on-failure --verbose -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"
+2026-11-24T11:26:23.6675300Z [36;1mctest --test-dir build/release --output-on-failure --verbose -R "^matching_engine_(sha256|streaming_gzip|itch_verified_input|itch_inspect(_help)?)$"[0m
+2026-11-24T11:26:23.6693319Z shell: /usr/bin/bash -e {0}
+2026-11-24T11:26:23.6693599Z ##[endgroup]
+2026-11-24T11:26:23.6739114Z UpdateCTestConfiguration  from :/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/DartConfiguration.tcl
+2026-11-24T11:26:23.6740797Z Parse Config file:/home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/DartConfiguration.tcl
+2026-11-24T11:26:23.6742305Z Test project /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6742934Z Constructing a list of tests
+2026-11-24T11:26:23.6747803Z Done constructing a list of tests
+2026-11-24T11:26:23.6748078Z Updating test list for fixtures
+2026-11-24T11:26:23.6748331Z Added 0 tests to meet fixture requirements
+2026-11-24T11:26:23.6748767Z Checking test dependency graph...
+2026-11-24T11:26:23.6749023Z Checking test dependency graph end
+2026-11-24T11:26:23.6750509Z test 30
+2026-11-24T11:26:23.6750860Z     Start 30: matching_engine_itch_inspect
+2026-11-24T11:26:23.6751255Z 
+2026-11-24T11:26:23.6752072Z 30: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/matching_engine_itch_inspect_tests
+2026-11-24T11:26:23.6753245Z 30: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6753850Z 30: Test timeout computed to be: 1500
+2026-11-24T11:26:23.6768105Z 30: Offline ITCH inspector tests passed (gzip disabled; compressed success tests NOT EXECUTED; synthetic temporary files only).
+2026-11-24T11:26:23.6768906Z 1/5 Test #30: matching_engine_itch_inspect ..........   Passed    0.00 sec
+2026-11-24T11:26:23.6770671Z test 31
+2026-11-24T11:26:23.6771095Z     Start 31: matching_engine_itch_inspect_help
+2026-11-24T11:26:23.6771434Z 
+2026-11-24T11:26:23.6772241Z 31: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/matching_engine_itch_inspect "--help"
+2026-11-24T11:26:23.6773388Z 31: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6773972Z 31: Test timeout computed to be: 1500
+2026-11-24T11:26:23.6781590Z 31: Usage: matching_engine_itch_inspect --input FILE --date YYYY-MM-DD
+2026-11-24T11:26:23.6782090Z 31:        --authorized-local-use [--max-reports N]
+2026-11-24T11:26:23.6782567Z 31:        [--reject-time-regressions] [--allow-missing-system-phases]
+2026-11-24T11:26:23.6783145Z 31:        [--compression auto|none|gzip] [--expected-sha256 HEX]
+2026-11-24T11:26:23.6783663Z 31:        [--max-input-bytes N] [--max-decoded-bytes N] [--max-gzip-members N]
+2026-11-24T11:26:23.6784255Z 31: Single-pass source SHA-256; no downloads or extracted output files.
+2026-11-24T11:26:23.6784688Z 31: gzip_support=disabled
+2026-11-24T11:26:23.6785089Z 31: Date is caller-supplied; authorization flag does not grant rights.
+2026-11-24T11:26:23.6785581Z 2/5 Test #31: matching_engine_itch_inspect_help .....   Passed    0.00 sec
+2026-11-24T11:26:23.6786075Z test 32
+2026-11-24T11:26:23.6786519Z     Start 32: matching_engine_sha256
+2026-11-24T11:26:23.6786811Z 
+2026-11-24T11:26:23.6788621Z 32: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/matching_engine_sha256_tests
+2026-11-24T11:26:23.6790133Z 32: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6790951Z 32: Test timeout computed to be: 1500
+2026-11-24T11:26:23.6867031Z 32: Streaming SHA-256 tests passed (RFC6234 KATs and synthetic byte boundaries only).
+2026-11-24T11:26:23.6867650Z 3/5 Test #32: matching_engine_sha256 ................   Passed    0.01 sec
+2026-11-24T11:26:23.6870566Z test 33
+2026-11-24T11:26:23.6870897Z     Start 33: matching_engine_streaming_gzip
+2026-11-24T11:26:23.6871124Z 
+2026-11-24T11:26:23.6871616Z 33: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/matching_engine_streaming_gzip_tests
+2026-11-24T11:26:23.6872641Z 33: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6873396Z 33: Test timeout computed to be: 1500
+2026-11-24T11:26:23.6879270Z 33: Streaming gzip disabled-build guard passed; enabled CRC/member tests NOT EXECUTED.
+2026-11-24T11:26:23.6880043Z 4/5 Test #33: matching_engine_streaming_gzip ........   Passed    0.00 sec
+2026-11-24T11:26:23.6880752Z test 34
+2026-11-24T11:26:23.6881030Z     Start 34: matching_engine_itch_verified_input
+2026-11-24T11:26:23.6881243Z 
+2026-11-24T11:26:23.6881749Z 34: Test command: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release/matching_engine_itch_verified_input_tests
+2026-11-24T11:26:23.6882860Z 34: Working Directory: /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-/build/release
+2026-11-24T11:26:23.6883676Z 34: Test timeout computed to be: 1500
+2026-11-24T11:26:23.6900536Z 34: Verified ITCH source input tests passed (synthetic only; raw SHA, gzip disabled/rejection only).
+2026-11-24T11:26:23.6901219Z 5/5 Test #34: matching_engine_itch_verified_input ...   Passed    0.00 sec
+2026-11-24T11:26:23.6903381Z 
+2026-11-24T11:26:23.6903522Z The following tests passed:
+2026-11-24T11:26:23.6903822Z 	matching_engine_itch_inspect
+2026-11-24T11:26:23.6904161Z 	matching_engine_itch_inspect_help
+2026-11-24T11:26:23.6904421Z 	matching_engine_sha256
+2026-11-24T11:26:23.6904653Z 	matching_engine_streaming_gzip
+2026-11-24T11:26:23.6904915Z 	matching_engine_itch_verified_input
+2026-11-24T11:26:23.6905061Z 
+2026-11-24T11:26:23.6905186Z 100% tests passed out of 5
+2026-11-24T11:26:23.6905345Z 
+2026-11-24T11:26:23.6905468Z Total Test time (real) =   0.02 sec
+2026-11-24T11:26:23.6999386Z Post job cleanup.
+2026-11-24T11:26:23.7625492Z [command]/usr/bin/git version
+2026-11-24T11:26:23.7644728Z git version 2.56.1
+2026-11-24T11:26:23.7672338Z Temporarily overriding HOME='/home/runner/work/_temp/9fa4aaa1-48c8-4d06-8975-598bb1a70386' before making global git config changes
+2026-11-24T11:26:23.7678122Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-24T11:26:23.7679038Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/New-Version-Low-Latency-Matching-Engine-Engineering-/New-Version-Low-Latency-Matching-Engine-Engineering-
+2026-11-24T11:26:23.7709921Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-24T11:26:23.7737087Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-24T11:26:23.7922311Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-24T11:26:23.7937893Z http.https://github.com/.extraheader
+2026-11-24T11:26:23.7944726Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-24T11:26:23.7965934Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-24T11:26:23.8145572Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-24T11:26:23.8168904Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-24T11:26:23.8451457Z Cleaning up orphan processes
+2026-11-24T11:26:23.8730485Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+

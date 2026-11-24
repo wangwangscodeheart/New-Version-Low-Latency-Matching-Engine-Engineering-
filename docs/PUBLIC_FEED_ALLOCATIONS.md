@@ -58,3 +58,5 @@ MSVC19.44.35228.0 Release、Windows Balanced、未绑核/冻结频率。下面�
 采集器校验测量口径及工作量，不认证任意外来二进制或完整JSON schema；实际构建身份另与源码/二进制清单核对。stdout/stderr是.NET解码再UTF8写入的文本捕获，不是原始管道字节跟踪。结果SHA验证入库的文件字节，不是提供商真实性；script_sha256是当时工作区原始脚本字节，Git blob清单则遵循仓库属性，二者口径不同。
 
 本机45/45、默认Release/ASan43/43、严格编译、24个失败组合、14个collector夹具、配置拒绝及后续实际Linux状态见[验证说明](validation/2026-11-24-public-feed-allocations/)与[验证记录](VALIDATION.md)。真实授权股票数据、逐层延迟、总内存/工作线程和受控M5仍未完成。
+
+发布后`bef3124`真实Linux job已2/2通过（仅25轮/symbol小负载正确性），原Release/ASan+UBSan OFF/ON四矩阵仍各43/43，TSan子集4/4、普通smoke成功；手动差分未触发。七份日志按该代码提交归档，文档收尾不改123项输入身份。重新从GitHub检出后8/8结果文件SHA验证通过，不将小负载时长或其他编译器的hook值混入上表。
