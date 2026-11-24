@@ -1,0 +1,14 @@
+METADATA_JSON,{"schema_version":1,"git_commit":"045c7a234349","compiler":"MSVC-19.44.35228.0","compiler_flags":"/DWIN32 /D_WINDOWS /W3 /GR /EHsc /O2 /DNDEBUG /MD /W4 /utf-8","build_type":"Release","os":"Windows-10.0.26300","measurement_scope":"successful_cpp_new_requests","compiler_flags_scope":"cmake_global_release_and_directory_options_excludes_definitions_and_includes","cxx_standard":17,"counter_scope":"successful_cpp_new_requests","thread_scope":"calling_thread_only","timing_reported":false,"workload":"synthetic_mixed_visible_v1","cycles_per_symbol":2500,"scenarios":3,"phases":4,"setup_includes_fixture_owner":true,"worker_threads_excluded":true,"total_heap_not_measured":true,"latency_samples_collected":false,"workload_counters":"full_scenario_context_repeated_per_phase"}
+ALLOCATION_CSV,scenario,phase,commands,public_messages,wire_bytes,allocation_calls,requested_bytes,aligned_calls,zero_size_calls,overflowed,thread_scope,counter_scope,timing_reported
+ALLOCATION_CSV,journal_public_feed_sync,setup,60000,67500,3210000,128,318422,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,journal_public_feed_sync,run,60000,67500,3210000,272747,28646393,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,journal_public_feed_sync,stop_and_validation,60000,67500,3210000,0,0,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,journal_public_feed_sync,teardown,60000,67500,3210000,8,886,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_sync,setup,60000,67500,3210000,142,320166,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_sync,run,60000,67500,3210000,422736,54932287,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_sync,stop_and_validation,60000,67500,3210000,7,896,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_sync,teardown,60000,67500,3210000,9,918,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_burst16,setup,60000,67500,3210000,142,320166,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_burst16,run,60000,67500,3210000,424241,55102527,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_burst16,stop_and_validation,60000,67500,3210000,7,896,0,0,0,calling_thread_only,successful_cpp_new_requests,false
+ALLOCATION_CSV,full_v2_public_feed_burst16,teardown,60000,67500,3210000,9,918,0,0,0,calling_thread_only,successful_cpp_new_requests,false

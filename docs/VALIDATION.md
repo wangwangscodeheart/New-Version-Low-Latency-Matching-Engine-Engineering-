@@ -1,5 +1,17 @@
 # 当前验证记录
 
+## 2026-11-24：独立公开行情C++分配计数
+
+收尾原四个在途文件，新增独立companion，复用原三公开场景与stop状态对账，不修改`src/`、原`v2_perf.cpp`或`public_feed_benchmark.hpp`。仅两个可执行文件链接替换new/delete，默认OFF不添加目标或替换；独立Release可选45项，默认仍43。按setup/run/stop_and_validation/teardown计调用线程的成功hook及请求字节，输出与计数分离，不测时、不计worker/CRT/总堆/峰值。范围见[分配说明](PUBLIC_FEED_ALLOCATIONS.md)。
+
+MSVC19.44.35228.0/CMake4.4.2/Ninja：新目录98步构建、45/45（15.54s）；修正新增probe的Flags元数据取值顺序后仅重建其4步，最终45/45（5.68s）。原默认目录重配/更新benchmark构建身份，Release43/43（9.91s）、ASan gzip ON43/43（19.16s），没有把计数工具放进ASan。meter和companion独立`/O2 /W4 /WX`编译运行通过，原全工程D9025/C4702仍保留。
+
+原8组meter合约保留，新增24个普通/数组/对齐、throwing/nothrow与null/return/derived-bad_alloc handler组合，失败尝试不计、成功重试计1；只测试宏下有注入分支，没有真实系统OOM。Collector解析和14种mock夹具通过，包括超时保留stdout/stderr前缀、数值/格式拒绝、非零native退出和既有证据目录拒绝覆盖；公开归档的参数化夹具再次14/14，mock绝不当真实分配值。ASan/UBSan/TSan开启和Debug四配置均预期拒绝，任意外部toolchain配置未声称穷尽验证。
+
+[三个实际独立进程](../benchmarks/results/2026-11-24-public-feed-allocations/)每场景60000命令/67500帧/3210000 wire字节，12行/进程、共36行，全部overflow0、timingfalse、scope为调用线程；文件是.NET解码后文本而非原始pipe字节。成功后保留环境、实际可执行文件SHA、工作区脚本原始SHA及8文件清单。源身份为`045c7a2`基线+工作区增量，123项规范化Git blob另绑定构建/验证输入；不说原提交已包含工具。setup等四行的工作量上下文重复，不能累计成4倍命令数。run计数范围见说明，进程间差异未归因，不报告优化收益、零分配、总堆或生产性能。
+
+[本轮原始输出与复验](validation/2026-11-24-public-feed-allocations/)独立保存默认/插桩、strict、guard、collector与真实采集，不覆盖11月20日基线和第六批CI证据。新增Linux allocation-instrumentation job只构建/验证小负载两个目标，在本节首次采集时尚未发布运行；旧43项CI不扩大到新meter。真实授权数据/M3、网络恢复/M4和受控M5仍未完成，本轮未改系统电源、绑核、频率或安装全局工具链。
+
 ## 2026-11-23：M3第六批CI覆盖与旧夹具隔离
 
 发布后补充：代码提交`618389322b4a38749257a85fd13af98dbbe6039b`的[真实run45183239078](https://github.com/wangwangscodeheart/New-Version-Low-Latency-Matching-Engine-Engineering-/actions/runs/45183239078)已完成且成功。Release OFF/ON均43/43（0.86s / 0.86s），ASan+UBSan OFF/ON均43/43（14.09s / 28.49s）；四种模式额外verbose五项均5/5，ON实际执行七组gzip正向测试、OFF明确只验证禁用拒绝。TSan子集4/4（0.52s）、Benchmark smoke成功；手动10M差分跳过，不计通过。系统zlib1.3.1未插桩、Ubuntu26.04.1/GNU15.2.0。六份完整job日志和[API状态快照](validation/2026-11-23-m3-ci-and-isolation/ci-6183893-status.json)已归档；收尾提交仅文档/日志、116项输入身份不变，以`[skip ci]`避免为归档重复执行相同源码，不假称收尾文档提交取得新一轮CI。下面“尚未发布”保留为首次本机采集时状态。

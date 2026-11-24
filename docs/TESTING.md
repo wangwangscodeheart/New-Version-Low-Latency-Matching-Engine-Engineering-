@@ -1,5 +1,7 @@
 # 当前测试体系（V2）
 
+2026-11-24：默认构建仍43项；显式`ENABLE_ALLOCATION_PROBE=ON`仅非sanitizer单配置Release增加meter与companion两项。本机全新98步45/45，补Flags元数据口径后最终45/45；默认Release43/43、默认ASan（gzip ON）43/43。meter保留8组并补24个确定性失败/handler组合，collector可复现14个协议夹具，四种不适当配置明确拒绝。独立工具不纳入普通ASan验证、不混入延迟基准；实际3进程计数和后续新Linux job结果按提交区分，见[本轮范围](PUBLIC_FEED_ALLOCATIONS.md)。
+
 第六批发布后：`6183893`真实Linux矩阵已完成，Release OFF/ON与ASan+UBSan OFF/ON四种模式均43/43，额外完整性五项各5/5；ON七组gzip正向测试实际执行，OFF不冒充正向覆盖。TSan仍仅异步子集4/4，Benchmark smoke成功，手动10M差分跳过。源码提交与后续纯文档归档分开，系统zlib不含本项目sanitizer插桩，见[验证记录](VALIDATION.md)。
 
 2026-11-23第六批：仅改八份旧测试夹具与CI，新增原子预留/登记清理辅助类，CTest仍43项。本机三配置在不分离每配置TEMP时并行复验均43/43；八程序`/W4 /WX`通过；三配置×八程序×两份共48个独立进程共享同一个专用临时根，全部exit0且无夹具残留。首次直接启动ASan因未进入MSVC环境有16个进程报缺DLL（未执行测试）；原输出保留，修正启动环境后48/48，不改源码规避。该证据不是并行撮合或性能测试。`05f003b`实际Linux默认OFF已取得43/43、ASan+UBSan43/43、TSan子集4/4；新增ON/OFF矩阵按后续提交分别记录，见[第六批](M3_CI_AND_TEST_ISOLATION.md)。

@@ -1,0 +1,5 @@
+Active code page: 65001
+allocation_meter_tests.cpp
+allocation_meter.cpp
+正在生成代码...
+PASS allocation_meter_tests (8 original groups; 24 deterministic failure/handler cases)

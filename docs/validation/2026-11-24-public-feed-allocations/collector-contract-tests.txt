@@ -1,0 +1,17 @@
+Active code page: 65001
+mock.cpp
+valid: exit=0, capture_status=complete, raw files and checksums retained
+bad_json: exit=1, capture_status=failed, raw files and checksums retained
+missing_json: exit=1, capture_status=failed, raw files and checksums retained
+duplicate_json: exit=1, capture_status=failed, raw files and checksums retained
+string_number: exit=1, capture_status=failed, raw files and checksums retained
+uint64_overflow: exit=1, capture_status=failed, raw files and checksums retained
+wrong_workload: exit=1, capture_status=failed, raw files and checksums retained
+duplicate_row: exit=1, capture_status=failed, raw files and checksums retained
+duplicate_header: exit=1, capture_status=failed, raw files and checksums retained
+missing_row: exit=1, capture_status=failed, raw files and checksums retained
+invalid_ratio: exit=1, capture_status=failed, raw files and checksums retained
+native_failure: exit=1, capture_status=failed, raw files and checksums retained
+timeout: exit=1, capture_status=failed, raw files and checksums retained
+PASS collector contract mocks: 14 cases. These are synthetic contract fixtures, not allocation or performance measurements.
+fixture_outputs=D:\Low-Latency-Matching-Engine-Engineering\build\allocation-capture-agent-tests\results-fd65ee023242433dafb9d99f068741e7

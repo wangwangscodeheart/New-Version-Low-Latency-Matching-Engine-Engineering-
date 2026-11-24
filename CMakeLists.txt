@@ -31,6 +31,18 @@ option(ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (GCC/Clang)" OFF)
 option(ENABLE_TSAN "Enable ThreadSanitizer (GCC/Clang)" OFF)
 option(BENCHMARK_SMOKE "Use a small workload for CI benchmark smoke tests" OFF)
 option(ENABLE_ZLIB_INPUT "Enable optional streaming gzip input using installed zlib" OFF)
+option(ENABLE_ALLOCATION_PROBE "Build separate Release-only C++ new instrumentation" OFF)
+
+if(ENABLE_ALLOCATION_PROBE)
+    # Replacement new/delete is executable-local instrumentation, not a normal
+    # sanitizer target or a change to the core/latency benchmark allocator.
+    if(ENABLE_ASAN OR ENABLE_UBSAN OR ENABLE_TSAN OR CMAKE_CXX_FLAGS MATCHES "fsanitize")
+        message(FATAL_ERROR "Allocation probe must use a separate non-sanitized Release build")
+    endif()
+    if(CMAKE_CONFIGURATION_TYPES OR NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+        message(FATAL_ERROR "Allocation probe requires a single-config -DCMAKE_BUILD_TYPE=Release build")
+    endif()
+endif()
 
 # No dependency is downloaded by the project. The default build keeps the
 # existing dependency footprint; explicit ON requires an available zlib package.
@@ -316,12 +328,38 @@ if(BENCHMARK_SMOKE)
     )
 endif()
 
+if(ENABLE_ALLOCATION_PROBE)
+    add_executable(matching_engine_allocation_meter_tests
+        tests/allocation_meter_tests.cpp benchmarks/allocation_meter.cpp)
+    target_include_directories(matching_engine_allocation_meter_tests PRIVATE ${CMAKE_SOURCE_DIR}/benchmarks)
+    target_compile_definitions(matching_engine_allocation_meter_tests PRIVATE ALLOCATION_METER_TEST_FAILURE_INJECTION=1)
+    target_link_libraries(matching_engine_allocation_meter_tests PRIVATE Threads::Threads)
+
+    add_executable(matching_engine_public_feed_allocations
+        benchmarks/public_feed_allocations.cpp benchmarks/allocation_meter.cpp)
+    target_link_libraries(matching_engine_public_feed_allocations PRIVATE Threads::Threads)
+    target_compile_definitions(matching_engine_public_feed_allocations PRIVATE
+        MATCHING_ENGINE_GIT_COMMIT="${MATCHING_ENGINE_GIT_COMMIT}"
+        MATCHING_ENGINE_BUILD_TYPE="${CMAKE_BUILD_TYPE}"
+        MATCHING_ENGINE_COMPILER="${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}"
+        MATCHING_ENGINE_OS="${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}")
+    if(BENCHMARK_SMOKE)
+        target_compile_definitions(matching_engine_public_feed_allocations PRIVATE
+            MATCHING_ENGINE_ALLOCATION_CYCLES_PER_SYMBOL=25)
+    endif()
+    install(TARGETS matching_engine_allocation_meter_tests matching_engine_public_feed_allocations DESTINATION bin)
+endif()
+
 # ============================================================================
 # CTest Integration
 # ============================================================================
 
 include(CTest)
 if(BUILD_TESTING)
+    if(ENABLE_ALLOCATION_PROBE)
+        add_test(NAME matching_engine_allocation_meter COMMAND matching_engine_allocation_meter_tests)
+        add_test(NAME matching_engine_public_feed_allocations COMMAND matching_engine_public_feed_allocations)
+    endif()
     add_test(NAME matching_engine_unit COMMAND matching_engine_unit_tests)
     add_test(NAME matching_engine_properties COMMAND matching_engine_property_tests)
     add_test(NAME matching_engine_differential COMMAND matching_engine_differential_tests)
@@ -388,6 +426,18 @@ endif()
 # ============================================================================
 # Installation
 # ============================================================================
+
+if(ENABLE_ALLOCATION_PROBE)
+    # Resolve this after the project's build-type overrides above. Do not label
+    # CMake's earlier default Release flags as the probe's actual options.
+    get_directory_property(MATCHING_ENGINE_ALLOCATION_OPTIONS COMPILE_OPTIONS)
+    string(JOIN " " MATCHING_ENGINE_ALLOCATION_OPTIONS_TEXT ${MATCHING_ENGINE_ALLOCATION_OPTIONS})
+    set(MATCHING_ENGINE_ALLOCATION_FLAGS
+        "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE} ${MATCHING_ENGINE_ALLOCATION_OPTIONS_TEXT}")
+    string(STRIP "${MATCHING_ENGINE_ALLOCATION_FLAGS}" MATCHING_ENGINE_ALLOCATION_FLAGS)
+    target_compile_definitions(matching_engine_public_feed_allocations PRIVATE
+        MATCHING_ENGINE_COMPILER_FLAGS="${MATCHING_ENGINE_ALLOCATION_FLAGS}")
+endif()
 
 install(TARGETS 
     matching_engine_demo

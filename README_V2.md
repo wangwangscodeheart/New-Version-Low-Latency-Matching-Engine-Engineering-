@@ -2,6 +2,8 @@
 
 ## 1. 项目背景
 
+2026-11-24：补独立的成功C++ new请求计数，分初始化、run、排空验证和析构，保留三进程原始合成结果。默认构建不受全局new替换影响；不是总内存或性能验收，见[分配计数说明](docs/PUBLIC_FEED_ALLOCATIONS.md)。
+
 2026-11-23第六批：改进CI配置覆盖与测试文件所有权，保留原43项测试及单写者生产实现；多测试进程并行不等于多线程撮合。不同提交/feature flag的真实Linux结果分别记录，见[第六批说明](docs/M3_CI_AND_TEST_ISOLATION.md)。
 
 2026-11-23第五批：在原离线入口接入单遍原始源SHA-256、可选预期摘要与gzip CRC/ISIZE；zlib默认关闭，启用时不生成解压文件。保留单写者和晚到错误STALE边界，checksum不等于授权或来源认证；仍无真实市场记录，见[第五批说明](docs/M3_ITCH_INPUT_INTEGRITY.md)。

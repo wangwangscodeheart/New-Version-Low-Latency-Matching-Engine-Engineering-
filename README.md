@@ -8,6 +8,8 @@
 
 ## 当前定位
 
+2026-11-24：接通独立、默认关闭的C++分配计数companion，复用三个既有合成公开行情场景；三进程工程采集显示调用线程run阶段存在大量new请求，不再把wire预算或旧ns成绩暗示为零分配。计数不包含worker/CRT/总堆，也不测延迟；核心及原延迟可执行文件不链接探针，见[测量口径与证据](docs/PUBLIC_FEED_ALLOCATIONS.md)。
+
 2026-11-23第六批：补可选gzip的Linux OFF/ON CI矩阵，并隔离八份旧测试的临时文件；不改生产撮合/接入算法。源码提交`6183893`的Release OFF/ON、ASan+UBSan OFF/ON已各43/43，正向gzip分支实际执行；TSan仍仅异步子集，smoke不是性能验收。完整证据及纯文档归档的提交边界见[第六批说明](docs/M3_CI_AND_TEST_ISOLATION.md)。
 
 2026-11-23第五批：离线检查器增加单遍原始源SHA-256、可选预期摘要比较及显式启用的流式gzip完整性检查（默认无zlib依赖）。全部尾部/物理EOF通过后才完成，晚到错误整体STALE；不等于来源认证。没有真实市场数据或M3整体验收，见[第五批说明](docs/M3_ITCH_INPUT_INTEGRITY.md)。
